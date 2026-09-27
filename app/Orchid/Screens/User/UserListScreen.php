@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Models\Document;
 use App\Models\User;
 use App\Orchid\Layouts\User\UserEditLayout;
 use App\Orchid\Layouts\User\UserFiltersLayout;
@@ -29,7 +30,7 @@ class UserListScreen extends Screen
             'users' => User::with('roles')
                 ->filters(UserFiltersLayout::class)
                 ->defaultSort('id', 'desc')
-                ->paginate(),
+                ->paginate($this->perPage()),
         ];
     }
 
@@ -79,6 +80,7 @@ class UserListScreen extends Screen
     {
         return [
             UserFiltersLayout::class,
+            Layout::view('orchid.table-page-size'),
             UserListLayout::class,
 
             Layout::modal('editUserModal', UserEditLayout::class)
@@ -105,9 +107,10 @@ class UserListScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
+            'user.office' => ['nullable', 'string', Rule::in(Document::OFFICES)],
         ]);
 
-        $user->fill($request->input('user'))->save();
+        $user->fill($request->collect('user')->only(['name', 'email', 'office'])->toArray())->save();
 
         Toast::info(__('User was saved.'));
     }
@@ -117,5 +120,12 @@ class UserListScreen extends Screen
         User::findOrFail($request->get('id'))->delete();
 
         Toast::info(__('User was removed'));
+    }
+
+    private function perPage(): int
+    {
+        $perPage = request()->integer('per_page', 10);
+
+        return in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
     }
 }

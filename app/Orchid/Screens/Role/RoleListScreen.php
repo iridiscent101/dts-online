@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\Role;
 
+use App\Models\User;
 use App\Orchid\Layouts\Role\RoleFiltersLayout;
 use App\Orchid\Layouts\Role\RoleListLayout;
 use Illuminate\Http\Request;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Link;
-use Orchid\Screen\Layout;
 use Orchid\Screen\Screen;
+use Orchid\Support\Facades\Layout;
 use Orchid\Support\Facades\Toast;
 
 class RoleListScreen extends Screen
@@ -24,7 +25,7 @@ class RoleListScreen extends Screen
     public function query(): iterable
     {
         return [
-            'roles' => Role::filters(RoleFiltersLayout::class)->defaultSort('id', 'desc')->paginate(),
+            'roles' => Role::filters(RoleFiltersLayout::class)->defaultSort('id', 'desc')->paginate($this->perPage()),
         ];
     }
 
@@ -68,20 +69,32 @@ class RoleListScreen extends Screen
     /**
      * The screen's layout elements.
      *
-     * @return string[]|Layout[]
+     * @return string[]|\Orchid\Screen\Layout[]
      */
     public function layout(): iterable
     {
         return [
             RoleFiltersLayout::class,
+            Layout::view('orchid.table-page-size'),
             RoleListLayout::class,
         ];
     }
 
     public function remove(Request $request): void
     {
-        Role::findOrFail($request->integer('id'))->delete();
+        $role = Role::findOrFail($request->integer('id'));
+
+        abort_if($role->slug === User::ADMIN_ROLE_SLUG, 403, 'The administrator role cannot be deleted.');
+
+        $role->delete();
 
         Toast::info(__('Role was removed'));
+    }
+
+    private function perPage(): int
+    {
+        $perPage = request()->integer('per_page', 10);
+
+        return in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
     }
 }

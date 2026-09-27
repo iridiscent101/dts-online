@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Models\Document;
 use App\Models\User;
 use App\Orchid\Layouts\User\UserEditLayout;
+use App\Orchid\Layouts\User\UserOfficeLayout;
 use App\Orchid\Layouts\User\UserPasswordLayout;
 use App\Orchid\Layouts\User\UserRoleLayout;
 use Illuminate\Database\Eloquent\Builder;
@@ -100,6 +102,10 @@ class UserEditScreen extends Screen
                 ->title(__('Password'))
                 ->description(__('Ensure your account is using a long, random password to stay secure.')),
 
+            Layout::block(UserOfficeLayout::class)
+                ->title(__('Office Assignment'))
+                ->description(__('Controls which document queue this staff member is responsible for.')),
+
             Layout::block(UserRoleLayout::class)
                 ->title(__('Roles'))
                 ->description(__('A Role defines a set of tasks a user assigned the role is allowed to perform.')),
@@ -117,6 +123,7 @@ class UserEditScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
+            'user.office' => ['nullable', 'string', Rule::in(Document::OFFICES)],
         ]);
 
         $user->when($request->filled('user.password'), function (Builder $builder) use ($request) {

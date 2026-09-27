@@ -81,6 +81,13 @@ class DocumentRegistrationScreen extends Screen
                     $document->attachments()->attach($attachment->getKey());
                 }
 
+                $document->recordActivity('Document registered', $request->user(), [
+                    'action' => 'register',
+                    'office' => $document->current_office,
+                    'status' => $document->status,
+                    'attachment_count' => count($uploadedAttachments),
+                ]);
+
                 return $document;
             });
         } catch (Throwable $exception) {

@@ -9,6 +9,8 @@ use Orchid\Platform\Models\User as Authenticatable;
 
 class User extends Authenticatable
 {
+    public const ADMIN_ROLE_SLUG = 'Admin';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -17,6 +19,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'office',
         'password',
     ];
 
@@ -37,8 +40,8 @@ class User extends Authenticatable
      * @var array
      */
     protected $casts = [
-        'permissions'          => 'array',
-        'email_verified_at'    => 'datetime',
+        'permissions' => 'array',
+        'email_verified_at' => 'datetime',
     ];
 
     /**
@@ -47,11 +50,12 @@ class User extends Authenticatable
      * @var array
      */
     protected $allowedFilters = [
-           'id'         => Where::class,
-           'name'       => Like::class,
-           'email'      => Like::class,
-           'updated_at' => WhereDateStartEnd::class,
-           'created_at' => WhereDateStartEnd::class,
+        'id' => Where::class,
+        'name' => Like::class,
+        'email' => Like::class,
+        'office' => Like::class,
+        'updated_at' => WhereDateStartEnd::class,
+        'created_at' => WhereDateStartEnd::class,
     ];
 
     /**
@@ -63,7 +67,18 @@ class User extends Authenticatable
         'id',
         'name',
         'email',
+        'office',
         'updated_at',
         'created_at',
     ];
+
+    public function isAdministrator(): bool
+    {
+        return $this->inRole(self::ADMIN_ROLE_SLUG);
+    }
+
+    public function hasAccess(string $permit, bool $cache = true): bool
+    {
+        return $this->isAdministrator() || parent::hasAccess($permit, $cache);
+    }
 }

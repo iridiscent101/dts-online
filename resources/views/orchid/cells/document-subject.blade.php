@@ -1,4 +1,4 @@
 <div class="dts-record-link">
-    <strong>{{ $document->tracking_number }}</strong>
+    <a href="{{ route('platform.documents.view', $document) }}" data-turbo-frame="_top"><strong>{{ $document->tracking_number }}</strong></a>
     <span>{{ $document->subject }}</span>
 </div>

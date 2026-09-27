@@ -6,9 +6,13 @@ use Database\Factories\DocumentFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Orchid\Attachment\Attachable;
 use Orchid\Filters\Filterable;
 use Orchid\Screen\AsSource;
+use Spatie\Activitylog\Models\Activity;
 
 class Document extends Model
 {
@@ -17,6 +21,7 @@ class Document extends Model
 
     public const STATUSES = [
         'Awaiting receipt',
+        'Received',
         'Forwarded',
         'Archived',
     ];
@@ -74,6 +79,50 @@ class Document extends Model
             'archived' => $query->where('status', 'Archived'),
             default => $query,
         };
+    }
+
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->isAdministrator()) {
+            return $query;
+        }
+
+        return filled($user->office)
+            ? $query->where('current_office', $user->office)
+            : $query->whereKey(-1);
+    }
+
+    public function isVisibleTo(User $user): bool
+    {
+        return $user->isAdministrator()
+            || (filled($user->office) && $user->office === $this->current_office);
+    }
+
+    public function registeredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'registered_by');
+    }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(DocumentMovement::class)->latest();
+    }
+
+    public function activities(): MorphMany
+    {
+        return $this->morphMany(Activity::class, 'subject')->latest();
+    }
+
+    /**
+     * @param  array<string, mixed>  $properties
+     */
+    public function recordActivity(string $description, User $actor, array $properties = []): void
+    {
+        activity('documents')
+            ->causedBy($actor)
+            ->performedOn($this)
+            ->withProperties($properties)
+            ->log($description);
     }
 
     /**

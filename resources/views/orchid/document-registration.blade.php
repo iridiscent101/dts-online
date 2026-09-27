@@ -126,7 +126,7 @@
                 </dl>
             </aside>
         </div>
-        <div class="dts-form-actions">
+        <div class="dts-form-actions dts-form-actions-grouped">
             <a class="dts-button" href="{{ route('platform.documents') }}">Cancel</a>
             <button type="button" class="dts-button dts-button-primary" data-dts-action="review" disabled>Review document <x-orchid-icon path="bs.arrow-right" /></button>
         </div>

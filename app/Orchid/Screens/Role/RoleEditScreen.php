@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\Role;
 
+use App\Models\User;
 use App\Orchid\Layouts\Role\RoleEditLayout;
 use App\Orchid\Layouts\Role\RolePermissionLayout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
@@ -74,7 +75,7 @@ class RoleEditScreen extends Screen
                 ->class('btn dts-button dts-button-danger')
                 ->icon('bs.trash3')
                 ->method('remove')
-                ->canSee($this->role->exists),
+                ->canSee($this->role->exists && $this->role->slug !== User::ADMIN_ROLE_SLUG),
 
             Button::make(__('Save'))
                 ->class('btn dts-button dts-button-primary')
@@ -110,15 +111,17 @@ class RoleEditScreen extends Screen
      */
     public function save(Request $request, Role $role)
     {
-        $request->validate([
-            'role.name' => 'required',
-            'role.slug' => [
-                'required',
-                Rule::unique(Role::class, 'slug')->ignore($role),
-            ],
+        $validated = $request->validate([
+            'role.name' => ['required', 'string', 'max:255'],
+            'role.description' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $role->fill($request->get('role'));
+        if (! $role->exists) {
+            $role->slug = $this->uniqueRoleCode($validated['role']['name']);
+        }
+
+        $role->name = $validated['role']['name'];
+        $role->description = $validated['role']['description'] ?? null;
 
         $role->permissions = collect($request->get('permissions'))
             ->map(fn ($value, $key) => [base64_decode($key) => $value])
@@ -132,6 +135,20 @@ class RoleEditScreen extends Screen
         return redirect()->route('platform.systems.roles');
     }
 
+    private function uniqueRoleCode(string $name): string
+    {
+        $baseCode = Str::slug($name) ?: 'role';
+        $roleCode = $baseCode;
+        $suffix = 2;
+
+        while (Role::where('slug', $roleCode)->exists()) {
+            $roleCode = $baseCode.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $roleCode;
+    }
+
     /**
      * @return RedirectResponse
      *
@@ -139,6 +156,8 @@ class RoleEditScreen extends Screen
      */
     public function remove(Role $role)
     {
+        abort_if($role->slug === User::ADMIN_ROLE_SLUG, 403, 'The administrator role cannot be deleted.');
+
         $role->delete();
 
         Toast::info(__('Role was removed'));

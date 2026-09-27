@@ -11,18 +11,21 @@
         </div>
     </div>
 
-    <section class="dts-registry" aria-labelledby="registry-title">
-        <div class="dts-section-heading tw:flex tw:items-center tw:justify-start tw:gap-3">
-            <h3 id="registry-title">Documents</h3>
-            <span class="dts-count">{{ $documentCount }} {{ Str::plural('record', $documentCount) }}</span>
-        </div>
-        <nav class="dts-tabs" aria-label="Document views">
-            @foreach (['documents' => 'All documents', 'incoming' => 'Incoming', 'outgoing' => 'Outgoing', 'archived' => 'Archived'] as $key => $label)
-                <a href="{{ route('platform.'.$key) }}" @class(['dts-tab', 'is-active' => $section === $key]) @if ($section === $key) aria-current="page" @endif>{{ $label }}</a>
-            @endforeach
-        </nav>
+    <turbo-frame id="document-registry" data-turbo-action="advance">
+        <section class="dts-registry" aria-labelledby="registry-title">
+            <div class="dts-section-heading tw:flex tw:items-center tw:justify-start tw:gap-3">
+                <h3 id="registry-title">Documents</h3>
+                <span class="dts-count">{{ $documentCount }} {{ Str::plural('record', $documentCount) }}</span>
+            </div>
+            <nav class="dts-tabs" aria-label="Document views">
+                @foreach (['documents' => 'All documents', 'incoming' => 'Incoming', 'outgoing' => 'Outgoing', 'archived' => 'Archived'] as $key => $label)
+                    <a href="{{ route('platform.'.$key) }}" data-turbo-frame="_top" @class(['dts-tab', 'is-active' => $section === $key]) @if ($section === $key) aria-current="page" @endif>{{ $label }}</a>
+                @endforeach
+            </nav>
 
-        {!! $controls !!}
-        {!! $table !!}
-    </section>
+            {!! $controls !!}
+            {!! $pageSize !!}
+            {!! $table !!}
+        </section>
+    </turbo-frame>
 </div>

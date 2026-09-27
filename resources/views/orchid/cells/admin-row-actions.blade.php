@@ -1,4 +1,6 @@
 <div class="dts-row-actions">
     {{ $editAction }}
-    {{ $deleteAction }}
+    @if ($deleteAction)
+        {{ $deleteAction }}
+    @endif
 </div>

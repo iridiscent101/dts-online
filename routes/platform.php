@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\DocumentAttachmentController;
+use App\Http\Controllers\DocumentMovementController;
+use App\Http\Controllers\DocumentNotificationController;
 use App\Orchid\Screens\DocumentRegistrationScreen;
+use App\Orchid\Screens\DocumentViewScreen;
 use App\Orchid\Screens\Examples\ExampleActionsScreen;
 use App\Orchid\Screens\Examples\ExampleCardsScreen;
 use App\Orchid\Screens\Examples\ExampleChartsScreen;
@@ -38,6 +42,19 @@ Route::screen('/main', PlatformScreen::class)
 
 Route::screen('documents/create', DocumentRegistrationScreen::class)
     ->name('platform.documents.create');
+
+Route::get('documents/{document}/attachments/{attachment}/preview', [DocumentAttachmentController::class, 'preview'])
+    ->name('platform.documents.attachments.preview');
+Route::get('documents/{document}/attachments/{attachment}/content', [DocumentAttachmentController::class, 'content'])
+    ->name('platform.documents.attachments.content');
+Route::get('documents/{document}/attachments/{attachment}/download', [DocumentAttachmentController::class, 'download'])
+    ->name('platform.documents.attachments.download');
+Route::post('documents/{document}/movements', DocumentMovementController::class)
+    ->name('platform.documents.movements.store');
+Route::get('notifications/{notification}/open', DocumentNotificationController::class)
+    ->name('platform.notifications.open');
+Route::screen('documents/{document}', DocumentViewScreen::class)
+    ->name('platform.documents.view');
 
 foreach (['documents', 'incoming', 'outgoing', 'archived'] as $section) {
     Route::screen($section, PlatformScreen::class)

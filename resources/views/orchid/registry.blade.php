@@ -54,6 +54,24 @@
         <div class="dts-filter-actions">
             <button type="button" class="dts-button dts-reset-filters" data-filter-action="reset"><x-orchid-icon path="bs.arrow-counterclockwise" /> Reset</button>
             <button type="button" class="dts-button dts-apply-filters" data-filter-action="apply"><x-orchid-icon path="bs.funnel" /> Apply</button>
+            <details class="dts-column-menu">
+                <summary class="dts-button" aria-label="Configure table columns"><x-orchid-icon path="bs.layout-three-columns" /> Columns <span data-visible-column-count>5/9</span></summary>
+                <div class="dts-column-options">
+                    <strong>Show or hide columns</strong>
+                    @foreach ([
+                        'document-type' => 'Document type',
+                        'sender' => 'Sender / Origin',
+                        'current-office' => 'Current office',
+                        'status' => 'Status',
+                        'received-at' => 'Date received',
+                        'due-at' => 'Due date',
+                        'updated-at' => 'Last updated',
+                        'priority' => 'Priority',
+                    ] as $column => $label)
+                        <label><input type="checkbox" data-column-proxy="{{ $column }}"> <span>{{ $label }}</span></label>
+                    @endforeach
+                </div>
+            </details>
         </div>
       </div>
       <p id="registry-error" class="dts-validation" role="alert">{{ $filterError }}</p>

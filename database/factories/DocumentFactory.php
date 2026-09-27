@@ -44,6 +44,11 @@ class DocumentFactory extends Factory
         return $this->state(fn (): array => ['status' => 'Forwarded']);
     }
 
+    public function received(): static
+    {
+        return $this->state(fn (): array => ['status' => 'Received']);
+    }
+
     public function archived(): static
     {
         return $this->state(fn (): array => ['status' => 'Archived', 'due_at' => null]);

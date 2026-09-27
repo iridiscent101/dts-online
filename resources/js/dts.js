@@ -180,6 +180,7 @@ class DocumentFilters extends HTMLElement {
 
         this.events = new AbortController();
         const options = { signal: this.events.signal };
+        requestAnimationFrame(() => this.syncColumnControls());
 
         this.addEventListener('click', (event) => {
             const toggle = event.target.closest('[data-filter-toggle]');
@@ -197,6 +198,10 @@ class DocumentFilters extends HTMLElement {
                 event.preventDefault();
                 this.apply();
             }
+        }, options);
+        this.addEventListener('change', (event) => {
+            const proxy = event.target.closest('[data-column-proxy]');
+            if (proxy) this.toggleColumn(proxy);
         }, options);
     }
 
@@ -222,14 +227,80 @@ class DocumentFilters extends HTMLElement {
             else url.searchParams.delete(field.dataset.filter);
         });
         url.searchParams.delete('page');
-        window.location.assign(url);
+        this.navigate(url);
     }
 
     reset() {
         const url = new URL(window.location.href);
         ['search', 'office', 'type', 'status', 'from', 'to', 'page'].forEach((parameter) => url.searchParams.delete(parameter));
+        this.navigate(url);
+    }
+
+    syncColumnControls() {
+        const table = this.closest('turbo-frame')?.querySelector('[data-controller="table"]');
+        if (!table) {
+            if (!this.isConnected) return;
+            requestAnimationFrame(() => this.syncColumnControls());
+            return;
+        }
+
+        this.querySelectorAll('[data-column-proxy]').forEach((proxy) => {
+            const source = table.querySelector(`input[data-column="${proxy.dataset.columnProxy}"]`);
+            proxy.checked = source?.checked ?? false;
+            proxy.disabled = !source;
+        });
+
+        const visibleColumns = 1 + [...this.querySelectorAll('[data-column-proxy]:checked')].length;
+        this.querySelector('[data-visible-column-count]').textContent = `${visibleColumns}/9`;
+    }
+
+    toggleColumn(proxy) {
+        const table = this.closest('turbo-frame')?.querySelector('[data-controller="table"]');
+        const source = table?.querySelector(`input[data-column="${proxy.dataset.columnProxy}"]`);
+
+        if (!source) return;
+        if (source.checked !== proxy.checked) source.click();
+        requestAnimationFrame(() => this.syncColumnControls());
+    }
+
+    navigate(url) {
+        if (window.Turbo) {
+            window.Turbo.visit(url.toString(), { frame: 'document-registry', action: 'advance' });
+            return;
+        }
+
         window.location.assign(url);
     }
 }
 
 if (!customElements.get('dts-document-filters')) customElements.define('dts-document-filters', DocumentFilters);
+
+document.addEventListener('change', (event) => {
+    const pageSize = event.target.closest('[data-page-size]');
+
+    if (!pageSize) return;
+
+    const url = new URL(window.location.href);
+    const frame = pageSize.closest('turbo-frame');
+
+    url.searchParams.set('per_page', pageSize.value);
+    url.searchParams.delete('page');
+
+    if (window.Turbo) {
+        window.Turbo.visit(url.toString(), frame
+            ? { frame: frame.id, action: 'advance' }
+            : { action: 'advance' });
+        return;
+    }
+
+    window.location.assign(url);
+});
+
+document.addEventListener('click', (event) => {
+    const action = event.target.closest('[data-confirm-message]');
+
+    if (!action || window.confirm(action.dataset.confirmMessage)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+});

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid\Layouts\Role;
 
+use App\Models\User;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
@@ -28,8 +29,8 @@ class RoleListLayout extends Table
                 ->sort()
                 ->cantHide(),
 
-            TD::make('slug', __('Slug'))
-                ->sort()
+            TD::make('description', __('Description'))
+                ->render(fn (Role $role) => $role->description ?: __('No description provided'))
                 ->cantHide(),
 
             TD::make('created_at', __('Created'))
@@ -51,13 +52,15 @@ class RoleListLayout extends Table
                         ->class('btn dts-row-action dts-row-action-edit')
                         ->route('platform.systems.roles.edit', $role->id)
                         ->icon('bs.pencil'),
-                    'deleteAction' => Button::make(__('Delete'))
-                        ->class('btn dts-row-action dts-row-action-delete')
-                        ->icon('bs.trash3')
-                        ->confirm(__('Once the role is deleted, its permissions will no longer be assigned to users.'))
-                        ->method('remove', [
-                            'id' => $role->id,
-                        ]),
+                    'deleteAction' => $role->slug === User::ADMIN_ROLE_SLUG
+                        ? null
+                        : Button::make(__('Delete'))
+                            ->class('btn dts-row-action dts-row-action-delete')
+                            ->icon('bs.trash3')
+                            ->confirm(__('Once the role is deleted, its permissions will no longer be assigned to users.'))
+                            ->method('remove', [
+                                'id' => $role->id,
+                            ]),
                 ])),
         ];
     }

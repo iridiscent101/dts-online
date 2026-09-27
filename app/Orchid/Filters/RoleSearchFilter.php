@@ -30,7 +30,7 @@ class RoleSearchFilter extends Filter
 
         return $builder->where(function (Builder $query) use ($search): void {
             $query->where('name', 'like', "%{$search}%")
-                ->orWhere('slug', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%");
         });
     }
 
@@ -45,7 +45,7 @@ class RoleSearchFilter extends Filter
             Input::make('role_search')
                 ->type('search')
                 ->title(__('Search roles'))
-                ->placeholder(__('Role name or slug'))
+                ->placeholder(__('Role name or description'))
                 ->maxlength(150)
                 ->autocomplete('off')
                 ->value($this->request->get('role_search')),

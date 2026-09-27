@@ -35,6 +35,10 @@ class UserListLayout extends Table
             TD::make('roles', __('Role'))
                 ->render(fn (User $user): string => e($user->roles->pluck('name')->join(', ') ?: __('No role'))),
 
+            TD::make('office', __('Office'))
+                ->sort()
+                ->render(fn (User $user): string => e($user->office ?: __('Not assigned'))),
+
             TD::make('created_at', __('Date created'))
                 ->usingComponent(DateTimeSplit::class)
                 ->align(TD::ALIGN_RIGHT)
