@@ -13,6 +13,8 @@
 /.vscode
 /.zed
 /auth.json
+avein.md
+laravel-vercel-deployment-notes.md
 /node_modules
 /public/build
 /public/fonts-manifest.dev.json
