@@ -63,7 +63,7 @@ class AddSecurityHeaders
             'default-src' => ["'self'"],
             'script-src' => ["'self'", "'nonce-{$nonce}'", $dev],
             'style-src' => ["'self'", "'unsafe-inline'", $dev],
-            'img-src' => ["'self'", 'data:', 'blob:', 'https://www.gravatar.com', $dev],
+            'img-src' => ["'self'", 'data:', 'blob:', $dev],
             'font-src' => ["'self'", 'data:', $dev],
             'connect-src' => ["'self'", $dev, $devSocket],
             'frame-src' => ["'self'"],
