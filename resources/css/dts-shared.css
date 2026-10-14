@@ -1,0 +1,272 @@
+/* Shared by the admin panel (dts.css) and the public pages (app.css). Colors fall back for pages without DTS tokens. */
+
+.dts-copy-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    padding: 3px 10px;
+    border: 1px solid var(--dts-border-strong, #b3843f);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--dts-green, #216e39);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0;
+    text-transform: none;
+    vertical-align: middle;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.dts-copy-button:hover {
+    background: var(--dts-cream, #f8f4e7);
+}
+
+.dts-copy-button:focus-visible {
+    outline: 2px solid var(--dts-green, #216e39);
+    outline-offset: 2px;
+}
+
+.dts-copy-button svg {
+    display: block;
+    width: 14px;
+    height: 14px;
+}
+
+.dts-copy-button [data-copy-icon="done"],
+.dts-copy-button[data-copy-state="copied"] [data-copy-icon="copy"] {
+    display: none;
+}
+
+.dts-copy-button[data-copy-state="copied"] [data-copy-icon="done"] {
+    display: block;
+}
+
+.dts-copy-button[data-copy-state="copied"] {
+    border-color: var(--dts-green, #216e39);
+    background: var(--dts-green-soft, #e8f1e6);
+}
+
+.dts-copy-button[data-copy-state="failed"] {
+    border-color: #b52e3d;
+    color: #a12837;
+}
+
+@media (pointer: coarse) {
+    .dts-copy-button {
+        min-height: 40px;
+    }
+}
+
+.dts-public-status {
+    animation: dts-status-enter 180ms ease-out both;
+}
+
+.dts-public-timeline-item {
+    animation: dts-timeline-enter 220ms ease-out both;
+    animation-delay: calc(min(var(--i, 0), 10) * 50ms);
+}
+
+@keyframes dts-status-enter {
+    from {
+        opacity: 0;
+        transform: scale(.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes dts-timeline-enter {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .dts-copy-button[data-copy-state="copied"] [data-copy-icon="done"] {
+        animation: dts-copy-done 260ms ease-out;
+    }
+
+    @keyframes dts-copy-done {
+        from { opacity: 0; transform: scale(.5); }
+        to { opacity: 1; transform: scale(1); }
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dts-public-status,
+    .dts-public-timeline-item {
+        animation: none;
+    }
+}
+
+/* Fast Track office routes: a spinner while an office is still working, a check when it has finished. */
+.dts-route-state {
+    display: grid;
+    flex: 0 0 24px;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+}
+
+.dts-route-state svg {
+    width: 14px;
+    height: 14px;
+}
+
+[data-route-state="done"] .dts-route-state {
+    background: var(--dts-green, #216e39);
+    color: #fff;
+}
+
+[data-route-state="paused"] .dts-route-state {
+    background: #fff4d9;
+    color: #866314;
+}
+
+[data-route-state="active"] .dts-route-state {
+    border: 3px solid var(--dts-green-soft, #e8f1e6);
+    border-top-color: var(--dts-green, #216e39);
+}
+
+[data-route-state="done"] {
+    background: #f6faf5;
+}
+
+/* Offices of a paper submission that get the document once the paper copy reaches Records: not started yet. */
+[data-route-state="waiting"] .dts-route-state {
+    border: 3px solid #e6e1d2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    [data-route-state="active"] .dts-route-state {
+        animation: dts-route-spin 1.4s linear infinite;
+    }
+
+    @keyframes dts-route-spin {
+        to { transform: rotate(360deg); }
+    }
+}
+
+/* "Latest" badge on the newest timeline entry (staff document page and Fast Track). */
+.dts-timeline-latest {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--dts-warning-soft, #fff4d9);
+    color: var(--dts-warning-text, #866314);
+    font-size: 0.875rem;
+    font-weight: 650;
+    vertical-align: 1px;
+}
+
+.dts-timeline-latest[hidden] {
+    display: none;
+}
+
+/* Fast Track office cards double as history filters. */
+.dts-route-link {
+    border-radius: inherit;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.dts-route-link:hover {
+    background: var(--dts-cream, #f8f4e7);
+}
+
+.dts-route-link:focus-visible {
+    outline: 2px solid var(--dts-green, #216e39);
+    outline-offset: 2px;
+}
+
+.dts-route-link[aria-current="true"] {
+    box-shadow: inset 0 0 0 2px var(--dts-green, #216e39);
+}
+
+/* Step timeline (Fast Track and staff document page): colored step dots joined by a line. */
+.dts-step-timeline {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dts-step-timeline > li {
+    position: relative;
+}
+
+.dts-step-timeline > li:not(.hidden) {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 12px;
+    padding-bottom: 16px;
+}
+
+.dts-step-timeline > li:not(.hidden):has(~ li:not(.hidden))::before {
+    content: '';
+    position: absolute;
+    top: 34px;
+    bottom: 2px;
+    left: 15px;
+    width: 2px;
+    background: #d8d2be;
+}
+
+.dts-timeline-dot {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #f1eee4;
+    color: #526174;
+}
+
+.dts-timeline-dot svg {
+    width: 16px;
+    height: 16px;
+}
+
+[data-kind="registered"] .dts-timeline-dot,
+[data-kind="received"] .dts-timeline-dot {
+    background: var(--dts-green-soft, #e8f1e6);
+    color: var(--dts-green, #216e39);
+}
+
+[data-kind="moved"] .dts-timeline-dot {
+    background: var(--dts-cream, #f8f4e7);
+    color: var(--dts-brown, #86562d);
+}
+
+[data-kind="done"] .dts-timeline-dot {
+    background: var(--dts-green, #216e39);
+    color: #fff;
+}
+
+[data-kind="hold"] .dts-timeline-dot {
+    background: #fff4d9;
+    color: #866314;
+}
+
+[data-kind="returned"] .dts-timeline-dot {
+    background: #fcecef;
+    color: #a12837;
+}
