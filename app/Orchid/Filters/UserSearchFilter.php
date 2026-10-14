@@ -40,7 +40,8 @@ class UserSearchFilter extends Filter
         return $builder->where(function (Builder $query) use ($search): void {
             $query->where('name', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('office', 'like', "%{$search}%");
+                ->orWhere('office', 'like', "%{$search}%")
+                ->orWhereHas('offices', fn (Builder $offices): Builder => $offices->where('name', 'like', "%{$search}%"));
         });
     }
 
@@ -55,7 +56,7 @@ class UserSearchFilter extends Filter
             Input::make('user_search')
                 ->type('search')
                 ->title(__('Search users'))
-                ->placeholder(__('Name, email address, or office'))
+                ->placeholder(__('Name, email or office'))
                 ->maxlength(150)
                 ->autocomplete('off')
                 ->value($this->request->get('user_search')),

@@ -15,9 +15,8 @@ class PauseDocumentUploads
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Only new uploads and changes are paused; files that are already attached can still be previewed and downloaded.
         if (! config('app.document_uploads_enabled')
-            && (($request->routeIs('platform.documents.attachments.*') && ! $request->isMethodSafe())
+            && ($request->routeIs('platform.documents.attachments.*')
                 || $request->routeIs('platform.systems.files.*'))) {
             abort(404);
         }

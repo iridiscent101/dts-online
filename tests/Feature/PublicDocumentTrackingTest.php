@@ -316,6 +316,22 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertDontSee('Document movement');
     }
 
+    public function test_array_tracking_input_is_rejected_without_an_error_page(): void
+    {
+        $this->get(route('tracking.index').'?tracking[]=DTS-2026-000123')
+            ->assertOk()
+            ->assertSee('Enter a valid DTS tracking number.');
+    }
+
+    public function test_array_office_filter_is_ignored_without_an_error_page(): void
+    {
+        $document = Document::factory()->create(['tracking_number' => 'DTS-2026-000123']);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]).'&office[]=Records%20Unit')
+            ->assertOk()
+            ->assertSee($document->tracking_number);
+    }
+
     public function test_public_tracking_is_rate_limited(): void
     {
         for ($attempt = 1; $attempt <= 30; $attempt++) {

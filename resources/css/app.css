@@ -1,9 +1,18 @@
 @import 'tailwindcss';
+@import './dts-shared.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
 
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-province-green: #216e39;
+    --color-province-gold: #f2c230;
+    --color-province-brown: #86562d;
+    --color-province-cream: #f8f4e7;
+    --color-province-charcoal: #26332b;
+    --color-slate-200: #d8c66f;
+    --color-slate-300: #b3843f;
 }

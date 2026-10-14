@@ -541,6 +541,36 @@ class DocumentEditingTest extends TestCase
         $this->assertSame(DocumentMovement::STATUS_REVIEWED, $document->status);
     }
 
+    public function test_removing_current_route_keeps_an_unfinished_office_active(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => 'Records Unit']);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = Document::factory()->outgoing()->create([
+            'current_office' => 'Records Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        $document->officeAssignments()->create([
+            'office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_COMPLETED,
+        ]);
+        $document->officeAssignments()->create([
+            'office' => 'Curriculum Implementation Division',
+            'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+        $data = $this->validDocumentData($document);
+        $data['destinations'] = ['Administrative Unit', 'Curriculum Implementation Division'];
+        $data['route_fingerprint'] = $document->routeFingerprint();
+
+        $this->actingAs($admin)
+            ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
+            ->assertRedirectToRoute('platform.documents.view', $document);
+
+        $document->refresh();
+        $this->assertSame('Curriculum Implementation Division', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_AWAITING_RECEIPT, $document->status);
+    }
+
     public function test_new_office_route_starts_awaiting_receipt_even_when_document_was_approved(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);

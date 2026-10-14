@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Orchid\Layouts\Role;
 
 use App\Models\User;
+use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
@@ -14,6 +15,8 @@ use Orchid\Screen\TD;
 
 class RoleListLayout extends Table
 {
+    use HasTableSelectionColumn;
+
     /**
      * @var string
      */
@@ -25,7 +28,12 @@ class RoleListLayout extends Table
     public function columns(): array
     {
         return [
-            TD::make('name', __('Name'))
+            $this->selectColumn('Select role', fn (Role $role): bool => $role->slug === User::ADMIN_ROLE_SLUG
+                || ! request()->user()?->canManageRole($role)),
+
+            $this->numberColumn(),
+
+            TD::make('name', __('Role'))
                 ->sort()
                 ->cantHide(),
 
@@ -33,13 +41,13 @@ class RoleListLayout extends Table
                 ->render(fn (Role $role) => $role->description ?: __('No description provided'))
                 ->cantHide(),
 
-            TD::make('created_at', __('Created'))
+            TD::make('created_at', __('Date created'))
                 ->usingComponent(DateTimeSplit::class)
                 ->align(TD::ALIGN_RIGHT)
                 ->defaultHidden()
                 ->sort(),
 
-            TD::make('updated_at', __('Last edit'))
+            TD::make('updated_at', __('Last updated'))
                 ->usingComponent(DateTimeSplit::class)
                 ->align(TD::ALIGN_RIGHT)
                 ->sort(),
@@ -47,12 +55,16 @@ class RoleListLayout extends Table
             TD::make(__('Actions'))
                 ->align(TD::ALIGN_CENTER)
                 ->width('112px')
+                ->cantHide()
                 ->render(fn (Role $role) => view('orchid.cells.admin-row-actions', [
-                    'editAction' => Link::make(__('Edit'))
-                        ->class('btn dts-row-action dts-row-action-edit')
-                        ->route('platform.systems.roles.edit', $role->id)
-                        ->icon('bs.pencil'),
-                    'deleteAction' => $role->slug === User::ADMIN_ROLE_SLUG
+                    'editAction' => request()->user()?->canManageRole($role)
+                        ? Link::make(__('Edit'))
+                            ->class('btn dts-row-action dts-row-action-edit')
+                            ->route('platform.systems.roles.edit', $role->id)
+                            ->rawClick(false)
+                            ->icon('bs.pencil')
+                        : null,
+                    'deleteAction' => $role->slug === User::ADMIN_ROLE_SLUG || ! request()->user()?->canManageRole($role)
                         ? null
                         : Button::make(__('Delete'))
                             ->class('btn dts-row-action dts-row-action-delete')

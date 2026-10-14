@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Orchid\Layouts\Role\RoleFiltersLayout;
 use App\Orchid\Layouts\Role\RoleListLayout;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Link;
@@ -74,9 +77,11 @@ class RoleListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            RoleFiltersLayout::class,
-            Layout::view('orchid.table-page-size'),
-            RoleListLayout::class,
+            Layout::wrapper('orchid.admin-table-page', [
+                'filters' => RoleFiltersLayout::class,
+                'pageSize' => Layout::view('orchid.table-page-size'),
+                'table' => RoleListLayout::class,
+            ]),
         ];
     }
 
@@ -85,10 +90,37 @@ class RoleListScreen extends Screen
         $role = Role::findOrFail($request->integer('id'));
 
         abort_if($role->slug === User::ADMIN_ROLE_SLUG, 403, 'The administrator role cannot be deleted.');
+        abort_unless($request->user()?->canManageRole($role), 403);
 
         $role->delete();
 
         Toast::info(__('Role was removed'));
+    }
+
+    public function bulkRemove(Request $request): void
+    {
+        abort_unless($request->user()?->hasAccess('platform.systems.roles'), 403);
+
+        $selected = $request->validate([
+            'selected' => ['required', 'array', 'min:1', 'max:100'],
+            'selected.*' => ['required', 'integer', 'distinct', Rule::exists(Role::class, 'id')],
+        ])['selected'];
+        $roles = Role::query()->whereKey($selected)->get();
+
+        if ($roles->contains(fn (Role $role): bool => $role->slug === User::ADMIN_ROLE_SLUG)) {
+            throw ValidationException::withMessages([
+                'selected' => 'The administrator role cannot be deleted.',
+            ]);
+        }
+        abort_if($roles->contains(fn (Role $role): bool => ! $request->user()->canManageRole($role)), 403);
+
+        DB::transaction(function () use ($roles): void {
+            foreach ($roles as $role) {
+                $role->delete();
+            }
+        });
+
+        Toast::info($roles->count().' roles were removed.');
     }
 
     private function perPage(): int

@@ -3,6 +3,8 @@
 namespace App\Orchid\Layouts\User;
 
 use App\Orchid\Filters\RoleFilter;
+use App\Orchid\Filters\UserAccountFilter;
+use App\Orchid\Filters\UserOfficeFilter;
 use App\Orchid\Filters\UserSearchFilter;
 use Orchid\Filters\Filter;
 use Orchid\Screen\Layouts\Selection;
@@ -19,6 +21,8 @@ class UserFiltersLayout extends Selection
         return [
             UserSearchFilter::class,
             RoleFilter::class,
+            UserOfficeFilter::class,
+            UserAccountFilter::class,
         ];
     }
 }

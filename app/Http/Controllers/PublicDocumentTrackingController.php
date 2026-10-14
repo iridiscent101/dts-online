@@ -18,12 +18,13 @@ class PublicDocumentTrackingController extends Controller
      */
     public function __invoke(Request $request, DocumentTrackingLabel $trackingLabel): View
     {
-        $trackingNumber = Str::upper($request->string('tracking')->trim()->toString());
+        $trackingInput = $request->query('tracking', '');
+        $trackingNumber = is_string($trackingInput) ? Str::upper(trim($trackingInput)) : '';
         $document = null;
-        $trackingError = null;
-        $searched = $trackingNumber !== '';
+        $trackingError = is_string($trackingInput) ? null : 'Enter a valid DTS tracking number.';
+        $searched = $trackingInput !== '';
 
-        if ($searched) {
+        if ($searched && $trackingError === null) {
             $validator = Validator::make(
                 ['tracking' => $trackingNumber],
                 ['tracking' => ['required', 'string', 'max:32', 'regex:/^DTS-[A-Z0-9-]+$/']],
@@ -92,7 +93,8 @@ class PublicDocumentTrackingController extends Controller
             ->unique()
             ->sort()
             ->values() ?? collect();
-        $selectedOffice = $request->string('office')->trim()->toString();
+        $officeInput = $request->query('office');
+        $selectedOffice = is_string($officeInput) ? trim($officeInput) : '';
         $selectedOffice = $timelineOffices->contains($selectedOffice) ? $selectedOffice : '';
         $showRegistrationEvent = $selectedOffice === '' || $registrationOffices?->contains($selectedOffice);
         $showEmptyTimeline = $document && ! $showRegistrationEvent && ! $document->movements->contains(

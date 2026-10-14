@@ -7,7 +7,9 @@ use App\Models\DocumentMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Orchid\Attachment\File;
 use Tests\TestCase;
 
 class DocumentUploadAvailabilityTest extends TestCase
@@ -88,6 +90,31 @@ class DocumentUploadAvailabilityTest extends TestCase
         ])->assertNotFound();
 
         $this->assertDatabaseCount('attachments', 0);
+    }
+
+    public function test_existing_attachment_cannot_be_viewed_or_downloaded_while_files_are_paused(): void
+    {
+        Storage::fake('local');
+        $staff = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $document = Document::factory()->create(['current_office' => 'Records Unit']);
+        $attachment = (new File(
+            UploadedFile::fake()->createWithContent('retained.pdf', '%PDF-1.4 retained file'),
+            'local',
+            'documents',
+        ))->load();
+        $document->attachments()->attach($attachment);
+
+        foreach (['preview', 'content', 'download'] as $action) {
+            $this->actingAs($staff)
+                ->get(route("platform.documents.attachments.{$action}", [$document, $attachment]))
+                ->assertNotFound();
+        }
+
+        Storage::disk('local')->assertExists($attachment->physicalPath());
+        $this->assertSame(0, $document->activities()->where('description', 'Attachment downloaded')->count());
     }
 
     public function test_client_submission_without_upload_waits_for_paper_at_records_and_keeps_requested_route(): void

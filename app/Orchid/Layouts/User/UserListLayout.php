@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Orchid\Layouts\User;
 
 use App\Models\User;
+use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Components\Cells\DateTimeSplit;
@@ -13,6 +14,8 @@ use Orchid\Screen\TD;
 
 class UserListLayout extends Table
 {
+    use HasTableSelectionColumn;
+
     /**
      * @var string
      */
@@ -24,6 +27,10 @@ class UserListLayout extends Table
     public function columns(): array
     {
         return [
+            $this->selectColumn('Select user', fn (User $user): bool => $user->id === auth()->id() || $user->isAdministrator()),
+
+            $this->numberColumn(),
+
             TD::make('name', __('Name'))
                 ->sort()
                 ->cantHide(),
@@ -37,14 +44,14 @@ class UserListLayout extends Table
 
             TD::make('office', __('Office'))
                 ->sort()
-                ->render(fn (User $user): string => e($user->office ?: __('Not assigned'))),
+                ->render(fn (User $user): string => e($user->assignedOfficeNames()->join(', ') ?: __('Not assigned'))),
 
             TD::make('created_at', __('Date created'))
                 ->usingComponent(DateTimeSplit::class)
                 ->align(TD::ALIGN_RIGHT)
                 ->sort(),
 
-            TD::make('updated_at', __('Last edit'))
+            TD::make('updated_at', __('Last updated'))
                 ->usingComponent(DateTimeSplit::class)
                 ->align(TD::ALIGN_RIGHT)
                 ->sort(),
@@ -52,10 +59,12 @@ class UserListLayout extends Table
             TD::make(__('Actions'))
                 ->align(TD::ALIGN_CENTER)
                 ->width('112px')
+                ->cantHide()
                 ->render(fn (User $user) => view('orchid.cells.admin-row-actions', [
                     'editAction' => Link::make(__('Edit'))
                         ->class('btn dts-row-action dts-row-action-edit')
                         ->route('platform.systems.users.edit', $user->id)
+                        ->rawClick(false)
                         ->icon('bs.pencil'),
                     'deleteAction' => Button::make(__('Delete'))
                         ->class('btn dts-row-action dts-row-action-delete')

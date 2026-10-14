@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\LimitLoginAttempts;
+use App\Http\Middleware\PauseDocumentUploads;
 use App\Orchid\PlatformProvider;
 use Orchid\Attachment\Engines\Generator;
 use Orchid\Support\BootstrapIconsPath;
@@ -49,8 +51,9 @@ return [
      */
 
     'middleware' => [
-        'public' => ['web', 'cache.headers:private;must_revalidate;etag'],
-        'private' => ['web', 'platform', 'cache.headers:private;must_revalidate;etag'],
+        // 'web' already adds AddSecurityHeaders (bootstrap/app.php).
+        'public' => ['web', LimitLoginAttempts::class, 'cache.headers:private;must_revalidate;etag'],
+        'private' => ['web', 'platform', 'auth.session', PauseDocumentUploads::class, 'cache.headers:private;must_revalidate;etag'],
     ],
 
     /*
@@ -282,7 +285,7 @@ return [
      |
      */
 
-    'fallback' => true,
+    'fallback' => false,
 
     /*
     |--------------------------------------------------------------------------
