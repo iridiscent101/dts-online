@@ -1,10 +1,9 @@
 <div class="dts-brand">
-    <span class="dts-brand-mark" aria-hidden="true"><x-orchid-icon path="bs.journal-bookmark-fill" /></span>
-    <span><strong>DepEd <span class="dts-brand-accent">DTS</span></strong><small>DOCUMENT TRACKING SYSTEM</small></span>
+    <img class="dts-brand-mark" src="{{ asset('images/icon.png') }}" alt="" width="40" height="40">
+    <span><strong>Docu<span class="dts-brand-accent">TrackS</span></strong><small>SDO – Nueva Vizcaya</small><small>Document Tracking System</small></span>
 </div>
 <template id="dts-sidebar-toggle-template">
     <button type="button" class="dts-sidebar-toggle" aria-controls="headerMenuCollapse" aria-expanded="true" aria-label="Collapse sidebar" title="Collapse sidebar">
-        <span class="dts-collapse-icon"><x-orchid-icon path="bs.chevron-bar-left" /></span>
-        <span class="dts-expand-icon"><x-orchid-icon path="bs.chevron-bar-right" /></span>
+        <x-orchid-icon path="bs.chevron-bar-left" />
     </button>
 </template>

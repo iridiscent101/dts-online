@@ -13,18 +13,14 @@ class RoleFilter extends Filter
 {
     /**
      * The displayable name of the filter.
-     *
-     * @return string
      */
     public function name(): string
     {
-        return __('Roles');
+        return __('Role');
     }
 
     /**
      * The array of matched parameters.
-     *
-     * @return array
      */
     public function parameters(): array
     {
@@ -33,10 +29,6 @@ class RoleFilter extends Filter
 
     /**
      * Apply to a given Eloquent query builder.
-     *
-     * @param Builder $builder
-     *
-     * @return Builder
      */
     public function run(Builder $builder): Builder
     {
@@ -53,9 +45,9 @@ class RoleFilter extends Filter
         return [
             Select::make('role')
                 ->fromModel(Role::class, 'name', 'slug')
-                ->empty()
+                ->empty(__('All roles'))
                 ->value($this->request->get('role'))
-                ->title(__('Roles')),
+                ->title(__('Role')),
         ];
     }
 
@@ -64,6 +56,6 @@ class RoleFilter extends Filter
      */
     public function value(): string
     {
-        return $this->name().': '.Role::where('slug', $this->request->get('role'))->first()->name;
+        return $this->name().': '.(Role::where('slug', $this->request->get('role'))->value('name') ?? '');
     }
 }

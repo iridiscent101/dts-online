@@ -6,6 +6,8 @@ namespace App\Orchid\Screens;
 
 use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
+use App\Models\DocumentMovement;
+use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -26,6 +28,8 @@ class DocumentRegistrationScreen extends Screen
      */
     public function query(): iterable
     {
+        abort_if(request()->user()?->isReadOnlySupervisor(), 403);
+
         return [];
     }
 
@@ -47,33 +51,55 @@ class DocumentRegistrationScreen extends Screen
         return [];
     }
 
-    public function save(StoreDocumentRequest $request): RedirectResponse
-    {
-        $data = $request->validated('document');
+    public function save(
+        StoreDocumentRequest $request,
+        DocumentNotificationDispatcher $notifications,
+    ): RedirectResponse {
+        $validated = $request->validated();
+        $data = $validated['document'];
+        $destinations = $data['destinations'];
+        $routeRemarks = $data['route_remarks'] ?? [];
         $uploadedAttachments = [];
 
         try {
-            $document = DB::transaction(function () use ($data, $request, &$uploadedAttachments): Document {
+            $document = DB::transaction(function () use ($data, $destinations, $routeRemarks, $request, $notifications, &$uploadedAttachments): Document {
                 $document = Document::create([
-                    'tracking_number' => 'PENDING-'.Str::upper(Str::random(12)),
+                    'tracking_number' => 'DTS-'.substr($data['received'], 0, 4).'-'.Str::upper(bin2hex(random_bytes(10))),
                     'subject' => $data['title'],
                     'document_type' => $data['type'],
                     'external_reference' => $data['reference'] ?? null,
                     'description' => $data['description'] ?? null,
                     'origin' => $data['origin'],
                     'sender' => $data['sender'],
-                    'current_office' => $data['destination'],
-                    'status' => 'Awaiting receipt',
+                    'current_office' => $destinations[0],
+                    'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
                     'received_at' => $data['received'],
-                    'due_at' => $data['due'] ?? null,
+                    'due_at' => $data['due'] ?? Document::targetDueDate($data['received'], $data['priority'])->toDateString(),
                     'priority' => $data['priority'],
-                    'remarks' => $data['remarks'] ?? null,
+                    'remarks' => filled($routeRemarks[count($destinations) - 1] ?? null)
+                        ? trim($routeRemarks[count($destinations) - 1])
+                        : null,
                     'registered_by' => $request->user()?->getAuthIdentifier(),
                 ]);
 
-                $document->update([
-                    'tracking_number' => sprintf('DTS-%s-%06d', $document->received_at->format('Y'), $document->id),
-                ]);
+                foreach ($destinations as $index => $office) {
+                    $movement = $document->movements()->create([
+                        'action' => DocumentMovement::ACTION_SENT,
+                        'from_office' => null,
+                        'to_office' => $office,
+                        'from_status' => null,
+                        'to_status' => $document->status,
+                        'remarks' => filled($routeRemarks[$index] ?? null) ? trim($routeRemarks[$index]) : null,
+                        'acted_by' => $request->user()?->getAuthIdentifier(),
+                    ]);
+
+                    $document->officeAssignments()->create([
+                        'office' => $office,
+                        'status' => $document->status,
+                        'assigned_by' => $request->user()?->getAuthIdentifier(),
+                        'movement_id' => $movement->getKey(),
+                    ]);
+                }
 
                 foreach ($request->file('attachments', []) as $uploadedFile) {
                     $attachment = (new File($uploadedFile, 'local', 'documents'))->load();
@@ -84,9 +110,12 @@ class DocumentRegistrationScreen extends Screen
                 $document->recordActivity('Document registered', $request->user(), [
                     'action' => 'register',
                     'office' => $document->current_office,
+                    'offices' => $destinations,
                     'status' => $document->status,
                     'attachment_count' => count($uploadedAttachments),
                 ]);
+
+                $notifications->assigned($document, 'register', $request->user(), $destinations);
 
                 return $document;
             });

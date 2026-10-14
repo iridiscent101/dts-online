@@ -107,6 +107,35 @@ foreach ($directories as $directory) {
     }
 }
 
+// Vercel runs no scheduler, so its daily cron (vercel.json) calls this path instead. Vercel sends
+// "Authorization: Bearer <CRON_SECRET>"; without that secret configured the path stays closed.
+if ($path === '/_cron/daily') {
+    $secret = (string) ($_ENV['CRON_SECRET'] ?? $_SERVER['CRON_SECRET'] ?? getenv('CRON_SECRET') ?: '');
+    $given = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+
+    header('Content-Type: application/json; charset=UTF-8');
+
+    if ($secret === '' || ! hash_equals('Bearer '.$secret, $given)) {
+        http_response_code(403);
+        echo json_encode(['ok' => false]);
+
+        return;
+    }
+
+    $app = require_once __DIR__.'/../bootstrap/app.php';
+    $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
+    $results = [];
+
+    foreach (['documents:notify-due', 'notifications:prune-read'] as $command) {
+        $results[$command] = $kernel->call($command) === 0;
+        error_log(sprintf('VERCEL_CRON %s: %s', $command, trim($kernel->output())));
+    }
+
+    echo json_encode(['ok' => ! in_array(false, $results, true), 'results' => $results]);
+
+    return;
+}
+
 try {
     $app = require_once __DIR__.'/../bootstrap/app.php';
 

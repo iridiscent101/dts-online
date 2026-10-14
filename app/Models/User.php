@@ -2,14 +2,27 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Orchid\Filters\Types\Like;
 use Orchid\Filters\Types\Where;
 use Orchid\Filters\Types\WhereDateStartEnd;
+use Orchid\Platform\Models\Role;
 use Orchid\Platform\Models\User as Authenticatable;
 
 class User extends Authenticatable
 {
     public const ADMIN_ROLE_SLUG = 'Admin';
+
+    protected static function booted(): void
+    {
+        static::deleted(function (User $user): void {
+            $user->notifications()->delete();
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+        });
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -75,6 +88,61 @@ class User extends Authenticatable
     public function isAdministrator(): bool
     {
         return $this->inRole(self::ADMIN_ROLE_SLUG);
+    }
+
+    public function canManageRole(Role $role): bool
+    {
+        return $this->isAdministrator() || ($this->hasAccess('platform.systems.roles')
+            && $role->slug !== self::ADMIN_ROLE_SLUG
+            && ! collect($role->permissions ?? [])->filter()->keys()
+                ->contains(fn (string $permission): bool => ! $this->hasAccess($permission)));
+    }
+
+    public function isReadOnlySupervisor(): bool
+    {
+        return ! $this->isAdministrator() && $this->inRole('supervisor');
+    }
+
+    /**
+     * The Records Unit receives every document and sends it on, so like administrators it follows each document's
+     * whole history and timeline, not only the entries that involve its own office.
+     */
+    public function canViewFullDocumentHistory(): bool
+    {
+        return $this->isAdministrator() || $this->isAssignedToOffice('SDO-Records Unit');
+    }
+
+    public function canConfirmPaperIntake(): bool
+    {
+        return ! $this->isReadOnlySupervisor()
+            && $this->hasAccess('platform.index')
+            && ($this->isAdministrator() || $this->isAssignedToOffice('SDO-Records Unit'));
+    }
+
+    public function offices(): BelongsToMany
+    {
+        return $this->belongsToMany(Office::class)->withTimestamps();
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    public function assignedOfficeNames(): Collection
+    {
+        $officeNames = $this->relationLoaded('offices')
+            ? $this->offices->pluck('name')
+            : $this->offices()->pluck('name');
+
+        return $officeNames
+            ->when(filled($this->office), fn (Collection $names): Collection => $names->push($this->office))
+            ->filter()
+            ->unique()
+            ->values();
+    }
+
+    public function isAssignedToOffice(?string $office): bool
+    {
+        return filled($office) && $this->assignedOfficeNames()->contains($office);
     }
 
     public function hasAccess(string $permit, bool $cache = true): bool

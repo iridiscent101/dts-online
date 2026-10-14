@@ -3,14 +3,18 @@
 namespace App\Orchid\Layouts\Document;
 
 use App\Models\Document;
+use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Collection;
+use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
 
 class DocumentListLayout extends Table
 {
+    use HasTableSelectionColumn;
+
     /**
      * Data source.
      *
@@ -29,6 +33,10 @@ class DocumentListLayout extends Table
     protected function columns(): iterable
     {
         return [
+            $this->selectColumn('Select document'),
+
+            $this->numberColumn(),
+
             TD::make('tracking_number', 'Tracking no. / Subject')
                 ->sort()
                 ->cantHide()
@@ -42,16 +50,13 @@ class DocumentListLayout extends Table
                 ->sort()
                 ->defaultHidden(),
 
-            TD::make('current_office', 'Current office')
-                ->sort(),
-
-            TD::make('status', 'Status')
+            TD::make('current_office', 'Assigned offices')
                 ->sort()
-                ->render(fn (Document $document) => view('orchid.cells.document-status', compact('document'))),
+                ->render(fn (Document $document) => view('orchid.cells.document-office-statuses', compact('document'))),
 
             TD::make('received_at', 'Date received')
                 ->sort()
-                ->render(fn (Document $document): string => $document->received_at->format('M d, Y')),
+                ->render(fn (Document $document): string => $document->received_at?->format('M d, Y') ?? 'Not received'),
 
             TD::make('due_at', 'Due date')
                 ->sort()
@@ -66,6 +71,22 @@ class DocumentListLayout extends Table
                 ->sort()
                 ->defaultHidden()
                 ->render(fn (Document $document) => view('orchid.cells.document-priority', compact('document'))),
+
+            TD::make(__('Actions'))
+                ->align(TD::ALIGN_CENTER)
+                ->width('112px')
+                ->cantHide()
+                ->render(fn (Document $document) => view('orchid.cells.document-row-actions', [
+                    'canEdit' => ($user = request()->user()) !== null && $document->canBeEditedBy($user),
+                    'canDelete' => $user?->isAdministrator() ?? false,
+                    'deleteAction' => Button::make(__('Delete'))
+                        ->class('btn dts-row-action dts-row-action-delete')
+                        ->icon('bs.trash3')
+                        ->confirm(__('Remove this document from active records? Its history will be retained.'))
+                        ->route('platform.documents.destroy', $document),
+                    'editUrl' => route('platform.documents.edit', $document),
+                    'workspaceUrl' => route('platform.documents.workspace', $document),
+                ])),
         ];
     }
 
@@ -106,7 +127,9 @@ class DocumentListLayout extends Table
     protected function subNotFound(): string
     {
         if ($this->hasActiveFilters()) {
-            return 'Adjust or reset the filters to see more records.';
+            return view('orchid.partials.document-empty-filters', [
+                'section' => $this->section(),
+            ])->render();
         }
 
         return match ($this->section()) {

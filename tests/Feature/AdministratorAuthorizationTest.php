@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
@@ -99,5 +101,210 @@ class AdministratorAuthorizationTest extends TestCase
             ->assertForbidden();
 
         $this->assertModelExists($adminRole);
+    }
+
+    public function test_delegated_role_manager_cannot_grant_permissions_they_do_not_have(): void
+    {
+        $manager = User::factory()->create([
+            'permissions' => ['platform.index' => true, 'platform.systems.roles' => true],
+        ]);
+        $role = Role::create(['name' => 'Role Manager', 'slug' => 'role-manager', 'permissions' => []]);
+        $manager->replaceRoles([$role->id]);
+
+        $this->actingAs($manager)
+            ->post(route('platform.systems.roles.edit', $role).'/save', [
+                'role' => ['name' => 'Role Manager'],
+                'permissions' => [
+                    base64_encode('platform.systems.roles') => '1',
+                    base64_encode('platform.documents.view-all') => '1',
+                ],
+            ])
+            ->assertForbidden();
+
+        $this->assertSame([], $role->fresh()->permissions);
+    }
+
+    public function test_delegated_role_manager_cannot_edit_or_delete_a_more_privileged_role(): void
+    {
+        $manager = User::factory()->create([
+            'permissions' => ['platform.index' => true, 'platform.systems.roles' => true],
+        ]);
+        $privilegedRole = Role::create([
+            'name' => 'Division Viewer',
+            'slug' => 'division-viewer',
+            'permissions' => ['platform.documents.view-all' => true],
+        ]);
+        $ordinaryRole = Role::create(['name' => 'Ordinary Role', 'slug' => 'ordinary-role', 'permissions' => []]);
+
+        $this->actingAs($manager)
+            ->get(route('platform.systems.roles.edit', $privilegedRole))
+            ->assertForbidden();
+        $this->actingAs($manager)
+            ->post(route('platform.systems.roles.edit', $privilegedRole).'/save', [
+                'role' => ['name' => 'Changed Role'],
+                'permissions' => [],
+            ])
+            ->assertForbidden();
+        $this->post(route('platform.systems.roles').'/remove?id='.$privilegedRole->id)
+            ->assertForbidden();
+        $this->post(route('platform.systems.roles').'/bulkRemove', [
+            'selected' => [$ordinaryRole->id, $privilegedRole->id],
+        ])->assertForbidden();
+
+        $this->assertModelExists($ordinaryRole);
+        $this->assertModelExists($privilegedRole);
+        $this->assertSame('Division Viewer', $privilegedRole->fresh()->name);
+    }
+
+    public function test_reassigning_a_staff_member_removes_access_to_their_previous_office(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['permissions' => []]);
+        $admin->replaceRoles([$adminRole->id]);
+        $staffRole = Role::create(['name' => 'Staff', 'slug' => 'staff', 'permissions' => ['platform.index' => true]]);
+        $staff = User::factory()->create(['office' => 'Records Unit', 'permissions' => []]);
+        $staff->replaceRoles([$staffRole->id]);
+        $previousOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
+        $newOffice = Office::create(['name' => 'Budget Unit', 'sort_order' => 2, 'is_active' => true]);
+        $staff->offices()->attach($previousOffice);
+        $oldDocument = Document::factory()->incoming()->create(['current_office' => 'Records Unit']);
+        $newDocument = Document::factory()->incoming()->create(['current_office' => 'Budget Unit']);
+
+        $this->actingAs($staff)->get(route('platform.documents.view', $oldDocument))->assertOk();
+        $this->get(route('platform.documents.view', $newDocument))->assertNotFound();
+
+        $this->actingAs($admin)->post(route('platform.systems.users.edit', $staff).'/save', [
+            'user' => [
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'offices_submitted' => '1',
+                'office_ids' => [$newOffice->id],
+                'roles' => [$staffRole->id],
+            ],
+        ])->assertRedirectToRoute('platform.systems.users');
+
+        $this->assertSame('Budget Unit', $staff->fresh()->office);
+        $this->actingAs($staff->fresh())->get(route('platform.documents.view', $oldDocument))->assertNotFound();
+        $this->get(route('platform.documents.view', $newDocument))->assertOk();
+    }
+
+    public function test_password_change_ends_an_existing_dashboard_session(): void
+    {
+        $staff = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $oldPasswordHash = $staff->password;
+
+        $this->actingAs($staff)
+            ->withSession(['password_hash_web' => $oldPasswordHash])
+            ->get(route('platform.main'))
+            ->assertOk();
+
+        $staff->forceFill(['password' => Hash::make('new-password')])->save();
+
+        $this->actingAs($staff->fresh())
+            ->withSession(['password_hash_web' => $oldPasswordHash])
+            ->get(route('platform.main'))
+            ->assertRedirectToRoute('platform.login');
+    }
+
+    public function test_delegated_user_manager_cannot_assign_offices_to_self_or_others(): void
+    {
+        $manager = User::factory()->create(['office' => 'Records Unit', 'permissions' => [
+            'platform.index' => true,
+            'platform.systems.users' => true,
+        ]]);
+        $otherUser = User::factory()->create(['office' => 'Records Unit']);
+        $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
+        $budgetOffice = Office::create(['name' => 'Budget Unit', 'sort_order' => 2, 'is_active' => true]);
+        $manager->offices()->attach($recordsOffice);
+        $otherUser->offices()->attach($recordsOffice);
+
+        foreach ([$manager, $otherUser] as $target) {
+            $this->actingAs($manager)
+                ->post(route('platform.systems.users.edit', $target).'/save', [
+                    'user' => [
+                        'name' => $target->name,
+                        'email' => $target->email,
+                        'offices_submitted' => '1',
+                        'office_ids' => [$budgetOffice->id],
+                        'roles' => [],
+                    ],
+                ])
+                ->assertForbidden();
+            $this->post(route('platform.systems.users').'/saveUser?user='.$target->id, [
+                'user' => [
+                    'name' => $target->name,
+                    'email' => $target->email,
+                    'offices_submitted' => '1',
+                    'office_ids' => [$budgetOffice->id],
+                ],
+            ])->assertForbidden();
+
+            $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
+        }
+    }
+
+    public function test_delegated_user_manager_can_save_profile_with_unchanged_office_selection(): void
+    {
+        $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
+        $target = User::factory()->create(['office' => 'Records Unit']);
+        $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
+        $target->offices()->attach($recordsOffice);
+
+        $this->actingAs($manager)
+            ->post(route('platform.systems.users.edit', $target).'/save', [
+                'user' => [
+                    'name' => 'Updated staff name',
+                    'email' => $target->email,
+                    'offices_submitted' => '1',
+                    'office_ids' => [$recordsOffice->id],
+                    'roles' => [],
+                ],
+            ])
+            ->assertRedirectToRoute('platform.systems.users');
+
+        $this->assertSame('Updated staff name', $target->fresh()->name);
+        $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
+    }
+
+    public function test_delegated_user_manager_can_create_unassigned_user_but_cannot_assign_an_office(): void
+    {
+        $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
+        $office = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
+        $userDetails = ['name' => 'New clerk', 'email' => 'new-clerk@example.test', 'password' => 'secure-password', 'roles' => []];
+
+        $this->actingAs($manager)
+            ->post(route('platform.systems.users.create').'/save', [
+                'user' => $userDetails + ['offices_submitted' => '1', 'office_ids' => [$office->id]],
+            ])
+            ->assertForbidden();
+        $this->assertDatabaseMissing('users', ['email' => 'new-clerk@example.test']);
+
+        $this->post(route('platform.systems.users.create').'/save', [
+            'user' => $userDetails + ['offices_submitted' => '1'],
+        ])->assertRedirectToRoute('platform.systems.users');
+        $this->assertNull(User::query()->where('email', 'new-clerk@example.test')->sole()->office);
+    }
+
+    public function test_administrator_can_assign_office_from_quick_edit(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['permissions' => []]);
+        $admin->replaceRoles([$adminRole->id]);
+        $target = User::factory()->create(['office' => null]);
+        $office = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
+
+        $this->actingAs($admin)
+            ->post(route('platform.systems.users').'/saveUser?user='.$target->id, [
+                'user' => [
+                    'name' => $target->name,
+                    'email' => $target->email,
+                    'offices_submitted' => '1',
+                    'office_ids' => [$office->id],
+                ],
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('Records Unit', $target->fresh()->office);
+        $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
     }
 }

@@ -6,10 +6,12 @@ namespace App\Orchid\Screens;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\DocumentOfficeAssignment;
 use App\Models\User;
 use App\Orchid\Layouts\Document\DocumentListLayout;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Orchid\Screen\Action;
 use Orchid\Screen\Screen;
@@ -17,6 +19,14 @@ use Orchid\Support\Facades\Layout;
 
 class PlatformScreen extends Screen
 {
+    /** Documents the dashboard queue holds; five show at first, the rest behind "Show more". */
+    private const OFFICE_QUEUE_LIMIT = 25;
+
+    private const OFFICE_ACTION_STATUSES = [
+        DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+        ...DocumentMovement::IN_PROGRESS_STATUSES,
+    ];
+
     /**
      * Fetch data to be displayed on the screen.
      *
@@ -28,45 +38,84 @@ class PlatformScreen extends Screen
         $user = request()->user();
         abort_unless($user instanceof User, 403);
 
+        if (! $user->isAdministrator()) {
+            $user->loadMissing('offices');
+        }
+
         if ($section === 'dashboard') {
-            $office = $user->office;
+            $offices = $user->assignedOfficeNames();
             $isAdministrator = $user->isAdministrator();
+            $canViewAllDocuments = $isAdministrator || $user->hasAccess('platform.documents.view-all');
             $visibleDocuments = Document::query()->visibleTo($user);
-            $officeQueueQuery = (clone $visibleDocuments)
-                ->whereIn('status', ['Awaiting receipt', 'Forwarded', 'Received']);
+            $officeQueueQuery = $this->officeQueueQuery($user, $offices, $isAdministrator);
+            $today = today('Asia/Manila')->toDateString();
+            $dueSoonExclusiveEnd = today('Asia/Manila')->addDays(3)->toDateString();
+            $officeQueueCounts = $this->officeQueueCounts($officeQueueQuery, $today, $dueSoonExclusiveEnd);
+            $canConfirmPaperIntake = $user->canConfirmPaperIntake();
+            $isReadOnlySupervisor = $user->isReadOnlySupervisor();
 
             return [
                 'section' => $section,
-                'workspaceOffice' => $office ?? ($isAdministrator ? 'All offices' : 'No office assigned'),
-                'officeQueue' => (clone $officeQueueQuery)->orderByRaw('due_at IS NULL, due_at')->latest('updated_at')->limit(5)->get(),
-                'officeQueueCount' => (clone $officeQueueQuery)->count(),
-                'officeOverdueCount' => (clone $officeQueueQuery)->whereDate('due_at', '<', today())->count(),
+                'dashboardUser' => $user,
+                'workspaceOffice' => $canViewAllDocuments
+                    ? 'All offices'
+                    : ($offices->isNotEmpty() ? $offices->join(', ') : 'No office assigned'),
+                'officeQueue' => $this->officeQueueItems($officeQueueQuery),
+                'officeQueueCount' => (int) ($officeQueueCounts->total ?? 0),
+                'officeQueueDocumentCount' => (int) ($officeQueueCounts->documents ?? 0),
+                'officeOverdueCount' => (int) ($officeQueueCounts->overdue ?? 0),
+                'officeDueSoonCount' => (int) ($officeQueueCounts->due_soon ?? 0),
+                // The fourth summary card: Records counts paper waiting at the counter, other offices what they finished.
+                'paperWaitingCount' => $canConfirmPaperIntake ? (int) ($officeQueueCounts->paper_waiting ?? 0) : null,
+                'actedThisWeekCount' => $canConfirmPaperIntake || $isReadOnlySupervisor ? null : $this->actedThisWeekCount($offices),
                 'unreadNotifications' => $user->unreadNotifications()->limit(4)->get(),
                 'unreadNotificationCount' => $user->unreadNotifications()->count(),
-                'documentCounts' => [
-                    'documents' => (clone $visibleDocuments)->count(),
-                    'incoming' => (clone $visibleDocuments)->where('status', 'Awaiting receipt')->count(),
-                    'outgoing' => (clone $visibleDocuments)->where('status', 'Forwarded')->count(),
-                    'archived' => (clone $visibleDocuments)->where('status', 'Archived')->count(),
-                ],
-                'recentDocuments' => (clone $visibleDocuments)->latest('updated_at')->limit(5)->get(),
+                'canConfirmPaperIntake' => $canConfirmPaperIntake,
+                // Supervisors have no action queue, so their dashboard lists recent documents instead.
+                'recentDocuments' => $isReadOnlySupervisor
+                    ? (clone $visibleDocuments)->with('officeAssignments')->latest('updated_at')->limit(5)->get()
+                    : collect(),
                 'recentActivity' => DocumentMovement::query()
                     ->with(['document', 'actor'])
                     ->whereHas('document', fn (Builder $query): Builder => $query->visibleTo($user))
+                    ->when(! $isAdministrator, fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->whereIn('from_office', $offices)->orWhereIn('to_office', $offices)))
                     ->latest()
                     ->limit(4)
                     ->get(),
             ];
         }
 
-        $filters = $this->filterValues($section);
+        $typeOptions = collect(Document::typeOptions())
+            ->merge(Document::query()->visibleTo($user)->distinct()->pluck('document_type'))
+            ->unique()
+            ->values()
+            ->all();
+        $officeOptions = collect(Document::officeOptions())
+            ->merge(DocumentOfficeAssignment::query()
+                ->whereHas('document', fn (Builder $document): Builder => $document->visibleTo($user))
+                ->distinct()
+                ->pluck('office'))
+            ->merge(Document::query()
+                ->visibleTo($user)
+                ->doesntHave('officeAssignments')
+                ->distinct()
+                ->pluck('current_office'))
+            ->unique()
+            ->values()
+            ->all();
+        $filters = $this->filterValues($section, $typeOptions, $officeOptions);
         $filterError = $filters['from'] !== '' && $filters['to'] !== '' && $filters['to'] < $filters['from']
             ? 'The end date must be on or after the start date.'
             : '';
 
         $documents = Document::query()
+            ->with('officeAssignments')
             ->visibleTo($user)
-            ->forSection($section)
+            ->when(
+                ! $user->isAdministrator() && ! $user->hasAccess('platform.documents.view-all') && $section !== 'documents',
+                fn (Builder $query): Builder => $this->applyOfficeSection($query, $user, $section),
+                fn (Builder $query): Builder => $query->forSection($section),
+            )
             ->registryFilters($filters)
             ->when($filterError !== '', fn (Builder $query): Builder => $query->whereKey(-1))
             ->filters()
@@ -79,6 +128,8 @@ class PlatformScreen extends Screen
             'documentCount' => $documents->total(),
             'filterValues' => $filters,
             'filterError' => $filterError,
+            'typeOptions' => $typeOptions,
+            'officeOptions' => $officeOptions,
         ];
     }
 
@@ -87,7 +138,14 @@ class PlatformScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'DepEd Document Tracking System';
+        // Becomes the browser tab title ("Incoming documents - SDO - NV Docu TrackS"), so each section names itself.
+        return match ($this->section()) {
+            'documents' => 'All documents',
+            'incoming' => 'Incoming documents',
+            'outgoing' => 'Outgoing documents',
+            'archived' => 'Archived documents',
+            default => 'Dashboard',
+        };
     }
 
     /**
@@ -135,20 +193,145 @@ class PlatformScreen extends Screen
         return request()->route()->defaults['section'] ?? 'dashboard';
     }
 
+    private function officeQueueQuery(User $user, Collection $offices, bool $isAdministrator): Builder
+    {
+        $query = DocumentOfficeAssignment::query()
+            ->whereIn('document_office_assignments.status', self::OFFICE_ACTION_STATUSES);
+
+        if ($user->isReadOnlySupervisor()) {
+            return $query->whereKey(-1);
+        }
+
+        if ($isAdministrator) {
+            return $query;
+        }
+
+        if ($offices->isEmpty()) {
+            return $query->whereKey(-1);
+        }
+
+        return $query
+            ->whereIn('document_office_assignments.office', $offices)
+            ->whereHas('document', fn (Builder $document): Builder => $document->visibleTo($user));
+    }
+
+    private function officeQueueCounts(Builder $officeQueueQuery, string $today, string $dueSoonExclusiveEnd): object
+    {
+        return (clone $officeQueueQuery)
+            ->join('documents', 'documents.id', '=', 'document_office_assignments.document_id')
+            ->whereNull('documents.deleted_at')
+            ->toBase()
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('COUNT(DISTINCT document_office_assignments.document_id) as documents')
+            // Overdue, due soon and paper waiting count documents, matching the queue's one row per document.
+            ->selectRaw('COUNT(DISTINCT CASE WHEN documents.due_at < ? THEN documents.id END) as overdue', [$today])
+            ->selectRaw('COUNT(DISTINCT CASE WHEN documents.due_at >= ? AND documents.due_at < ? THEN documents.id END) as due_soon', [$today, $dueSoonExclusiveEnd])
+            ->selectRaw('COUNT(DISTINCT CASE WHEN document_office_assignments.status = ? THEN documents.id END) as paper_waiting', [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT])
+            ->first();
+    }
+
     /**
-     * @return array{search: string, office: string, type: string, status: string, from: string, to: string}
+     * Documents the user's offices moved on this week (forwarded, completed, returned…), not counting receipts.
+     *
+     * @param  Collection<int, string>  $offices
      */
-    private function filterValues(string $section): array
+    private function actedThisWeekCount(Collection $offices): int
+    {
+        if ($offices->isEmpty()) {
+            return 0;
+        }
+
+        return DocumentMovement::query()
+            ->whereIn('from_office', $offices)
+            ->whereNotIn('action', [DocumentMovement::ACTION_RECEIVED, DocumentMovement::ACTION_ACKNOWLEDGE])
+            ->where('created_at', '>=', today('Asia/Manila')->startOfWeek()->utc())
+            ->whereHas('document')
+            ->distinct()
+            ->count('document_id');
+    }
+
+    /**
+     * One row per document, each listing its offices that still have work to do.
+     *
+     * @return Collection<int, array{document: Document, offices: Collection<int, array{office: string, status: string, action: string}>}>
+     */
+    private function officeQueueItems(Builder $officeQueueQuery): Collection
+    {
+        $documentIds = (clone $officeQueueQuery)
+            ->join('documents', 'documents.id', '=', 'document_office_assignments.document_id')
+            ->whereNull('documents.deleted_at')
+            ->toBase()
+            ->select('document_office_assignments.document_id')
+            ->groupBy('document_office_assignments.document_id', 'documents.due_at', 'documents.updated_at')
+            // Paper waiting at the counter has no due date yet, so it would sort last and fall out of view.
+            ->orderByRaw('MAX(CASE WHEN document_office_assignments.status = ? THEN 1 ELSE 0 END) DESC', [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT])
+            ->orderByRaw('documents.due_at IS NULL, documents.due_at')
+            ->orderByDesc('documents.updated_at')
+            ->limit(self::OFFICE_QUEUE_LIMIT)
+            ->pluck('document_id')
+            ->map(fn (int|string $documentId): int => (int) $documentId);
+
+        $assignments = (clone $officeQueueQuery)
+            ->whereIn('document_office_assignments.document_id', $documentIds)
+            ->with('document')
+            ->orderBy('document_office_assignments.id')
+            ->get()
+            ->groupBy('document_id');
+
+        return $documentIds
+            ->filter(fn (int $documentId): bool => $assignments->has($documentId))
+            ->map(fn (int $documentId): array => [
+                'document' => $assignments[$documentId]->first()->document,
+                'offices' => $assignments[$documentId]
+                    ->sortByDesc(fn (DocumentOfficeAssignment $assignment): bool => $assignment->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
+                    ->map(fn (DocumentOfficeAssignment $assignment): array => [
+                        'office' => $assignment->office,
+                        'status' => $assignment->status,
+                        'action' => $this->nextActionLabel($assignment->status),
+                    ])
+                    ->values(),
+            ])
+            ->values();
+    }
+
+    private function nextActionLabel(string $status): string
+    {
+        return match ($status) {
+            DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Confirm paper received',
+            DocumentMovement::STATUS_AWAITING_RECEIPT,
+            DocumentMovement::STATUS_FORWARDED,
+            DocumentMovement::STATUS_RETURNED,
+            DocumentMovement::STATUS_RESUBMITTED => 'Process',
+            DocumentMovement::STATUS_RECEIVED => 'Process',
+            default => 'View',
+        };
+    }
+
+    private function applyOfficeSection(Builder $query, User $user, string $section): Builder
+    {
+        $offices = $user->assignedOfficeNames();
+
+        return $offices->isEmpty() ? $query->whereKey(-1) : $query->forSection($section, $offices);
+    }
+
+    /**
+     * @return array{search: string, office: string, type: string, status: string, priority: string, due: string, from: string, to: string}
+     */
+    private function filterValues(string $section, array $typeOptions, array $officeOptions): array
     {
         $office = request()->string('office')->trim()->toString();
         $type = request()->string('type')->trim()->toString();
         $status = request()->string('status')->trim()->toString();
+        $priority = request()->string('priority')->trim()->toString();
+        $due = request()->string('due')->trim()->toString();
 
         return [
             'search' => Str::limit(request()->string('search')->trim()->toString(), 150, ''),
-            'office' => in_array($office, Document::OFFICES, true) ? $office : '',
-            'type' => in_array($type, Document::TYPES, true) ? $type : '',
+            'office' => in_array($office, $officeOptions, true) ? $office : '',
+            'type' => in_array($type, $typeOptions, true) ? $type : '',
             'status' => $section === 'documents' && in_array($status, Document::STATUSES, true) ? $status : '',
+            'priority' => array_key_exists($priority, Document::PRIORITIES) ? $priority : '',
+            'due' => in_array($due, ['overdue', 'soon'], true) ? $due : '',
             'from' => $this->dateFilter('from'),
             'to' => $this->dateFilter('to'),
         ];

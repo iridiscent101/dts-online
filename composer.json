@@ -7,12 +7,12 @@
     "license": "MIT",
     "require": {
         "php": "^8.3",
+        "bacon/bacon-qr-code": "^3.1",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/framework": "^13.17",
         "laravel/tinker": "^3.0",
         "maatwebsite/excel": "^4.0",
         "orchid/platform": "^14.53",
-        "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-activitylog": "^5.1",
         "spatie/laravel-permission": "^8.3",
         "vish4395/laravel-file-viewer": "2.0"

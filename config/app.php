@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'DepEd DTS'),
+    'name' => env('APP_NAME', 'SDO - NV Docu TrackS'),
 
     /*
     |--------------------------------------------------------------------------
@@ -122,5 +122,19 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    'document_uploads_enabled' => false,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Content Security Policy
+    |--------------------------------------------------------------------------
+    |
+    | "enforce" sends Content-Security-Policy; "report-only" only logs what would
+    | be blocked in the browser console (use it to try a change); "off" sends none.
+    |
+    */
+
+    'csp_mode' => env('CSP_MODE', 'enforce'),
 
 ];

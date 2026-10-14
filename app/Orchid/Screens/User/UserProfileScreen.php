@@ -14,7 +14,6 @@ use Orchid\Access\Impersonation;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Screen;
-use Orchid\Support\Color;
 use Orchid\Support\Facades\Layout;
 use Orchid\Support\Facades\Toast;
 
@@ -81,17 +80,21 @@ class UserProfileScreen extends Screen
                 ->description(__("Update your account's profile information and email address."))
                 ->commands(
                     Button::make(__('Save'))
-                        ->type(Color::BASIC())
+                        ->class('btn dts-button dts-button-primary')
                         ->icon('bs.check-circle')
                         ->method('save')
                 ),
+
+            Layout::block(Layout::view('orchid.profile-account'))
+                ->title(__('Account access'))
+                ->description(__('Your offices and roles decide which documents you see and what you can do. An administrator sets them.')),
 
             Layout::block(ProfilePasswordLayout::class)
                 ->title(__('Update Password'))
                 ->description(__('Ensure your account is using a long, random password to stay secure.'))
                 ->commands(
                     Button::make(__('Update password'))
-                        ->type(Color::BASIC())
+                        ->class('btn dts-button dts-button-primary')
                         ->icon('bs.check-circle')
                         ->method('changePassword')
                 ),

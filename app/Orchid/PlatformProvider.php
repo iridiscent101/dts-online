@@ -49,7 +49,22 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make(__('Roles'))
                 ->icon('bs.shield')
                 ->route('platform.systems.roles')
-                ->permission('platform.systems.roles')
+                ->permission('platform.systems.roles'),
+
+            Menu::make(__('Offices'))
+                ->icon('bs.building')
+                ->route('platform.systems.offices')
+                ->permission('platform.systems.offices'),
+
+            Menu::make(__('Schools'))
+                ->icon('bs.buildings')
+                ->route('platform.systems.schools')
+                ->permission('platform.systems.schools'),
+
+            Menu::make(__('System Health'))
+                ->icon('bs.activity')
+                ->route('platform.systems.health')
+                ->permission('platform.systems.health')
                 ->divider(),
         ];
     }
@@ -62,9 +77,18 @@ class PlatformProvider extends OrchidServiceProvider
     public function permissions(): array
     {
         return [
+            ItemPermission::group(__('Documents'))
+                ->addPermission('platform.documents.view-all', __('View all documents'))
+                ->addPermission('platform.documents.edit', __('Edit document details'))
+                ->addPermission('platform.documents.routes.manage', __('Manage document routes'))
+                ->addPermission('platform.documents.attachments.manage', __('Manage document attachments')),
+
             ItemPermission::group(__('System'))
                 ->addPermission('platform.systems.roles', __('Roles'))
-                ->addPermission('platform.systems.users', __('Users')),
+                ->addPermission('platform.systems.users', __('Users'))
+                ->addPermission('platform.systems.offices', __('Offices'))
+                ->addPermission('platform.systems.schools', __('Schools'))
+                ->addPermission('platform.systems.health', __('View system health')),
         ];
     }
 }

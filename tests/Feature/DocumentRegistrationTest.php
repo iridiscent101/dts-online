@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\DocumentType;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -13,6 +15,56 @@ use Tests\TestCase;
 class DocumentRegistrationTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['app.document_uploads_enabled' => true]);
+    }
+
+    public function test_registration_form_offers_repeatable_destination_routes(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+
+        $response = $this->actingAs($user)
+            ->get(route('platform.documents.create'))
+            ->assertOk()
+            ->assertSee('Add route')
+            ->assertSee('Register document')
+            ->assertSee('Register this document?')
+            ->assertSee('name="document[destinations][]"', false)
+            ->assertSee('data-registration-remarks', false)
+            ->assertSee('data-registration-route-template', false)
+            ->assertDontSee('name="document[reference]"', false)
+            ->assertDontSee('Review document')
+            ->assertDontSee('Choose one to five offices');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'data-registration-route>'));
+        $response->assertSee('Route 1');
+    }
+
+    public function test_deactivated_catalog_entries_are_not_restored_as_registration_fallbacks(): void
+    {
+        DocumentType::query()->create(['name' => 'Memorandum', 'is_active' => false]);
+        Office::query()->create(['name' => 'Records Unit', 'is_active' => false]);
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+
+        $this->actingAs($user)
+            ->get(route('platform.documents.create'))
+            ->assertOk()
+            ->assertDontSee('value="Memorandum"', false)
+            ->assertDontSee('value="Records Unit"', false);
+
+        $this->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', [
+                'document' => $this->validDocumentData(),
+            ])
+            ->assertRedirect(route('platform.documents.create'))
+            ->assertSessionHasErrors(['document.type', 'document.destinations.0']);
+
+        $this->assertDatabaseCount('documents', 0);
+    }
 
     public function test_authorized_staff_can_register_a_document_with_private_attachments(): void
     {
@@ -31,8 +83,9 @@ class DocumentRegistrationTest extends TestCase
 
         $document = Document::query()->sole();
 
-        $this->assertSame('DTS-2026-000001', $document->tracking_number);
+        $this->assertMatchesRegularExpression('/^DTS-2026-[A-F0-9]{20}$/', $document->tracking_number);
         $this->assertSame('Regional Office', $document->origin);
+        $this->assertSame('Records Unit', $document->current_office);
         $this->assertSame($user->id, $document->registered_by);
         $this->assertSame('Awaiting receipt', $document->status);
         $this->assertCount(1, $document->attachments);
@@ -48,6 +101,27 @@ class DocumentRegistrationTest extends TestCase
             'causer_type' => User::class,
             'causer_id' => $user->id,
         ]);
+    }
+
+    public function test_registration_calculates_a_weekday_target_when_due_date_is_blank(): void
+    {
+        $user = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $documentData = $this->validDocumentData();
+        $documentData['received'] = '2026-10-05';
+        $documentData['priority'] = 'Extended';
+        unset($documentData['due']);
+
+        $this->actingAs($user)->post(route('platform.documents.create').'/save', [
+            'document' => $documentData,
+        ])->assertRedirectToRoute('platform.documents');
+
+        $document = Document::query()->sole();
+
+        $this->assertSame('Extended', $document->priority);
+        $this->assertSame('2026-11-02', $document->due_at->toDateString());
     }
 
     public function test_registration_rejects_unsupported_attachments(): void
@@ -88,7 +162,272 @@ class DocumentRegistrationTest extends TestCase
         $this->assertDatabaseCount('documents', 0);
     }
 
-    public function test_authorized_staff_can_view_and_download_an_attached_file(): void
+    public function test_registration_uses_the_selected_initial_destination(): void
+    {
+        $user = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $documentData = $this->validDocumentData();
+        $documentData['destinations'] = ['Administrative Unit', 'Records Unit', 'Curriculum Implementation Division'];
+        $documentData['route_remarks'][2] = 'Start with admin review';
+
+        $response = $this->actingAs($user)->post(route('platform.documents.create').'/save', [
+            'document' => $documentData,
+        ]);
+
+        $response->assertRedirectToRoute('platform.documents');
+
+        $document = Document::query()->sole();
+
+        $this->assertSame('Administrative Unit', $document->current_office);
+        $this->assertSame('Start with admin review', $document->remarks);
+        $this->assertDatabaseCount('document_route_steps', 0);
+    }
+
+    public function test_registration_assigns_multiple_initial_offices_with_separate_remarks(): void
+    {
+        $registrar = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $administrativeUser = User::factory()->create([
+            'office' => 'Administrative Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $curriculumUser = User::factory()->create([
+            'office' => 'Curriculum Implementation Division',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $documentData = $this->validDocumentData();
+        unset($documentData['destination'], $documentData['remarks']);
+        $documentData['destinations'] = ['Administrative Unit', 'Records Unit', 'Curriculum Implementation Division'];
+        $documentData['route_remarks'] = ['Review the records.', '', 'Review the curriculum.'];
+
+        $this->actingAs($registrar)->post(route('platform.documents.create').'/save', [
+            'document' => $documentData,
+        ])->assertRedirectToRoute('platform.documents');
+
+        $document = Document::query()->sole();
+
+        $this->assertSame('Administrative Unit', $document->current_office);
+        $this->assertSame('Review the curriculum.', $document->remarks);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'Administrative Unit',
+            'status' => 'Awaiting receipt',
+        ]);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'Curriculum Implementation Division',
+            'status' => 'Awaiting receipt',
+        ]);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => 'sent',
+            'from_office' => null,
+            'to_office' => 'Administrative Unit',
+            'remarks' => 'Review the records.',
+        ]);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => 'sent',
+            'from_office' => null,
+            'to_office' => 'Curriculum Implementation Division',
+            'remarks' => 'Review the curriculum.',
+        ]);
+
+        $this->actingAs($administrativeUser)
+            ->get(route('platform.incoming'))
+            ->assertOk()
+            ->assertSee($document->tracking_number);
+
+        $this->actingAs($curriculumUser)
+            ->get(route('platform.incoming'))
+            ->assertOk()
+            ->assertSee($document->tracking_number);
+
+        $this->actingAs($administrativeUser)
+            ->get(route('platform.documents.view', $document))
+            ->assertOk()
+            ->assertSee('Sent to Administrative Unit')
+            ->assertSee('Awaiting receipt')
+            ->assertSee('Review the records.')
+            ->assertDontSee('Sent to Curriculum Implementation Division')
+            ->assertDontSee('Review the curriculum.');
+
+        $this->get(route('platform.main'))
+            ->assertOk()
+            ->assertSee(route('platform.documents.view', [
+                'document' => $document,
+                'source_office' => 'Administrative Unit',
+            ]))
+            ->assertSee('data-workspace-office="Administrative Unit"', false);
+
+        $this->actingAs($curriculumUser)
+            ->get(route('platform.documents.view', $document))
+            ->assertOk();
+
+        $this->post(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'remarks' => 'Curriculum received its copy.'],
+        ])->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->get(route('platform.incoming'))
+            ->assertOk()
+            ->assertDontSee('<strong>'.$document->tracking_number.'</strong>', false);
+        $this->actingAs($administrativeUser)
+            ->get(route('platform.incoming'))
+            ->assertOk()
+            ->assertSee($document->tracking_number);
+
+        $this->actingAs($administrativeUser)
+            ->post(route('platform.documents.movements.store', $document), [
+                'workflow' => ['action' => 'received', 'remarks' => 'Administration received its copy.'],
+            ])->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'Administrative Unit',
+            'status' => 'Received',
+        ]);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'Curriculum Implementation Division',
+            'status' => 'Received',
+        ]);
+    }
+
+    public function test_registration_requires_an_initial_destination(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $documentData = $this->validDocumentData();
+        unset($documentData['destination'], $documentData['destinations']);
+
+        $this->actingAs($user)
+            ->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', [
+                'document' => $documentData,
+            ])
+            ->assertRedirect(route('platform.documents.create'))
+            ->assertSessionHasErrors('document.destinations');
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertDatabaseCount('document_route_steps', 0);
+    }
+
+    public function test_registration_requires_one_to_five_initial_destinations(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $documentData = $this->validDocumentData();
+
+        foreach ([
+            [[], 'Select at least one initial destination office.'],
+            [array_slice(Document::officeOptions(), 0, 6), 'Select no more than five initial destination offices.'],
+        ] as [$destinations, $message]) {
+            $documentData['destinations'] = $destinations;
+            $documentData['route_remarks'] = array_fill(0, count($destinations), '');
+
+            $this->actingAs($user)
+                ->from(route('platform.documents.create'))
+                ->post(route('platform.documents.create').'/save', ['document' => $documentData])
+                ->assertRedirect(route('platform.documents.create'))
+                ->assertSessionHasErrors(['document.destinations' => $message]);
+        }
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_registration_accepts_a_single_initial_destination(): void
+    {
+        $user = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $documentData = $this->validDocumentData();
+        $documentData['destinations'] = ['Records Unit'];
+        $documentData['route_remarks'] = ['For immediate routing.'];
+
+        $this->actingAs($user)
+            ->post(route('platform.documents.create').'/save', ['document' => $documentData])
+            ->assertRedirectToRoute('platform.documents');
+
+        $document = Document::query()->sole();
+
+        $this->assertSame('Records Unit', $document->current_office);
+        $this->assertCount(1, $document->officeAssignments);
+        $this->assertDatabaseCount('document_office_assignments', 1);
+    }
+
+    public function test_registration_accepts_five_initial_destinations(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $documentData = $this->validDocumentData();
+        $documentData['destinations'] = array_slice(Document::officeOptions(), 0, 5);
+        $documentData['route_remarks'] = array_fill(0, 5, '');
+
+        $this->actingAs($user)
+            ->post(route('platform.documents.create').'/save', ['document' => $documentData])
+            ->assertRedirectToRoute('platform.documents');
+
+        $this->assertDatabaseCount('document_office_assignments', 5);
+    }
+
+    public function test_registration_rejects_unknown_initial_destination_offices(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $documentData = $this->validDocumentData();
+        $documentData['destination'] = 'Unknown Office';
+
+        $this->actingAs($user)
+            ->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', [
+                'document' => $documentData,
+            ])
+            ->assertRedirect(route('platform.documents.create'))
+            ->assertSessionHasErrors('document.destination');
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertDatabaseCount('document_route_steps', 0);
+    }
+
+    public function test_registration_rejects_duplicate_initial_offices(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $documentData = $this->validDocumentData();
+        unset($documentData['destination']);
+        $documentData['destinations'] = ['Administrative Unit', 'Administrative Unit', 'Records Unit'];
+
+        $this->actingAs($user)
+            ->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', ['document' => $documentData])
+            ->assertRedirect(route('platform.documents.create'))
+            ->assertSessionHasErrors([
+                'document.destinations.0' => 'Select each destination office only once.',
+            ]);
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_registration_rejects_remarks_that_do_not_match_the_destinations(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $documentData = $this->validDocumentData();
+        unset($documentData['destination'], $documentData['remarks']);
+        $documentData['destinations'] = ['Administrative Unit', 'Records Unit', 'Curriculum Implementation Division'];
+        $documentData['route_remarks'] = ['Only one note'];
+
+        $this->actingAs($user)
+            ->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', ['document' => $documentData])
+            ->assertRedirect(route('platform.documents.create'))
+            ->assertSessionHasErrors([
+                'document.route_remarks' => 'Provide one remarks field for each destination office.',
+            ]);
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_authorized_staff_can_open_attachment_endpoints_while_controls_are_hidden(): void
     {
         Storage::fake('local');
         $user = User::factory()->create([
@@ -112,9 +451,9 @@ class DocumentRegistrationTest extends TestCase
         $this->get(route('platform.documents.view', $document))
             ->assertOk()
             ->assertSee($document->tracking_number)
-            ->assertSee('retention-guide.pdf')
-            ->assertSee(route('platform.documents.attachments.preview', [$document, $attachment]), false)
-            ->assertSee(route('platform.documents.attachments.download', [$document, $attachment]), false);
+            ->assertDontSee('retention-guide.pdf')
+            ->assertDontSee(route('platform.documents.attachments.preview', [$document, $attachment]), false)
+            ->assertDontSee(route('platform.documents.attachments.download', [$document, $attachment]), false);
 
         $this->get(route('platform.documents.attachments.preview', [$document, $attachment]))
             ->assertOk()
@@ -168,7 +507,7 @@ class DocumentRegistrationTest extends TestCase
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, mixed>
      */
     private function validDocumentData(): array
     {
@@ -182,8 +521,10 @@ class DocumentRegistrationTest extends TestCase
             'received' => '2026-09-23',
             'due' => '2026-09-30',
             'destination' => 'Records Unit',
-            'priority' => 'High',
+            'destinations' => ['Records Unit', 'Administrative Unit', 'Curriculum Implementation Division'],
+            'priority' => 'Extended',
             'remarks' => 'For immediate routing.',
+            'route_remarks' => ['For immediate routing.', 'For immediate routing.', 'For immediate routing.'],
         ];
     }
 }

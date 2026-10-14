@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AddSecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,9 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Every web page, public and staff alike, gets the security headers and Content-Security-Policy.
+        $middleware->web(append: [AddSecurityHeaders::class]);
+        $middleware->redirectGuestsTo(fn (): string => route('platform.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontReportDuplicates();
+
+        // Vercel only keeps stderr, so log a compact line per exception there instead of to a file.
         $exceptions->report(function (Throwable $exception): false {
             error_log(sprintf(
                 'VERCEL_EXCEPTION=%s: %s in %s:%s',

@@ -31,6 +31,8 @@ class RoleEditScreen extends Screen
      */
     public function query(Role $role): iterable
     {
+        abort_unless(request()->user()?->canManageRole($role), 403);
+
         return [
             'role' => $role,
             'permission' => $role->statusOfPermissions(),
@@ -111,10 +113,21 @@ class RoleEditScreen extends Screen
      */
     public function save(Request $request, Role $role)
     {
+        abort_unless($request->user()?->canManageRole($role), 403);
+
         $validated = $request->validate([
             'role.name' => ['required', 'string', 'max:255'],
             'role.description' => ['nullable', 'string', 'max:1000'],
+            'permissions' => ['sometimes', 'array'],
+            'permissions.*' => ['boolean'],
         ]);
+
+        $permissions = collect($validated['permissions'] ?? [])
+            ->mapWithKeys(fn (bool|int|string $value, int|string $key): array => [base64_decode((string) $key, true) ?: '' => $value])
+            ->all();
+        abort_if(! $request->user()->isAdministrator()
+            && collect($permissions)->filter()->keys()
+                ->contains(fn (string $permission): bool => ! $request->user()->hasAccess($permission)), 403);
 
         if (! $role->exists) {
             $role->slug = $this->uniqueRoleCode($validated['role']['name']);
@@ -123,10 +136,7 @@ class RoleEditScreen extends Screen
         $role->name = $validated['role']['name'];
         $role->description = $validated['role']['description'] ?? null;
 
-        $role->permissions = collect($request->get('permissions'))
-            ->map(fn ($value, $key) => [base64_decode($key) => $value])
-            ->collapse()
-            ->toArray();
+        $role->permissions = $permissions;
 
         $role->save();
 
@@ -154,9 +164,10 @@ class RoleEditScreen extends Screen
      *
      * @throws \Exception
      */
-    public function remove(Role $role)
+    public function remove(Request $request, Role $role)
     {
         abort_if($role->slug === User::ADMIN_ROLE_SLUG, 403, 'The administrator role cannot be deleted.');
+        abort_unless($request->user()?->canManageRole($role), 403);
 
         $role->delete();
 

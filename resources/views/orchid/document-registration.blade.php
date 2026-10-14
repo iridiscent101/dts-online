@@ -2,16 +2,26 @@
     <meta name="turbo-cache-control" content="no-cache">
 @endpush
 
-<dts-registration class="dts-workspace dts-registration">
+@php
+    $documentTypes = \App\Models\Document::typeOptions();
+    $officeOptions = \App\Models\Document::officeOptions();
+    $originOptions = \App\Models\Document::originOptions();
+    $selectedDestinations = old('document.destinations', ['']);
+    $selectedRouteRemarks = old('document.route_remarks', []);
+    $selectedDestinations = is_array($selectedDestinations) ? $selectedDestinations : [];
+    $selectedRouteRemarks = is_array($selectedRouteRemarks) ? $selectedRouteRemarks : [];
+@endphp
+
+<dts-registration class="dts-workspace dts-registration" data-draft-user="{{ auth()->id() }}" data-has-old-input="{{ old('document') !== null ? 'true' : 'false' }}">
     <a class="dts-back" href="{{ route('platform.documents') }}"><x-orchid-icon path="bs.arrow-left" /> Document registry</a>
     <div class="dts-masthead tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
         <div>
             <p class="dts-eyebrow">DOCUMENT REGISTRATION</p>
-            <h2 data-page-heading tabindex="-1">New document</h2>
+            <h2>New document</h2>
         </div>
         <span class="dts-status"><span class="dts-dot amber"></span>Not saved</span>
     </div>
-    <p class="dts-preview-notice"><x-orchid-icon path="bs.shield-check" /> Attachments are stored privately and are available only to authorized staff.</p>
+    <p class="dts-preview-notice" data-draft-notice role="status" hidden></p>
     @if ($errors->any())
         <div class="dts-validation" role="alert">
             <strong>Please correct the highlighted information.</strong>
@@ -22,14 +32,8 @@
             </ul>
         </div>
     @endif
-    <noscript><p class="dts-validation">Enable JavaScript to review this document.</p></noscript>
-    <ol class="dts-steps" aria-label="Registration progress">
-        <li data-step="edit" aria-current="step"><span>1</span>Document information</li>
-        <li data-step="review"><span>2</span>Review document</li>
-    </ol>
-
-    <div data-edit-panel>
-        <div class="dts-registration-layout">
+    <div>
+        <div @class(['dts-registration-layout', 'dts-registration-layout-single' => ! config('app.document_uploads_enabled')])>
             <div class="tw:min-w-0">
                 <section class="dts-form-section" aria-labelledby="document-information">
                     <div class="dts-section-heading"><h3 id="document-information"><x-orchid-icon path="bs.file-earmark-text" /> Document information</h3><span class="dts-required-note">* Required</span></div>
@@ -40,16 +44,15 @@
                         </div>
                         <div class="dts-field">
                             <label for="document-type">Document type <span aria-hidden="true">*</span></label>
-                            <select id="document-type" name="document[type]" data-field="type" required>
-                                <option value="">Select a type</option>
-                                @foreach (['Memorandum', 'Letter', 'Report', 'Request', 'Endorsement', 'Other'] as $type)
-                                    <option @selected(old('document.type') === $type)>{{ $type }}</option>
+                            <dts-searchable>
+                                <input id="document-type" name="document[type]" data-field="type" data-searchable data-options="document-types" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-type-choices" value="{{ old('document.type') }}" placeholder="Search document types" autocomplete="off" required>
+                                <div id="document-type-choices" data-suggestions role="listbox" hidden></div>
+                            </dts-searchable>
+                            <datalist id="document-types">
+                                @foreach ($documentTypes as $type)
+                                    <option value="{{ $type }}"></option>
                                 @endforeach
-                            </select>
-                        </div>
-                        <div class="dts-field">
-                            <label for="document-reference">External reference <span class="dts-optional">Optional</span></label>
-                            <input id="document-reference" name="document[reference]" data-field="reference" maxlength="100" value="{{ old('document.reference') }}" placeholder="Reference from the originating office">
+                            </datalist>
                         </div>
                         <div class="dts-field dts-field-wide">
                             <label for="document-description">Description <span class="dts-optional">Optional</span></label>
@@ -63,7 +66,15 @@
                     <div class="dts-form-grid">
                         <div class="dts-field">
                             <label for="document-origin">Originating office / school <span aria-hidden="true">*</span></label>
-                            <input id="document-origin" name="document[origin]" data-field="origin" required maxlength="180" value="{{ old('document.origin') }}" placeholder="Office or school name">
+                            <dts-searchable>
+                                <input id="document-origin" name="document[origin]" data-field="origin" data-searchable data-options="origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-origin-choices" required maxlength="180" value="{{ old('document.origin') }}" placeholder="Search or enter office or school" autocomplete="off">
+                                <div id="document-origin-choices" data-suggestions role="listbox" hidden></div>
+                            </dts-searchable>
+                            <datalist id="origin-units">
+                                @foreach ($originOptions as $originOption)
+                                    <option value="{{ $originOption }}"></option>
+                                @endforeach
+                            </datalist>
                         </div>
                         <div class="dts-field">
                             <label for="document-sender">Sender <span aria-hidden="true">*</span></label>
@@ -80,34 +91,63 @@
                     </div>
                 </section>
 
-                <section class="dts-form-section" aria-labelledby="initial-routing">
-                    <div class="dts-section-heading"><h3 id="initial-routing"><x-orchid-icon path="bs.signpost-split" /> Initial routing</h3></div>
+                <section class="dts-form-section" aria-labelledby="document-routing">
+                    <div class="dts-section-heading">
+                        <h3 id="document-routing"><x-orchid-icon path="bs.signpost-split" /> Routing</h3>
+                        <span class="dts-required-note">* Required</span>
+                    </div>
                     <div class="dts-form-grid">
-                        <div class="dts-field">
-                            <label for="document-destination">Destination office <span aria-hidden="true">*</span></label>
-                            <input id="document-destination" name="document[destination]" data-field="destination" required maxlength="180" value="{{ old('document.destination') }}" placeholder="Receiving office or unit">
+                        <div class="dts-field dts-field-wide dts-route-destinations">
+                            <div class="dts-route-destination-heading">
+                                <label>Initial destination offices <span aria-hidden="true">*</span></label>
+                                <button type="button" class="dts-button dts-button-secondary" data-registration-add-route><x-orchid-icon path="bs.plus-lg" /> Add route</button>
+                            </div>
+                            <div class="dts-route-destination-list" data-registration-route-list>
+                                @foreach ($selectedDestinations as $selectedDestination)
+                                    <div class="dts-route-destination-row" data-registration-route>
+                                        <span class="dts-route-destination-number" data-registration-route-number>{{ $loop->iteration }}</span>
+                                        <strong class="dts-route-destination-title" data-registration-route-title>Route {{ $loop->iteration }}</strong>
+                                        <div class="dts-route-destination-fields">
+                                            <div class="dts-route-office-field">
+                                                <label for="document-route-office-{{ $loop->index }}" data-registration-office-label>Destination office {{ $loop->iteration }}</label>
+                                                <dts-searchable>
+                                                    <input id="document-route-office-{{ $loop->index }}" name="document[destinations][]" data-registration-office data-searchable data-options="destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-route-office-{{ $loop->index }}-choices" value="{{ $selectedDestination }}" placeholder="Search offices" autocomplete="off" required>
+                                                    <div id="document-route-office-{{ $loop->index }}-choices" data-suggestions role="listbox" hidden></div>
+                                                </dts-searchable>
+                                            </div>
+                                            <div class="dts-route-remarks-field">
+                                                <label for="document-route-remarks-{{ $loop->index }}" data-registration-remarks-label>Remarks for destination {{ $loop->iteration }} <span class="dts-optional">Optional</span></label>
+                                                <textarea id="document-route-remarks-{{ $loop->index }}" name="document[route_remarks][{{ $loop->index }}]" data-registration-remarks rows="2" maxlength="2000" placeholder="Instructions for this office">{{ $selectedRouteRemarks[$loop->index] ?? '' }}</textarea>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="dts-icon-button" data-registration-remove-route aria-label="Remove destination {{ $loop->iteration }}" title="Remove destination"><x-orchid-icon path="bs.x-lg" /></button>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <p class="dts-field-error" data-registration-count-error role="alert" hidden>Select at least one destination office.</p>
+                            <datalist id="destination-offices">
+                                @foreach ($officeOptions as $office)
+                                    <option value="{{ $office }}"></option>
+                                @endforeach
+                            </datalist>
                         </div>
                         <div class="dts-field">
                             <label for="document-priority">Priority <span aria-hidden="true">*</span></label>
-                            <select id="document-priority" name="document[priority]" data-field="priority" required>
-                                @foreach (['Normal', 'High', 'Urgent'] as $priority)
-                                    <option @selected(old('document.priority', 'Normal') === $priority)>{{ $priority }}</option>
+                            <dts-searchable>
+                                <input id="document-priority" name="document[priority]" data-field="priority" data-searchable data-options="document-priorities" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-priority-choices" value="{{ old('document.priority', 'Standard') }}" autocomplete="off" required>
+                                <div id="document-priority-choices" data-suggestions role="listbox" hidden></div>
+                            </dts-searchable>
+                            <datalist id="document-priorities">
+                                @foreach (\App\Models\Document::PRIORITIES as $priority => $workingDays)
+                                    <option value="{{ $priority }}">{{ $workingDays }} working days</option>
                                 @endforeach
-                            </select>
-                        </div>
-                        <div class="dts-field dts-field-wide">
-                            <label for="document-remarks">Routing remarks <span class="dts-optional">Optional</span></label>
-                            <textarea id="document-remarks" name="document[remarks]" data-field="remarks" rows="3" maxlength="2000" placeholder="Requested action or instructions for the receiving office">{{ old('document.remarks') }}</textarea>
+                            </datalist>
                         </div>
                     </div>
                 </section>
             </div>
+            @if (config('app.document_uploads_enabled'))
             <aside class="dts-registration-aside">
-                <section class="dts-form-section" aria-labelledby="tracking-information">
-                    <h3 id="tracking-information">Tracking number</h3>
-                    <p class="dts-tracking-pending"><x-orchid-icon path="bs.upc-scan" /> Pending registration</p>
-                    <p class="dts-muted">Assigned when the document is registered.</p>
-                </section>
                 <section class="dts-form-section" aria-labelledby="attachment-heading">
                     <div class="dts-section-heading"><h3 id="attachment-heading">Attachments</h3><span class="dts-count" data-file-count>0 / 5</span></div>
                     <label class="dts-file-picker" for="document-files">
@@ -120,61 +160,42 @@
                     <ul class="dts-attachment-list" data-file-list="edit" aria-label="Selected attachments"></ul>
                     <p class="dts-muted" data-no-files>No files selected.</p>
                 </section>
-                <dl class="dts-metadata">
-                    <dt>Registration status</dt><dd>Not registered</dd>
-                    <dt>Current office</dt><dd>Not assigned</dd>
-                </dl>
             </aside>
+            @endif
         </div>
         <div class="dts-form-actions dts-form-actions-grouped">
-            <a class="dts-button" href="{{ route('platform.documents') }}">Cancel</a>
-            <button type="button" class="dts-button dts-button-primary" data-dts-action="review" disabled>Review document <x-orchid-icon path="bs.arrow-right" /></button>
+            <a class="dts-button" href="{{ route('platform.documents') }}" data-draft-discard>Cancel</a>
+            <button type="submit" class="dts-button dts-button-primary" formaction="{{ route('platform.documents.create').'/save' }}" data-confirm-message="Register this document?" data-confirm-title="Register document" data-confirm-label="Register"><x-orchid-icon path="bs.check-circle" /> Register document</button>
         </div>
     </div>
 
-    <div data-review-panel hidden>
-        <div class="dts-detail-summary">
-            <span class="dts-empty-icon"><x-orchid-icon path="bs.file-earmark-text" /></span>
-            <div class="tw:min-w-0"><p class="dts-eyebrow">PENDING REGISTRATION</p><h3 data-value="title"></h3><p><span data-value="type"></span><span aria-hidden="true"> &middot; </span><span data-value="priority"></span> priority</p></div>
-        </div>
-        <div class="dts-registration-layout">
-            <div class="tw:min-w-0">
-                <section class="dts-form-section" aria-labelledby="review-details">
-                    <div class="dts-section-heading"><h3 id="review-details">Document details</h3><button class="dts-text-button" type="button" data-dts-action="edit"><x-orchid-icon path="bs.pencil" /> Edit</button></div>
-                    <dl class="dts-detail-grid">
-                        @foreach (['reference' => 'External reference', 'received' => 'Date received', 'origin' => 'Originating office / school', 'sender' => 'Sender', 'due' => 'Due date', 'destination' => 'Destination office'] as $key => $label)
-                            <div><dt>{{ $label }}</dt><dd data-value="{{ $key }}"></dd></div>
-                        @endforeach
-                    </dl>
-                    <dl class="dts-metadata"><dt>Description</dt><dd data-value="description"></dd><dt>Routing remarks</dt><dd data-value="remarks"></dd></dl>
-                </section>
-                <section class="dts-form-section" aria-labelledby="review-attachments">
-                    <div class="dts-section-heading"><h3 id="review-attachments">Attachments</h3><span class="dts-count" data-review-file-count>0 files</span></div>
-                    <ul class="dts-attachment-list" data-file-list="review" aria-label="Attachments for review"></ul>
-                    <p class="dts-muted" data-review-no-files>No attachments selected.</p>
-                </section>
-                <section class="dts-form-section" aria-labelledby="movement-history">
-                    <h3 id="movement-history">Movement timeline</h3>
-                    <div class="dts-timeline-empty"><x-orchid-icon path="bs.clock-history" /><div><strong>No recorded movements</strong><p>This document has not been registered or forwarded.</p></div></div>
-                </section>
-            </div>
-            <aside class="dts-registration-aside">
-                <h3>Document status</h3>
-                <dl class="dts-metadata"><dt>Status</dt><dd><span class="dts-status">Not registered</span></dd><dt>Tracking number</dt><dd>Pending registration</dd><dt>Current office</dt><dd>Not assigned</dd></dl>
-                <div class="dts-route-preview"><x-orchid-icon path="bs.send" /><div><small>Planned destination</small><strong data-value="destination"></strong><span>Not sent</span></div></div>
-            </aside>
-        </div>
-        <div class="dts-form-actions">
-            <button type="button" class="dts-button" data-dts-action="edit"><x-orchid-icon path="bs.arrow-left" /> Back to editing</button>
-            <button type="submit" class="dts-button dts-button-primary" formaction="{{ route('platform.documents.create').'/save' }}"><x-orchid-icon path="bs.check-circle" /> Register document</button>
-        </div>
-    </div>
-
+    @if (config('app.document_uploads_enabled'))
     <template data-file-template>
         <li class="dts-attachment">
             <span class="dts-icon"><x-orchid-icon path="bs.file-earmark" /></span>
             <div class="dts-attachment-info"><a data-file-link target="_blank" rel="noopener noreferrer"></a><small data-file-size></small></div>
             <button type="button" class="dts-icon-button" data-remove-file><x-orchid-icon path="bs.x-lg" /></button>
         </li>
+    </template>
+    @endif
+    <template data-registration-route-template>
+        <div class="dts-route-destination-row" data-registration-route>
+            <span class="dts-route-destination-number" data-registration-route-number></span>
+            <strong class="dts-route-destination-title" data-registration-route-title></strong>
+            <div class="dts-route-destination-fields">
+                <div class="dts-route-office-field">
+                    <label data-registration-office-label></label>
+                    <dts-searchable>
+                        <input name="document[destinations][]" data-registration-office data-searchable data-options="destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off" required>
+                        <div data-suggestions role="listbox" hidden></div>
+                    </dts-searchable>
+                </div>
+                <div class="dts-route-remarks-field">
+                    <label data-registration-remarks-label></label>
+                    <textarea data-registration-remarks rows="2" maxlength="2000" placeholder="Instructions for this office"></textarea>
+                </div>
+            </div>
+            <button type="button" class="dts-icon-button" data-registration-remove-route title="Remove destination"><x-orchid-icon path="bs.x-lg" /></button>
+        </div>
     </template>
 </dts-registration>

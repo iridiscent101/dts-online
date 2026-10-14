@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Document;
+use App\Models\DocumentMovement;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,7 @@ class StoreDocumentMovementRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasAccess('platform.index') ?? false;
+        return $this->user()?->hasAccess('platform.index') && ! $this->user()->isReadOnlySupervisor();
     }
 
     /**
@@ -25,30 +26,87 @@ class StoreDocumentMovementRequest extends FormRequest
     public function rules(): array
     {
         $action = $this->string('workflow.action')->toString();
+        $requiresDestination = DocumentMovement::requiresDestination($action);
 
         return [
-            'workflow.action' => ['required', 'string', Rule::in(['acknowledge', 'forward', 'archive', 'restore'])],
-            'workflow.destination' => [
-                Rule::requiredIf(in_array($action, ['forward', 'restore'], true)),
+            'workflow.action' => ['required', 'string', Rule::in(DocumentMovement::ROUTING_ACTIONS)],
+            'workflow.source_office' => [
                 'nullable',
                 'string',
-                Rule::in(Document::OFFICES),
+                'max:180',
+            ],
+            'workflow.destination' => [
+                'nullable',
+                'string',
+                Rule::in(Document::officeOptions()),
+            ],
+            'workflow.destinations' => [
+                Rule::requiredIf($requiresDestination),
+                'array',
+                'list',
+                'min:1',
+                'max:5',
+            ],
+            'workflow.destinations.*' => [
+                'required',
+                'string',
+                'distinct',
+                Rule::in(Document::officeOptions()),
             ],
             'workflow.remarks' => [
-                'required',
+                'nullable',
+                'string',
+                'max:1000',
+            ],
+            'workflow.destination_remarks' => [
+                'array',
+                'list',
+            ],
+            'workflow.destination_remarks.*' => [
+                'nullable',
                 'string',
                 'max:1000',
             ],
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        $workflow = $this->input('workflow', []);
+
+        if (! is_array($workflow)) {
+            return;
+        }
+
+        if (! array_key_exists('destinations', $workflow) && filled($workflow['destination'] ?? null)) {
+            $workflow['destinations'] = [$workflow['destination']];
+        }
+
+        if (DocumentMovement::requiresDestination((string) ($workflow['action'] ?? ''))
+            && ! array_key_exists('destination_remarks', $workflow)
+            && filled($workflow['remarks'] ?? null)
+            && is_array($workflow['destinations'] ?? null)) {
+            $workflow['destination_remarks'] = array_fill(0, count($workflow['destinations']), $workflow['remarks']);
+        }
+
+        if (array_key_exists('source_office', $workflow) && is_string($workflow['source_office'])) {
+            $workflow['source_office'] = trim($workflow['source_office']);
+        }
+
+        $this->merge(['workflow' => $workflow]);
+    }
+
     public function messages(): array
     {
         return [
             'workflow.action.in' => 'Choose an available workflow action.',
-            'workflow.destination.required' => 'Select a destination office.',
             'workflow.destination.in' => 'Select a recognized destination office.',
-            'workflow.remarks.required' => 'Provide a note for this action.',
+            'workflow.destinations.required' => 'Select at least one destination office.',
+            'workflow.destinations.min' => 'Select at least one destination office.',
+            'workflow.destinations.max' => 'Select no more than five destination offices.',
+            'workflow.destinations.*.required' => 'Select a destination office for each route row.',
+            'workflow.destinations.*.distinct' => 'Select each destination office only once.',
+            'workflow.destinations.*.in' => 'Select recognized destination offices.',
         ];
     }
 }
