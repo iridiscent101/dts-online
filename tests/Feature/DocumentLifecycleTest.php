@@ -70,7 +70,7 @@ class DocumentLifecycleTest extends TestCase
                     'sender' => 'Regional Records Officer',
                     'received' => '2026-09-30',
                     'due' => '2026-10-07',
-                    'destinations' => ['Records Unit', 'SDO-Budget Unit', 'SDO-Accounting Unit'],
+                    'destinations' => ['Records Unit'],
                     'priority' => 'Extended',
                     'remarks' => 'Process through the full workflow.',
                 ],
@@ -127,7 +127,7 @@ class DocumentLifecycleTest extends TestCase
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
-                'action' => 'archive',
+                'action' => 'completed',
                 'remarks' => 'Administrative processing completed.',
             ],
         ])->assertRedirectToRoute('platform.documents.view', $document);
@@ -148,7 +148,7 @@ class DocumentLifecycleTest extends TestCase
         $this->assertSame('Received', $document->status);
         $this->assertSame('Updated lifecycle readiness memorandum', $document->subject);
         $this->assertSame(
-            ['sent', 'sent', 'sent', 'received', 'forwarded', 'received', 'archive', 'restore'],
+            ['sent', 'received', 'forwarded', 'received', 'completed', 'restore'],
             $document->movements()->reorder()->oldest()->pluck('action')->all(),
         );
         $this->assertSame(

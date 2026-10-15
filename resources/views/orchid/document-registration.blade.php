@@ -84,10 +84,6 @@
                             <label for="document-received">Date received <span aria-hidden="true">*</span></label>
                             <input id="document-received" name="document[received]" data-field="received" type="date" required value="{{ old('document.received', now()->timezone('Asia/Manila')->toDateString()) }}">
                         </div>
-                        <div class="dts-field">
-                            <label for="document-due">Due date <span class="dts-optional">Optional</span></label>
-                            <input id="document-due" name="document[due]" data-field="due" type="date" value="{{ old('document.due') }}">
-                        </div>
                     </div>
                 </section>
 
@@ -128,18 +124,6 @@
                             <datalist id="destination-offices">
                                 @foreach ($officeOptions as $office)
                                     <option value="{{ $office }}"></option>
-                                @endforeach
-                            </datalist>
-                        </div>
-                        <div class="dts-field">
-                            <label for="document-priority">Priority <span aria-hidden="true">*</span></label>
-                            <dts-searchable>
-                                <input id="document-priority" name="document[priority]" data-field="priority" data-searchable data-options="document-priorities" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-priority-choices" value="{{ old('document.priority', 'Standard') }}" autocomplete="off" required>
-                                <div id="document-priority-choices" data-suggestions role="listbox" hidden></div>
-                            </dts-searchable>
-                            <datalist id="document-priorities">
-                                @foreach (\App\Models\Document::PRIORITIES as $priority => $workingDays)
-                                    <option value="{{ $priority }}">{{ $workingDays }} working days</option>
                                 @endforeach
                             </datalist>
                         </div>

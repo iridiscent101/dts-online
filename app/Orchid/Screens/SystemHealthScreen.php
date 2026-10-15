@@ -31,7 +31,7 @@ class SystemHealthScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'System Health';
+        return 'System health';
     }
 
     public function description(): ?string

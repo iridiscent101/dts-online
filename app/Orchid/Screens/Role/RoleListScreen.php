@@ -37,7 +37,7 @@ class RoleListScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'Role Management';
+        return 'Role management';
     }
 
     /**
@@ -94,7 +94,7 @@ class RoleListScreen extends Screen
 
         $role->delete();
 
-        Toast::info(__('Role was removed'));
+        Toast::success(__('Role was removed.'));
     }
 
     public function bulkRemove(Request $request): void
@@ -120,7 +120,7 @@ class RoleListScreen extends Screen
             }
         });
 
-        Toast::info($roles->count().' roles were removed.');
+        Toast::success($roles->count().' roles were removed.');
     }
 
     private function perPage(): int

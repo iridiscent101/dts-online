@@ -34,6 +34,13 @@ return [
 
     'lifetime' => (int) env('SESSION_LIFETIME', 120),
 
+    /*
+    | Staff are signed out after this many minutes without activity, even with
+    | "Remember me" on (App\Http\Middleware\LogoutInactiveStaff).
+    */
+
+    'idle_minutes' => (int) env('SESSION_IDLE_MINUTES', 30),
+
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
     /*

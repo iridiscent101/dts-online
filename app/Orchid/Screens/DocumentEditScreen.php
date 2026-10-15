@@ -94,8 +94,6 @@ class DocumentEditScreen extends Screen
                 'origin',
                 'sender',
                 'received_at',
-                'due_at',
-                'priority',
             ]);
 
             $document->update([
@@ -106,8 +104,6 @@ class DocumentEditScreen extends Screen
                 'origin' => $data['origin'],
                 'sender' => $data['sender'],
                 'received_at' => $data['received'] ?? $document->received_at,
-                'due_at' => $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? null : ($data['due'] ?? null),
-                'priority' => $data['priority'],
             ]);
 
             $changedFields = array_values(array_diff(array_keys($document->getChanges()), ['updated_at']));
@@ -213,7 +209,17 @@ class DocumentEditScreen extends Screen
                 ]);
             }
 
-            $document->officeAssignments()->whereIn('office', $removed)->delete();
+            foreach ($document->officeAssignments()->whereIn('office', $removed)->get() as $assignment) {
+                $document->movements()->create([
+                    'action' => DocumentMovement::ACTION_CANCELLED,
+                    'from_office' => null,
+                    'to_office' => $assignment->office,
+                    'from_status' => $assignment->status,
+                    'to_status' => DocumentMovement::STATUS_CANCELLED,
+                    'acted_by' => $user->getAuthIdentifier(),
+                ]);
+                $assignment->delete();
+            }
         }
 
         foreach ($added as $office) {

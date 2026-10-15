@@ -36,7 +36,7 @@ class DepEdDashboardTest extends TestCase
             'documents' => 'No documents registered yet',
             'incoming' => 'No incoming documents',
             'outgoing' => 'No outgoing documents',
-            'archived' => 'No archived documents',
+            'archived' => 'No finished documents',
         ] as $route => $heading) {
             $this->get(route('platform.'.$route))
                 ->assertSee($heading)
@@ -95,6 +95,16 @@ class DepEdDashboardTest extends TestCase
         $this->get(route('platform.login'))
             ->assertSee(asset('images/icon.png'))
             ->assertSee('SDO – Nueva Vizcaya');
+    }
+
+    public function test_failed_login_shows_why(): void
+    {
+        $this->followingRedirects()
+            ->from(route('platform.login'))
+            ->post(route('platform.login.auth'), ['email' => 'nobody@example.test', 'password' => 'wrong-password'])
+            ->assertSee('id="login-errors"', false)
+            ->assertSee('The details you entered did not match our records.')
+            ->assertSee('value="nobody@example.test"', false);
     }
 
     public function test_registration_requires_sign_in(): void
@@ -660,7 +670,7 @@ class DepEdDashboardTest extends TestCase
             ->assertDontSee('dts-row-action-delete', false)
             ->assertDontSee('dts-row-action-edit', false)
             ->assertSee('<dts-column-menu>', false)
-            ->assertSee('data-column="due-at"', false)
+            ->assertDontSee('data-column="due-at"', false)
             ->assertSee('Configure columns')
             ->assertSee('Displayed records: 1-1 of 1');
 
@@ -715,6 +725,51 @@ class DepEdDashboardTest extends TestCase
         $this->get(route('platform.documents', ['office' => 'Administrative Unit', 'status' => 'Forwarded']))
             ->assertOk()
             ->assertSee('DTS-BRANCH-FILTER');
+    }
+
+    public function test_registry_pending_filter_matches_both_waiting_statuses_and_legacy_documents(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG, 'permissions' => []]);
+        $admin = User::factory()->create(['office' => null, 'permissions' => []]);
+        $admin->replaceRoles([$adminRole->id]);
+
+        Document::factory()->create([
+            'tracking_number' => 'DTS-PENDING-PAPER',
+            'current_office' => 'Records Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+        ]);
+        Document::factory()->create([
+            'tracking_number' => 'DTS-PENDING-OTHER',
+            'current_office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+        $legacy = Document::factory()->create([
+            'tracking_number' => 'DTS-PENDING-LEGACY',
+            'current_office' => 'Records Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+        $legacy->officeAssignments()->delete();
+        Document::factory()->received()->create(['tracking_number' => 'DTS-NOT-PENDING']);
+
+        $this->actingAs($admin)
+            ->get(route('platform.documents', ['status' => 'Pending']))
+            ->assertOk()
+            ->assertSee('DTS-PENDING-PAPER')
+            ->assertSee('DTS-PENDING-OTHER')
+            ->assertSee('DTS-PENDING-LEGACY')
+            ->assertDontSee('DTS-NOT-PENDING');
+
+        $this->get(route('platform.documents', ['office' => 'Records Unit', 'status' => 'Pending']))
+            ->assertOk()
+            ->assertSee('DTS-PENDING-PAPER')
+            ->assertSee('DTS-PENDING-LEGACY')
+            ->assertDontSee('DTS-PENDING-OTHER');
+
+        $this->get(route('platform.documents', ['status' => DocumentMovement::STATUS_AWAITING_RECEIPT]))
+            ->assertOk()
+            ->assertDontSee('DTS-PENDING-PAPER')
+            ->assertSee('DTS-PENDING-OTHER')
+            ->assertSee('DTS-PENDING-LEGACY');
     }
 
     public function test_registry_can_filter_a_visible_legacy_type_without_adding_it_to_registration(): void
@@ -1048,6 +1103,7 @@ class DepEdDashboardTest extends TestCase
             'acted_by' => $user->id,
         ]);
         Document::factory()->archived()->create(['tracking_number' => 'DTS-ARCHIVED', 'current_office' => 'Records Unit']);
+        Document::factory()->create(['tracking_number' => 'DTS-RELEASED', 'current_office' => 'Records Unit', 'status' => DocumentMovement::STATUS_RELEASED]);
 
         $this->actingAs($user)->get(route('platform.incoming'))
             ->assertOk()
@@ -1066,6 +1122,7 @@ class DepEdDashboardTest extends TestCase
         $this->actingAs($user)->get(route('platform.archived'))
             ->assertOk()
             ->assertSee('DTS-ARCHIVED')
+            ->assertSee('DTS-RELEASED')
             ->assertDontSee('DTS-INCOMING')
             ->assertDontSee('DTS-SENT-ON');
 
@@ -1101,7 +1158,8 @@ class DepEdDashboardTest extends TestCase
             ->assertSee('DTS-PARALLEL-001')
             ->assertSee('Curriculum Implementation Division')
             ->assertSee('Forwarded')
-            ->assertSee('Process')
+            ->assertSee('data-receive-routes="[&quot;Curriculum Implementation Division&quot;]"', false)
+            ->assertDontSee('data-receive-all-office', false)
             ->assertDontSee('<th scope="col">Overall status</th>', false)
             ->assertDontSee('Document queues')
             ->assertDontSee('Total registered records');
@@ -1133,12 +1191,17 @@ class DepEdDashboardTest extends TestCase
             'acted_by' => $budget->id,
         ]);
 
-        $this->actingAs($records)
+        $recordsDashboard = $this->actingAs($records)
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSeeInOrder(['<span>Needs action</span>', '<strong>1</strong>', '<span>Paper waiting</span>', '<strong>1</strong>'], false)
+            // Queue: "Quick action" column without a View icon.
+            ->assertSee('<th scope="col">Quick action</th>', false)
+            ->assertDontSee('data-tooltip="View"', false)
             ->assertDontSee('Done this week')
             ->assertDontSee('Recent documents');
+        // The tracking number opens the workspace on its Details tab: no office, which would jump to Routing.
+        $this->assertMatchesRegularExpression('/<div class="dts-record-code"><a href="[^"]+" data-workspace-url="[^"]+"><strong>/', $recordsDashboard->getContent());
 
         $this->actingAs($budget)
             ->get(route('platform.main'))

@@ -24,6 +24,7 @@ class DocumentLabelsController extends Controller
         $documents = Document::query()
             ->visibleTo($user)
             ->whereKey($validated['ids'])
+            ->with(['latestMovement.actor', 'registeredBy'])
             ->get()
             ->keyBy('id');
 
@@ -35,6 +36,7 @@ class DocumentLabelsController extends Controller
             return [
                 'document' => $document,
                 'qrCodeDataUri' => $trackingLabel->dataUri($document),
+                'labelDetails' => $trackingLabel->details($document),
             ];
         });
 

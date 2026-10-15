@@ -40,3 +40,11 @@
         </form>
     </div>
 </dts-profile-menu>
+
+{{-- Inactivity sign-out (dts.js IdleSignOut): warns two minutes before the server's idle limit, then signs out. --}}
+<dts-idle-sign-out
+    data-idle-seconds="{{ \App\Http\Middleware\LogoutInactiveStaff::idleSeconds() }}"
+    data-keep-alive-url="{{ route('platform.session.keep-alive') }}"
+    data-sign-out-url="{{ route('platform.session.idle-sign-out') }}"
+    data-login-url="{{ route('platform.login') }}"
+    hidden></dts-idle-sign-out>

@@ -6,6 +6,13 @@
             ->pluck('office')
             ->all()
         : [];
+    // Finished offices (completed, released…) stay on the route but do not count toward the five active offices.
+    $finishedOffices = isset($document)
+        ? $document->officeAssignments
+            ->whereIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)
+            ->pluck('office')
+            ->all()
+        : [];
 @endphp
 <dts-route-editor class="dts-route-destinations">
     <input type="hidden" name="document[route_fingerprint]" value="{{ $document->routeFingerprint() }}">
@@ -19,7 +26,8 @@
     <div class="dts-route-destination-list" data-edit-route-list>
         @foreach ($routeDestinations as $routeIndex => $routeDestination)
             @php($routeLocked = in_array($routeDestination, $startedOffices, true))
-            <div class="dts-route-destination-row" data-edit-route @if ($routeLocked) data-edit-route-locked @endif>
+            @php($routeFinished = in_array($routeDestination, $finishedOffices, true))
+            <div class="dts-route-destination-row" data-edit-route @if ($routeLocked) data-edit-route-locked @endif @if ($routeFinished) data-edit-route-finished @endif>
                 <span class="dts-route-destination-number" data-edit-route-number>{{ $loop->iteration }}</span>
                 <strong class="dts-route-destination-title" data-edit-route-title>Office {{ $loop->iteration }}</strong>
                 <div class="dts-route-destination-fields">
@@ -27,7 +35,7 @@
                         <label for="document-edit-route-office-{{ $routeIndex }}" data-edit-office-label>Assigned office {{ $loop->iteration }}</label>
                         @if ($routeLocked)
                             <input id="document-edit-route-office-{{ $routeIndex }}" name="document[destinations][]" data-edit-office value="{{ $routeDestination }}" readonly aria-describedby="document-edit-route-office-{{ $routeIndex }}-note">
-                            <p class="dts-route-locked-note" id="document-edit-route-office-{{ $routeIndex }}-note" data-edit-route-note><x-orchid-icon path="bs.lock-fill" /> Started work, so it cannot be removed.</p>
+                            <p class="dts-route-locked-note" id="document-edit-route-office-{{ $routeIndex }}-note" data-edit-route-note><x-orchid-icon path="bs.lock-fill" /> {{ $routeFinished ? 'Finished, so it stays on the route. It does not count toward the five active offices.' : 'Started work, so it cannot be removed.' }}</p>
                         @else
                             <dts-searchable>
                                 <input id="document-edit-route-office-{{ $routeIndex }}" name="document[destinations][]" data-edit-office data-searchable data-options="edit-destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-edit-route-office-{{ $routeIndex }}-choices" value="{{ $routeDestination }}" placeholder="Search offices" autocomplete="off" required>

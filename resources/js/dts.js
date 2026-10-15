@@ -123,6 +123,32 @@ document.addEventListener('turbo:frame-load', labelRowActions);
 labelRowActions();
 initializeNotificationBell();
 
+// Toasts from page scripts, through Orchid's toast controller (vendor/platform/partials/toast), so they look and time
+// out like the server's. One for a page that is about to reload waits in sessionStorage until the next page loads.
+function dtsToast(message, type = 'success') {
+    const wrapper = document.querySelector('.toast-wrapper[data-controller~="toast"]');
+    const controller = wrapper && window.application?.getControllerForElementAndIdentifier(wrapper, 'toast');
+    if (!controller) return false;
+    const text = document.createElement('span');
+    text.textContent = message;
+    controller.toast(text.innerHTML, type);
+    return true;
+}
+
+function dtsToastAfterReload(message, type = 'success') {
+    try { sessionStorage.setItem('dts-toast', JSON.stringify({ message, type })); } catch { /* The page still reloads. */ }
+}
+
+document.addEventListener('turbo:load', () => {
+    let pending = null;
+    try {
+        pending = JSON.parse(sessionStorage.getItem('dts-toast') || 'null');
+        sessionStorage.removeItem('dts-toast');
+    } catch { /* Storage blocked: nothing waiting. */ }
+    // The toast controller may connect a moment after the page loads.
+    if (pending && !dtsToast(pending.message, pending.type)) setTimeout(() => dtsToast(pending.message, pending.type), 300);
+});
+
 function showDtsDialog({ type = 'confirm', title, message, confirmLabel = 'Continue', value = '', label = 'Your response', danger = false }) {
     let dialog = document.querySelector('#dts-app-dialog');
     if (!dialog) {
@@ -267,6 +293,9 @@ highlightChangedDocument();
 
 // The server rejects a save made from an out-of-date form (someone else saved the document in between) with a
 // validation error on one of these fingerprints.
+// Bootstrap "printer" icon for print buttons that scripts create (icon only; the hover text names the action).
+const PRINTER_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/></svg>';
+
 const STALE_EDIT_FIELDS = ['document.details_fingerprint', 'document.route_fingerprint'];
 
 class StaleEditError extends Error {}
@@ -484,6 +513,15 @@ document.addEventListener('click', async (event) => {
             [...content.querySelectorAll('[data-workspace-route]')]
                 .find((route) => route.dataset.workspaceRoute === link.dataset.workspaceOffice)
                 ?.click();
+            // Queue action icons: the chosen action is preselected, so staff only add offices or remarks and save.
+            if (link.dataset.workspaceAction) {
+                content.querySelector(`[data-action-choice="${link.dataset.workspaceAction}"]`)?.click();
+                const next = link.dataset.workspaceAction === 'forwarded'
+                    ? content.querySelector('[data-destination-select]:not(:disabled)')
+                    : content.querySelector('[data-workspace-routing-save]');
+                next?.scrollIntoView({ block: 'center' });
+                next?.focus();
+            }
         } else {
             content.querySelector('[data-workspace-tab]')?.focus();
         }
@@ -633,8 +671,8 @@ document.addEventListener('click', async (event) => {
     if (event.target.closest('[data-workspace-take-action]')) {
         dialog.querySelector('[data-workspace-tab="routing"]')?.click();
         const routing = dialog.querySelector('[data-workspace-routing]');
-        const firstChoice = [...(routing?.querySelectorAll('[data-workflow-source-office], [data-workflow-action]') ?? [])]
-            .find((field) => !field.disabled && field.type !== 'hidden');
+        const firstChoice = [...(routing?.querySelectorAll('[data-workflow-source-office], [data-action-choice]') ?? [])]
+            .find((field) => !field.disabled && field.type !== 'hidden' && field.offsetParent !== null);
         firstChoice?.scrollIntoView({ block: 'center' });
         firstChoice?.focus();
         return;
@@ -698,6 +736,7 @@ document.addEventListener('click', async (event) => {
     const errors = editor.querySelector('[data-workspace-form-errors]');
     const result = await postWorkspace(editor.dataset.saveUrl, data, errors, button);
     if (!result) return;
+    dtsToast(result.message || 'Document details were updated.');
     try { await refreshWorkspace(button.closest('[data-document-workspace]'), true); }
     catch (error) { errors.textContent = error.message; errors.hidden = false; }
 });
@@ -725,7 +764,10 @@ document.addEventListener('click', async (event) => {
     const invalid = fields.find((field) => !field.checkValidity());
     if (invalid) { invalid.reportValidity(); invalid.focus(); return; }
     button.dataset.confirming = 'true';
-    const confirmed = await dtsDialog.confirm('Save this routing update?', { title: 'Save routing update', confirmLabel: 'Save update' });
+    const receiving = Boolean(routing.querySelector('dts-workflow-routing[data-receive-only]'));
+    const confirmed = receiving
+        ? await dtsDialog.confirm('Confirm that your office has received this document?', { title: 'Receive document', confirmLabel: 'Receive' })
+        : await dtsDialog.confirm('Save this routing update?', { title: 'Save routing update', confirmLabel: 'Save update' });
     delete button.dataset.confirming;
     if (!confirmed) return;
 
@@ -745,9 +787,11 @@ document.addEventListener('click', async (event) => {
         workspaceDirty = false;
         workspaceSaved = false;
         dialog.close();
+        dtsToastAfterReload(result.message || 'Routing update saved.');
         window.location.reload();
         return;
     }
+    dtsToast(result.message || 'Routing update saved.');
     try { await refreshWorkspace(dialog); }
     catch (error) { errors.textContent = error.message; errors.hidden = false; }
     finally {
@@ -1044,15 +1088,9 @@ class DocumentRegistration extends HTMLElement {
             this.querySelector('[data-registration-add-route]').focus();
             return false;
         }
-        const received = this.querySelector('[data-field="received"]');
-        const due = this.querySelector('[data-field="due"]');
-
         for (const field of fields) {
             this.clearFieldError(field);
             if (field.required && !field.value.trim()) field.setCustomValidity('Please complete this field.');
-        }
-        if (due.value && received.value && due.value < received.value) {
-            due.setCustomValidity('Due date must be on or after the date received.');
         }
         let invalid = null;
         for (const field of fields) {
@@ -1219,8 +1257,13 @@ class DocumentRouteEditor extends HTMLElement {
         return [...this.querySelectorAll('[data-edit-route-list] [data-edit-route]')];
     }
 
+    // The server allows five active offices; finished ones (completed, released…) stay on the route on top of those.
+    activeRouteCount() {
+        return this.editRoutes().filter((row) => !row.hasAttribute('data-edit-route-finished')).length;
+    }
+
     addRoute() {
-        if (this.editRoutes().length >= 5) return;
+        if (this.activeRouteCount() >= 5) return;
         const list = this.querySelector('[data-edit-route-list]');
         const template = this.querySelector('[data-edit-route-template]');
         if (!list || !template) return;
@@ -1245,7 +1288,7 @@ class DocumentRouteEditor extends HTMLElement {
         const routes = this.editRoutes();
         const add = this.querySelector('[data-edit-route-add]');
         const countError = this.querySelector('[data-edit-route-count-error]');
-        if (add) add.disabled = routes.length >= 5;
+        if (add) add.disabled = this.activeRouteCount() >= 5;
         if (countError) countError.hidden = routes.length >= 1;
 
         routes.forEach((row, index) => {
@@ -1474,6 +1517,7 @@ class WorkflowRouting extends HTMLElement {
             if (event.target.matches('[data-workflow-action]')) this.syncDestinationPanel();
         }, options);
 
+        this.setupActionChoices(options);
         this.syncActionOptions();
         this.syncDestinationPanel();
         this.syncDestinationRows();
@@ -1528,11 +1572,40 @@ class WorkflowRouting extends HTMLElement {
         this.syncDestinationLimit(panel, requiresDestination);
         const sharedRemarks = this.querySelector('[data-shared-remarks]');
         const sharedRemarksInput = sharedRemarks?.querySelector('textarea');
-        if (sharedRemarks) sharedRemarks.hidden = requiresDestination;
+        // Receive-only offices skip remarks too: the one thing to do is confirm the document arrived.
+        if (sharedRemarks) sharedRemarks.hidden = requiresDestination || this.receiveOnly;
         if (sharedRemarksInput) {
-            sharedRemarksInput.disabled = requiresDestination;
+            sharedRemarksInput.disabled = requiresDestination || this.receiveOnly;
             sharedRemarksInput.required = false;
         }
+    }
+
+    // Before an office receives its route the backend allows only Receive. The other controls are hidden and the
+    // save button becomes one prominent Receive button; after receipt the office's full set of actions appears.
+    syncReceiveOnly(actionOptions) {
+        this.receiveOnly = Object.keys(actionOptions).length === 1 && Object.hasOwn(actionOptions, 'received');
+        this.toggleAttribute('data-receive-only', this.receiveOnly);
+        if (this.actionChoices) this.actionChoices.hidden = this.receiveOnly;
+
+        let note = this.querySelector('[data-receive-first]');
+        if (this.receiveOnly && !note) {
+            note = document.createElement('p');
+            note.className = 'dts-receive-first';
+            note.dataset.receiveFirst = '';
+            note.textContent = 'Receive this document first. Forward, Complete and Release appear after your office receives it.';
+            (this.actionChoices ?? this.querySelector('[data-workflow-action]')?.closest('label, .dts-field'))?.before(note);
+        }
+        if (note) note.hidden = !this.receiveOnly;
+
+        const submit = this.parentElement?.querySelector('[data-workflow-submit-label]')?.closest('button');
+        if (!submit) return;
+        submit.classList.toggle('dts-button-receive', this.receiveOnly);
+        // The document page confirms through these attributes; the workspace reads data-receive-only itself.
+        submit.dataset.routingConfirm ??= JSON.stringify([submit.dataset.confirmMessage, submit.dataset.confirmTitle, submit.dataset.confirmLabel]);
+        const [message, title, label] = this.receiveOnly
+            ? ['Confirm that your office has received this document?', 'Receive document', 'Receive']
+            : JSON.parse(submit.dataset.routingConfirm);
+        if (message !== undefined && message !== null) Object.assign(submit.dataset, { confirmMessage: message, confirmTitle: title, confirmLabel: label });
     }
 
     syncActionOptions() {
@@ -1558,10 +1631,119 @@ class WorkflowRouting extends HTMLElement {
             return option;
         }));
 
+        // A lone everyday action is preselected; Restore reopens a finished document, so it always takes a click.
+        const onlyAction = Object.keys(actionOptions).length === 1 ? Object.keys(actionOptions)[0] : '';
         actionSelect.value = Object.prototype.hasOwnProperty.call(actionOptions, selectedAction)
             ? selectedAction
-            : Object.keys(actionOptions).length === 1 ? Object.keys(actionOptions)[0] : '';
+            : onlyAction === 'restore' ? '' : onlyAction;
+        this.renderActionChoices(actionOptions);
+        this.syncReceiveOnly(actionOptions);
+        this.syncActionChoiceState();
         this.syncDestinationPanel();
+        this.syncOfficeRemark(sourceOffice, actionOptions);
+    }
+
+    // "Add remark" belongs to a received, active route: the same offices that may forward (DocumentRemarkController).
+    syncOfficeRemark(office, actionOptions) {
+        const remark = this.parentElement?.querySelector('[data-office-remark]');
+        if (!remark) return;
+        const allowed = Object.hasOwn(actionOptions, 'forwarded');
+        remark.hidden = !allowed;
+        remark.dataset.office = office;
+        remark.querySelectorAll('[data-office-remark-office]').forEach((name) => { name.textContent = office; });
+        if (!allowed) closeOfficeRemark(remark);
+    }
+
+    // Fast buttons in place of the action dropdown. The backend decides which actions each office may take; the
+    // buttons only order them: Receive first, then Forward, Complete and Release. Restore reopens a finished
+    // document, so it sits apart from the everyday actions. The hidden dropdown still carries the chosen action.
+    setupActionChoices(options) {
+        const actionSelect = this.querySelector('[data-workflow-action]');
+        if (!actionSelect) return;
+
+        const field = actionSelect.closest('.dts-field, label');
+        this.actionChoices = document.createElement('div');
+        this.actionChoices.className = 'dts-action-choices';
+        this.actionChoices.innerHTML = `
+            <span class="dts-action-choices-label" id="${actionSelect.id || 'workflow-action'}-choices-label">Action</span>
+            <div class="dts-action-choice-list" role="group" aria-labelledby="${actionSelect.id || 'workflow-action'}-choices-label" data-action-choice-list></div>
+            <p class="dts-action-choice-hint" data-action-choice-hint aria-live="polite"></p>
+            <div class="dts-action-restore" data-action-restore hidden>
+                <div><strong>Finished document</strong><p>Restore reopens it so an office can work on it again.</p></div>
+            </div>`;
+        field.before(this.actionChoices);
+        field.hidden = true;
+
+        this.addEventListener('click', (event) => {
+            const choice = event.target.closest('[data-action-choice]');
+            if (!choice || choice.disabled) return;
+            actionSelect.value = choice.dataset.actionChoice;
+            actionSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            this.syncActionChoiceState();
+        }, options);
+        // The dropdown is hidden, so point an unanswered "Choose an action" at the buttons instead.
+        actionSelect.addEventListener('invalid', (event) => {
+            event.preventDefault();
+            const hint = this.actionChoices.querySelector('[data-action-choice-hint]');
+            hint.textContent = 'Choose an action first.';
+            hint.classList.add('is-error');
+            this.actionChoices.querySelector('[data-action-choice]:not(:disabled)')?.focus();
+        }, options);
+    }
+
+    renderActionChoices(actionOptions) {
+        if (!this.actionChoices) return;
+
+        const everydayOrder = ['received', 'forwarded', 'completed', 'released'];
+        const actions = Object.keys(actionOptions);
+        const everyday = [
+            ...everydayOrder.filter((action) => actions.includes(action)),
+            ...actions.filter((action) => !everydayOrder.includes(action) && action !== 'restore'),
+        ];
+        const button = (action) => {
+            const choice = document.createElement('button');
+            choice.type = 'button';
+            choice.className = `dts-action-choice${action === 'received' ? ' is-receive' : ''}${action === 'restore' ? ' is-restore' : ''}`;
+            choice.dataset.actionChoice = action;
+            choice.textContent = actionOptions[action];
+
+            return choice;
+        };
+
+        const list = this.actionChoices.querySelector('[data-action-choice-list]');
+        list.replaceChildren(...everyday.map(button));
+        list.hidden = everyday.length === 0;
+        this.actionChoices.querySelector('.dts-action-choices-label').hidden = everyday.length === 0;
+
+        const restore = this.actionChoices.querySelector('[data-action-restore]');
+        restore.querySelector('[data-action-choice]')?.remove();
+        restore.hidden = !actions.includes('restore');
+        if (actions.includes('restore')) restore.append(button('restore'));
+
+        this.syncActionChoiceState();
+    }
+
+    syncActionChoiceState() {
+        if (!this.actionChoices) return;
+
+        const selected = this.querySelector('[data-workflow-action]')?.value || '';
+        this.actionChoices.querySelectorAll('[data-action-choice]').forEach((choice) => {
+            choice.setAttribute('aria-pressed', String(choice.dataset.actionChoice === selected));
+        });
+        const hints = {
+            received: 'Confirms your office has the document. Choose what happens next after this.',
+            forwarded: 'Send the document to one or more offices below.',
+            completed: "Your office's part is finished.",
+            released: 'Release the document from the Records Unit. This finishes it.',
+            restore: 'Reopen this document and choose the office that works on it next.',
+        };
+        const hint = this.actionChoices.querySelector('[data-action-choice-hint]');
+        hint.classList.remove('is-error');
+        hint.textContent = hints[selected] || '';
+
+        const submitLabel = this.parentElement?.querySelector('[data-workflow-submit-label]');
+        const chosen = this.actionChoices.querySelector(`[data-action-choice="${selected}"]`);
+        if (submitLabel) submitLabel.textContent = this.receiveOnly ? 'Receive document' : chosen ? chosen.textContent : 'Save routing update';
     }
 
     syncDestinationRows() {
@@ -1636,6 +1818,222 @@ class WorkflowRouting extends HTMLElement {
 }
 
 if (!customElements.get('dts-workflow-routing')) customElements.define('dts-workflow-routing', WorkflowRouting);
+
+// Outgoing list: "Send to another office" (orchid/cells/document-row-actions). Adds one more office to an active
+// document after the sending office has dispatched an extra paper copy; the original routes are not touched.
+function additionalRouteDialog() {
+    let dialog = document.querySelector('#dts-additional-route-dialog');
+    if (dialog) return dialog;
+
+    dialog = document.createElement('dialog');
+    dialog.id = 'dts-additional-route-dialog';
+    dialog.className = 'dts-app-dialog dts-additional-route-dialog';
+    dialog.setAttribute('aria-labelledby', 'dts-additional-route-title');
+    dialog.innerHTML = `
+        <div class="dts-app-dialog-header"><h2 id="dts-additional-route-title">Send to another office</h2></div>
+        <div class="dts-app-dialog-content dts-additional-route-fields">
+            <p class="dts-additional-route-document"><strong data-additional-route-tracking></strong><span data-additional-route-subject></span></p>
+            <p class="dts-field-hint">The offices it already went to stay as they are. This adds one more office.</p>
+            <div class="dts-field" data-additional-route-source-field>
+                <label for="dts-additional-route-source">Sending office</label>
+                <select id="dts-additional-route-source" data-additional-route-source></select>
+            </div>
+            <div class="dts-field">
+                <label for="dts-additional-route-office">Office to send it to <span aria-hidden="true">*</span></label>
+                <input id="dts-additional-route-office" data-additional-route-office list="additional-route-offices" placeholder="Search offices" autocomplete="off" required>
+            </div>
+            <div class="dts-field">
+                <label for="dts-additional-route-remarks">Remarks <span class="dts-optional">Optional</span></label>
+                <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="3" maxlength="1000" autocomplete="off" placeholder="Instructions for this office"></textarea>
+            </div>
+            <label class="dts-additional-route-confirm">
+                <input type="checkbox" data-additional-route-dispatched>
+                <span><strong>I have sent a separate paper copy to this office.</strong> Check this only after the extra copy has left your office.</span>
+            </label>
+            <p class="dts-workspace-form-errors" data-additional-route-errors role="alert" hidden></p>
+        </div>
+        <div class="dts-app-dialog-actions">
+            <button type="button" class="dts-button" data-additional-route-cancel>Cancel</button>
+            <button type="button" class="dts-button dts-button-primary" data-additional-route-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Send to office</button>
+        </div>`;
+    dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-additional-route-cancel]')) dialog.close();
+    });
+    document.body.append(dialog);
+
+    return dialog;
+}
+
+document.addEventListener('click', async (event) => {
+    const trigger = event.target.closest('[data-additional-route]');
+    if (trigger) {
+        const details = JSON.parse(trigger.dataset.additionalRoute);
+        const dialog = additionalRouteDialog();
+        dialog.details = details;
+        dialog.trigger = trigger;
+        dialog.querySelector('[data-additional-route-tracking]').textContent = details.tracking;
+        dialog.querySelector('[data-additional-route-subject]').textContent = details.subject;
+        const source = dialog.querySelector('[data-additional-route-source]');
+        source.replaceChildren(...details.sources.map((office) => new Option(office, office)));
+        // One sending office needs no choice; it is still sent with the request.
+        dialog.querySelector('[data-additional-route-source-field]').hidden = details.sources.length < 2;
+        dialog.querySelector('[data-additional-route-office]').value = '';
+        dialog.querySelector('[data-additional-route-remarks]').value = '';
+        dialog.querySelector('[data-additional-route-dispatched]').checked = false;
+        dialog.querySelector('[data-additional-route-errors]').hidden = true;
+        dialog.showModal();
+        dialog.querySelector('[data-additional-route-office]').focus();
+        return;
+    }
+
+    const save = event.target.closest('[data-additional-route-save]');
+    if (!save) return;
+    const dialog = save.closest('dialog');
+    const errors = dialog.querySelector('[data-additional-route-errors]');
+    const office = dialog.querySelector('[data-additional-route-office]');
+    const dispatched = dialog.querySelector('[data-additional-route-dispatched]');
+    const source = dialog.querySelector('[data-additional-route-source]').value;
+    const offices = [...document.querySelectorAll('#additional-route-offices option')].map((option) => option.value);
+    const problem = !offices.includes(office.value.trim()) ? ['Choose an office from the list.', office]
+        : office.value.trim() === source || dialog.details.assigned.includes(office.value.trim()) ? ['That office already has this document. Choose a different office.', office]
+            : !dispatched.checked ? ['Confirm that the extra paper copy was sent before adding the office.', dispatched]
+                : null;
+    if (problem) {
+        errors.textContent = problem[0];
+        errors.hidden = false;
+        problem[1].focus();
+        return;
+    }
+
+    const data = new FormData();
+    data.append('source_office', source);
+    data.append('destination_office', office.value.trim());
+    data.append('remarks', dialog.querySelector('[data-additional-route-remarks]').value.trim());
+    data.append('dispatch_confirmed', '1');
+    const result = await postWorkspace(dialog.details.url, data, errors, save);
+    if (!result) return;
+
+    dialog.close();
+    dtsToastAfterReload(result.message);
+    window.location.reload();
+});
+
+// Profile: signature picture for QR labels (orchid/profile-account). Checked here first, then UserSignatureController
+// validates it again; the preview shows the chosen picture before it is saved.
+document.addEventListener('change', (event) => {
+    const input = event.target.closest('[data-profile-signature-file]');
+    if (!input) return;
+    const section = input.closest('[data-profile-signature]');
+    const errors = section.querySelector('[data-profile-signature-errors]');
+    const save = section.querySelector('[data-profile-signature-save]');
+    const file = input.files[0];
+    section.querySelector('[data-profile-signature-status]').textContent = '';
+    errors.hidden = true;
+    save.disabled = true;
+    if (!file) return;
+
+    const problem = !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ? 'Choose a PNG, JPG or WebP picture.'
+        : file.size > 256 * 1024 ? 'This picture is larger than 256 KB. Choose a smaller one.'
+            : null;
+    if (problem) {
+        errors.textContent = problem;
+        errors.hidden = false;
+        return;
+    }
+
+    const preview = section.querySelector('[data-profile-signature-preview]');
+    const image = document.createElement('img');
+    image.alt = 'Chosen signature, not saved yet';
+    image.dataset.profileSignatureImage = '';
+    image.src = URL.createObjectURL(file);
+    preview.replaceChildren(image);
+    save.disabled = false;
+});
+
+document.addEventListener('click', async (event) => {
+    const save = event.target.closest('[data-profile-signature-save]');
+    if (!save) return;
+    const section = save.closest('[data-profile-signature]');
+    const input = section.querySelector('[data-profile-signature-file]');
+    if (!input.files[0]) return;
+
+    const data = new FormData();
+    data.append('signature', input.files[0]);
+    const result = await postWorkspace(section.dataset.uploadUrl, data, section.querySelector('[data-profile-signature-errors]'), save);
+    if (!result) return;
+
+    const image = section.querySelector('[data-profile-signature-image]');
+    if (image) {
+        image.src = `${result.signature_url}?v=${Date.now()}`;
+        image.alt = 'Your saved signature';
+    }
+    input.value = '';
+    save.disabled = true;
+    section.querySelector('[data-profile-signature-status]').textContent = 'Signature saved. New labels will show it.';
+});
+
+// "Add remark" (orchid/partials/office-remark): a note for the acting office's history, without changing its status.
+function closeOfficeRemark(remark) {
+    const panel = remark.querySelector('[data-office-remark-panel]');
+    if (!panel || panel.hidden) return;
+    panel.hidden = true;
+    remark.querySelector('[data-office-remark-toggle]')?.setAttribute('aria-expanded', 'false');
+    remark.querySelector('[data-office-remark-errors]').hidden = true;
+}
+
+document.addEventListener('click', async (event) => {
+    const remark = event.target.closest('[data-office-remark]');
+    if (!remark) return;
+
+    if (event.target.closest('[data-office-remark-toggle]')) {
+        const panel = remark.querySelector('[data-office-remark-panel]');
+        if (!panel.hidden) { closeOfficeRemark(remark); return; }
+        panel.hidden = false;
+        remark.querySelector('[data-office-remark-toggle]').setAttribute('aria-expanded', 'true');
+        remark.querySelector('[data-office-remark-text]').focus();
+        return;
+    }
+
+    if (event.target.closest('[data-office-remark-cancel]')) {
+        closeOfficeRemark(remark);
+        remark.querySelector('[data-office-remark-toggle]').focus();
+        return;
+    }
+
+    const save = event.target.closest('[data-office-remark-save]');
+    if (!save) return;
+    const text = remark.querySelector('[data-office-remark-text]');
+    const errors = remark.querySelector('[data-office-remark-errors]');
+    if (!text.value.trim()) {
+        errors.textContent = 'Enter a remark first.';
+        errors.hidden = false;
+        text.focus();
+        return;
+    }
+
+    const office = remark.dataset.office;
+    const data = new FormData();
+    data.append('office', office);
+    data.append('remark', text.value.trim());
+    const result = await postWorkspace(remark.dataset.remarkUrl, data, errors, save);
+    if (!result) return;
+
+    const dialog = remark.closest('[data-document-workspace]');
+    if (!dialog) {
+        dtsToastAfterReload(result.message || 'Remark added.');
+        window.location.reload();
+        return;
+    }
+    try {
+        await refreshWorkspace(dialog, true);
+        // Show the new entry where it belongs: that office's history.
+        [...dialog.querySelectorAll('[data-workspace-route]')].find((route) => route.dataset.workspaceRoute === office)?.click();
+        dtsToast(result.message || 'Remark added.');
+    } catch (error) {
+        errors.textContent = error.message;
+        errors.hidden = false;
+    }
+});
 
 document.addEventListener('click', (event) => {
     const link = event.target.closest('.dts-document-view [data-workflow-office-link]');
@@ -1770,7 +2168,7 @@ class DocumentFilters extends HTMLElement {
 
     reset() {
         const url = new URL(window.location.href);
-        ['search', 'office', 'type', 'status', 'due', 'priority', 'from', 'to', 'page'].forEach((parameter) => url.searchParams.delete(parameter));
+        ['search', 'office', 'type', 'status', 'from', 'to', 'page'].forEach((parameter) => url.searchParams.delete(parameter));
         this.navigate(url);
     }
 
@@ -1860,6 +2258,151 @@ class ColumnMenu extends HTMLElement {
 
 if (!customElements.get('dts-column-menu')) customElements.define('dts-column-menu', ColumnMenu);
 
+// Inactivity sign-out. The server (LogoutInactiveStaff) signs a session out after the idle limit; this warns two minutes
+// earlier and then signs out itself, so nobody meets the limit mid-form. Clicks and typing that send no request of their
+// own are reported at most once a minute. Open tabs share the last activity, and one tab signing out signs out the rest.
+const IDLE_WARNING_SECONDS = 120;
+const IDLE_ACTIVITY_KEY = 'dts-last-server-activity';
+const IDLE_SIGNED_OUT_KEY = 'dts-idle-signed-out';
+
+function readIdleStorage(key) {
+    try { return Number(localStorage.getItem(key)) || 0; } catch { return 0; }
+}
+
+function writeIdleStorage(key, value) {
+    try { localStorage.setItem(key, String(value)); } catch { /* Private windows: this tab still times out on its own. */ }
+}
+
+class IdleSignOut extends HTMLElement {
+    connectedCallback() {
+        this.idleMs = Number(this.dataset.idleSeconds) * 1000;
+        if (!this.idleMs || this.events) return;
+
+        this.events = new AbortController();
+        const options = { signal: this.events.signal, passive: true };
+        // Loading this page was a request, so the server has just recorded activity.
+        this.recordServerActivity(Date.now());
+        this.lastPingAt = Date.now();
+
+        ['pointerdown', 'keydown', 'wheel', 'touchstart'].forEach((type) => {
+            document.addEventListener(type, () => this.noteActivity(), options);
+        });
+        window.addEventListener('storage', (event) => {
+            if (event.key === IDLE_SIGNED_OUT_KEY && event.newValue) window.location.assign(this.dataset.loginUrl);
+        }, options);
+        this.timer = setInterval(() => this.check(), 1000);
+    }
+
+    disconnectedCallback() {
+        this.events?.abort();
+        this.events = null;
+        clearInterval(this.timer);
+        this.warning?.remove();
+        this.warning = null;
+    }
+
+    recordServerActivity(time) {
+        this.lastServerActivity = time;
+        writeIdleStorage(IDLE_ACTIVITY_KEY, time);
+    }
+
+    lastActivity() {
+        return Math.max(this.lastServerActivity, readIdleStorage(IDLE_ACTIVITY_KEY));
+    }
+
+    noteActivity() {
+        // While the warning is open only "Stay signed in" keeps the session, so a stray click does not.
+        if (this.warning?.open || this.signingOut) return;
+        const now = Date.now();
+        if (now - this.lastActivity() >= 60_000 && now - this.lastPingAt >= 60_000) this.keepAlive();
+    }
+
+    async keepAlive() {
+        this.lastPingAt = Date.now();
+        try {
+            const response = await fetch(this.dataset.keepAliveUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf_token"]')?.content ?? '', 'Accept': 'application/json' },
+            });
+            if (response.status === 401 || response.status === 419) window.location.assign(this.dataset.loginUrl);
+            else if (response.ok) this.recordServerActivity(Date.now());
+            return response.ok;
+        } catch {
+            return false;
+        }
+    }
+
+    check() {
+        if (this.signingOut) return;
+        const remaining = this.lastActivity() + this.idleMs - Date.now();
+        if (remaining <= 0) this.signOut();
+        else if (remaining <= IDLE_WARNING_SECONDS * 1000) this.showWarning(remaining);
+        else if (this.warning?.open) this.warning.close();
+    }
+
+    showWarning(remaining) {
+        if (!this.warning) {
+            this.warning = document.createElement('dialog');
+            this.warning.className = 'dts-app-dialog dts-idle-dialog';
+            this.warning.setAttribute('aria-labelledby', 'dts-idle-title');
+            this.warning.setAttribute('aria-describedby', 'dts-idle-message');
+            this.warning.innerHTML = `
+                <div class="dts-app-dialog-header"><h2 id="dts-idle-title">Are you still there?</h2></div>
+                <div class="dts-app-dialog-content">
+                    <p id="dts-idle-message">There has been no activity for a while. For your security you will be signed out in <strong class="dts-idle-countdown" data-idle-countdown></strong>. Changes you have not saved will be lost.</p>
+                </div>
+                <div class="dts-app-dialog-actions">
+                    <button type="button" class="dts-button" data-idle-sign-out>Sign out now</button>
+                    <button type="button" class="dts-button dts-button-primary" data-idle-stay>Stay signed in</button>
+                </div>`;
+            this.warning.addEventListener('click', async (event) => {
+                if (event.target.closest('[data-idle-sign-out]')) this.signOut();
+                if (event.target.closest('[data-idle-stay]')) this.stay();
+            });
+            // Escape means "I am here", not "close and sign me out later".
+            this.warning.addEventListener('cancel', (event) => {
+                event.preventDefault();
+                this.stay();
+            });
+            document.body.append(this.warning);
+        }
+
+        const seconds = Math.ceil(remaining / 1000);
+        this.warning.querySelector('[data-idle-countdown]').textContent =
+            `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        if (!this.warning.open) {
+            this.warning.showModal();
+            this.warning.querySelector('[data-idle-stay]').focus();
+        }
+    }
+
+    async stay() {
+        this.warning?.close();
+        if (!(await this.keepAlive())) this.check();
+    }
+
+    signOut() {
+        if (this.signingOut) return;
+        this.signingOut = true;
+        writeIdleStorage(IDLE_SIGNED_OUT_KEY, Date.now());
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = this.dataset.signOutUrl;
+        form.dataset.turbo = 'false';
+        form.hidden = true;
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = document.querySelector('meta[name="csrf_token"]')?.content ?? '';
+        form.append(token);
+        document.body.append(form);
+        form.submit();
+    }
+}
+
+if (!customElements.get('dts-idle-sign-out')) customElements.define('dts-idle-sign-out', IdleSignOut);
+
 document.addEventListener('change', (event) => {
     const pageSize = event.target.closest('[data-page-size]');
 
@@ -1923,7 +2466,8 @@ function updateTableSelection(table) {
 
         if (!printLink) {
             printLink = document.createElement('a');
-            printLink.className = 'dts-button dts-button-primary';
+            printLink.className = 'dts-button dts-button-primary dts-icon-only';
+            printLink.innerHTML = PRINTER_ICON;
             printLink.dataset.printSelectedLabels = '';
             printLink.dataset.turbo = 'false';
             printLink.target = '_blank';
@@ -1936,7 +2480,9 @@ function updateTableSelection(table) {
             url.searchParams.append('ids[]', checkbox.value);
         });
         printLink.href = url.toString();
-        printLink.textContent = selectedCount === 1 ? 'Print label' : 'Print labels';
+        const printText = selectedCount === 1 ? 'Print label' : `Print ${selectedCount} labels`;
+        printLink.dataset.tooltip = printText;
+        printLink.setAttribute('aria-label', printText);
     }
 
     // Documents and the admin lists (users, roles, offices, schools) both put "Delete selected" here.
@@ -1981,6 +2527,19 @@ function labelTableCells(root = document) {
 }
 
 document.addEventListener('turbo:load', () => labelTableCells());
+
+// Browsers offer earlier entries under text fields (subjects, remarks, senders…), which staff took for saved data. Fields
+// that chose their own autocomplete (the sign-in email, the password) keep it. Focus covers rows added later from templates.
+const autocompleteFields = 'input:not([type="hidden"], [type="checkbox"], [type="radio"], [type="file"], [type="submit"], [type="button"]):not([autocomplete]), textarea:not([autocomplete])';
+
+function disableFieldHistory(root = document) {
+    root.querySelectorAll(autocompleteFields).forEach((field) => field.setAttribute('autocomplete', 'off'));
+}
+
+document.addEventListener('turbo:load', () => disableFieldHistory());
+document.addEventListener('focusin', (event) => {
+    if (event.target.matches?.(autocompleteFields)) event.target.setAttribute('autocomplete', 'off');
+}, true);
 document.addEventListener('turbo:frame-load', (event) => labelTableCells(event.target));
 labelTableCells();
 
@@ -2132,7 +2691,8 @@ window.addEventListener('pageshow', (event) => {
 });
 
 // Records Unit paper intake: rows waiting for the client's paper copy get a "Paper received" button in the
-// dashboard's action queue. Confirming makes the backend send the document to every office the client chose, all at once.
+// dashboard's action queue. Older submissions name offices and are sent to them at once; counter-intake ones name
+// none, so Records chooses the offices afterwards.
 function joinOfficeNames(offices) {
     return offices.length <= 1 ? (offices[0] || '') : `${offices.slice(0, -1).join(', ')} and ${offices.at(-1)}`;
 }
@@ -2183,7 +2743,9 @@ async function confirmPaperReceipt(lookupUrl, data) {
     }
 }
 
-function markQueueRowReceived(button, text, labelUrl = null) {
+// After Paper received: what happened, a Print label button for the counter, and (when Records still has to
+// route it) a link to choose the offices.
+function markQueueRowReceived(button, text, labelUrl = null, routeUrl = null) {
     const done = document.createElement('div');
     done.className = 'dts-paper-received-done';
     done.setAttribute('role', 'status');
@@ -2191,34 +2753,60 @@ function markQueueRowReceived(button, text, labelUrl = null) {
     note.textContent = text;
     done.append(note);
 
+    const actions = document.createElement('div');
+    actions.className = 'dts-paper-received-actions';
     if (labelUrl) {
         const label = document.createElement('a');
+        label.className = 'dts-button dts-button-primary dts-icon-only';
+        label.dataset.tooltip = 'Print label';
+        label.setAttribute('aria-label', 'Print label');
         label.href = labelUrl;
         label.target = '_blank';
         label.rel = 'noopener';
         label.dataset.turbo = 'false';
-        label.textContent = 'Print label';
-        done.append(label);
+        label.innerHTML = PRINTER_ICON;
+        actions.append(label);
     }
+    if (routeUrl) {
+        const route = document.createElement('a');
+        route.className = 'dts-table-action';
+        route.href = routeUrl;
+        route.textContent = 'Choose offices';
+        actions.append(route);
+    }
+    if (actions.childElementCount > 0) done.append(actions);
 
     button.closest('tr')?.classList.add('is-paper-received');
-    button.replaceWith(done);
+    // In the queue's icon row the note goes under the remaining icons instead of between them.
+    const icons = button.closest('.dts-queue-icons');
+    if (icons) {
+        button.remove();
+        icons.after(done);
+    } else {
+        button.replaceWith(done);
+    }
+    done.querySelector('a')?.focus();
 }
 
 // After Paper received the client's offices have the document; show that without reloading the page.
+// With no client-chosen offices (counter intake) the Records Unit's own row turns Received instead.
 function markQueueOfficesForwarded(row) {
+    const update = (office, badge, status, label) => {
+        badge.dataset.status = status;
+        badge.textContent = label;
+        office.setAttribute('aria-label', `View ${office.querySelector('.dts-office-status-name')?.textContent.trim()} workflow, ${label}`);
+    };
     row?.querySelectorAll('[data-office-queue-office]').forEach((office) => {
-        const badge = office.querySelector('[data-status="waiting-for-paper"]');
-        if (!badge) return;
-        badge.dataset.status = 'forwarded';
-        badge.textContent = 'Forwarded';
-        office.setAttribute('aria-label', `View ${office.querySelector('.dts-office-status-name')?.textContent.trim()} workflow, Forwarded`);
+        const waiting = office.querySelector('[data-status="waiting-for-paper-copy"]');
+        const holding = office.querySelector('[data-status="awaiting-physical-document"]');
+        if (waiting) update(office, waiting, 'forwarded', 'Forwarded');
+        else if (holding) update(office, holding, 'received', 'Received');
     });
 }
 
 function paperSentText(offices) {
     return offices.length === 0
-        ? 'Paper received · kept at Records Unit'
+        ? 'Paper received. Next: choose the offices.'
         : `Paper sent to ${offices.length} ${offices.length === 1 ? 'office' : 'offices'}`;
 }
 
@@ -2253,26 +2841,32 @@ document.addEventListener('click', async (event) => {
         }
 
         if (data.state !== 'awaiting') {
-            markQueueRowReceived(button, data.state === 'received' ? 'Already received' : 'No paper needed');
+            markQueueRowReceived(button, data.state === 'received' ? 'Already received' : 'No paper needed', data.document.label_url);
             return;
         }
 
         const { forward, keepsCopy } = intakeRoutes(data);
         const lines = [
-            `${data.document.tracking_number}\n${data.document.subject}`,
-            forward.length > 0 ? `Send to ${joinOfficeNames(forward.map((route) => route.office))}?` : 'Keep the document at the Records Unit?',
+            `${data.document.tracking_number}\n${data.document.subject}`
+                // How the client said the paper would arrive (online form), so Records knows what to expect.
+                + (data.document.delivery_method ? `\nDelivery: ${data.document.delivery_method}` : ''),
+            forward.length > 0
+                ? `Send to ${joinOfficeNames(forward.map((route) => route.office))}?`
+                : 'Is the paper copy here? After this, print its label and choose the offices it goes to.',
         ];
         if (keepsCopy && forward.length > 0) lines.push('Records Unit keeps a copy to work on.');
+        // What the client asked Records to do, typed on the online form ("Instructions for Records").
+        if (data.document.client_remarks) lines.push(`Client's instructions:\n${data.document.client_remarks}`);
 
         if (!await dtsDialog.confirm(lines.join('\n\n'), { title: 'Paper received', confirmLabel: 'Paper received' })) return;
 
         const outcome = await confirmPaperReceipt(lookupUrl, data);
         if (outcome.message) {
             const row = button.closest('tr');
-            markQueueRowReceived(button, paperSentText(forward), data.document.label_url);
+            markQueueRowReceived(button, paperSentText(forward), data.document.label_url, forward.length === 0 ? data.document.view_url : null);
             markQueueOfficesForwarded(row);
         } else if (outcome.latest) {
-            markQueueRowReceived(button, 'Already received');
+            markQueueRowReceived(button, 'Already received', data.document.label_url);
         } else {
             await dtsDialog.alert(outcome.error, { title: 'Paper not confirmed' });
         }
@@ -2296,4 +2890,52 @@ document.addEventListener('click', (event) => {
     input.type = show ? 'text' : 'password';
     toggle.setAttribute('aria-pressed', String(show));
     toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+});
+
+// Icon-only row buttons from Orchid layouts (Edit, Delete) carry their label as hidden text; show it as hover text.
+['pointerover', 'focusin'].forEach((type) => document.addEventListener(type, (event) => {
+    const button = event.target.closest?.('.dts-row-action:not([data-tooltip])');
+    const label = button?.textContent.trim();
+    if (label) button.dataset.tooltip = label;
+}));
+
+// Action queue Receive icon: receives every route of the user's offices still waiting on that document, then reloads.
+document.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-receive-routes]');
+    if (!button || button.disabled) return;
+
+    const offices = JSON.parse(button.dataset.receiveRoutes || '[]');
+    if (offices.length === 0) return;
+    const confirmed = await dtsDialog.confirm(
+        `Receive ${button.dataset.trackingNumber} for ${joinOfficeNames(offices)}?`,
+        { title: offices.length > 1 ? `Receive ${offices.length} routes` : 'Receive', confirmLabel: 'Receive' },
+    );
+    if (!confirmed) return;
+
+    button.disabled = true;
+    setSubmitBusy(button, true);
+    const failed = [];
+    for (const office of offices) {
+        const body = new FormData();
+        body.append('workflow[action]', 'received');
+        body.append('workflow[source_office]', office);
+        try {
+            const response = await fetch(button.dataset.receiveUrl, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf_token"]')?.content || '' },
+                body,
+            });
+            if (!response.ok) {
+                const failure = await response.json().catch(() => ({}));
+                failed.push(`${office}: ${Object.values(failure.errors || {})[0]?.[0] || failure.message || 'Could not receive.'}`);
+            }
+        } catch {
+            failed.push(`${office}: Could not reach the server.`);
+        }
+    }
+
+    if (failed.length > 0) {
+        await dtsDialog.alert(['Some routes were not received:', ...failed].join('\n\n'), { title: 'Receive' });
+    }
+    window.location.reload();
 });

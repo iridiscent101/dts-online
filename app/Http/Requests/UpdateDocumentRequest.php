@@ -51,10 +51,9 @@ class UpdateDocumentRequest extends FormRequest
             'document.received' => $document instanceof Document && $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                 ? ['nullable', Rule::prohibitedIf(true)]
                 : ['required', 'date'],
-            'document.due' => $document instanceof Document && $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
-                ? ['nullable', Rule::prohibitedIf(true)]
-                : ['nullable', 'date', 'after_or_equal:document.received'],
-            'document.priority' => ['required', 'string', Rule::in(array_keys(Document::PRIORITIES))],
+            'document.due' => ['exclude'],
+            // Priority is no longer shown or changed; existing values stay as they are.
+            'document.priority' => ['exclude'],
         ] + $this->routeRules();
     }
 
@@ -81,13 +80,15 @@ class UpdateDocumentRequest extends FormRequest
             return ['document.destinations' => ['prohibited']];
         }
 
+        $assignments = $document->officeAssignments()->get(['office', 'status']);
         $offices = array_values(array_unique(array_merge(
             Document::officeOptions(),
-            $document->officeAssignments()->pluck('office')->all(),
+            $assignments->pluck('office')->all(),
         )));
+        $maximumRoutes = $assignments->whereIn('status', DocumentMovement::FINISHED_STATUSES)->count() + 5;
 
         return [
-            'document.destinations' => ['required', 'array', 'list', 'min:1', 'max:5'],
+            'document.destinations' => ['required', 'array', 'list', 'min:1', 'max:'.$maximumRoutes],
             'document.destinations.*' => ['required', 'string', 'max:180', 'distinct', Rule::in($offices)],
             'document.route_fingerprint' => ['nullable', 'string', 'size:64'],
         ];
@@ -106,11 +107,11 @@ class UpdateDocumentRequest extends FormRequest
             'document.destinations.prohibited' => $canEditOfficeAssignments
                 ? ($document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                     ? 'Routes cannot be edited before Records receives the paper document.'
-                    : 'Routes cannot be edited after a document is archived or completed.')
+                    : 'Routes cannot be edited after a document is finished.')
                 : 'You are not authorized to change document routes.',
             'document.destinations.required' => 'Select at least one destination office.',
             'document.destinations.min' => 'Select at least one destination office.',
-            'document.destinations.max' => 'Select no more than five destination offices.',
+            'document.destinations.max' => 'Select no more than five active destination offices.',
             'document.destinations.*.required' => 'Select an office for each route row.',
             'document.destinations.*.distinct' => 'Select each destination office only once.',
             'document.destinations.*.in' => 'Select recognized destination offices.',
@@ -125,7 +126,6 @@ class UpdateDocumentRequest extends FormRequest
             'document.reference' => 'external reference',
             'document.origin' => 'originating office or school',
             'document.received' => 'date received',
-            'document.due' => 'due date',
         ];
     }
 }

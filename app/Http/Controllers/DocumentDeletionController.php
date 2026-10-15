@@ -23,7 +23,7 @@ class DocumentDeletionController extends Controller
         $trackingNumber = $document->tracking_number;
         $this->removeDocuments(collect([$document]), $user);
 
-        Toast::info(__('Document :tracking was removed.', ['tracking' => $trackingNumber]));
+        Toast::success(__('Document :tracking was removed.', ['tracking' => $trackingNumber]));
 
         return redirect()->route('platform.documents');
     }
@@ -50,7 +50,7 @@ class DocumentDeletionController extends Controller
 
         $this->removeDocuments($documents, $user);
 
-        Toast::info(__('Removed :count selected documents.', ['count' => $documents->count()]));
+        Toast::success(__('Removed :count selected documents.', ['count' => $documents->count()]));
 
         return redirect()->route('platform.documents');
     }

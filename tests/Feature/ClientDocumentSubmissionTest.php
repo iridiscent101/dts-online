@@ -25,15 +25,14 @@ class ClientDocumentSubmissionTest extends TestCase
         config(['app.document_uploads_enabled' => true]);
     }
 
-    public function test_guest_can_send_a_document_to_multiple_offices_with_remarks_without_exposing_identity(): void
+    public function test_guest_upload_goes_to_records_without_exposing_identity(): void
     {
         Storage::fake('local');
         $this->travelTo('2026-10-05 09:00:00');
         $staff = User::factory()->create([
-            'office' => 'Administrative Unit',
+            'office' => 'SDO-Records Unit',
             'permissions' => ['platform.index' => true],
         ]);
-        User::factory()->create(['office' => 'Curriculum Implementation Division']);
 
         $this->get(route('submission.create'))
             ->assertOk()
@@ -43,58 +42,44 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertSee('Your school or office')
             ->assertSee('Type of document')
             ->assertSee('data-options="document-types"', false)
-            ->assertSee('data-options="destination-offices"', false)
-            ->assertSee('Add another office')
+            ->assertDontSee('data-options="destination-offices"', false)
+            ->assertDontSee('Add another office')
             ->assertDontSee('Employee number')
             ->assertDontSee('They are hidden from public tracking.')
             ->assertSee('Send document');
 
-        $payload = $this->payload();
-        $payload['destinations'] = ['Administrative Unit', 'Curriculum Implementation Division'];
-        $payload['route_remarks'] = ['Review records.', 'Review curriculum.'];
-
-        $response = $this->post(route('submission.store'), $payload);
+        $response = $this->post(route('submission.store'), $this->payload());
         $document = Document::query()->sole();
         $response->assertRedirectToRoute('tracking.index', ['tracking' => $document->tracking_number]);
-        $this->assertMatchesRegularExpression('/^DTS-\d{4}-[A-F0-9]{20}$/', $document->tracking_number);
+        $this->assertMatchesRegularExpression('/^SDONV[1-9]{11}$/', $document->tracking_number);
         $this->assertSame('Awaiting receipt', $document->status);
         $this->assertSame('Request', $document->document_type);
         $this->assertSame('Standard', $document->priority);
-        $this->assertSame('2026-10-14', $document->due_at->toDateString());
-        $this->assertSame('Administrative Unit', $document->current_office);
+        $this->assertNull($document->due_at);
+        $this->assertSame('SDO-Records Unit', $document->current_office);
         $this->assertNull($document->client_employee_number);
         $this->assertSame('Alex Rivera', $document->sender);
         $this->assertSame('School Office', $document->origin);
+        $this->assertSame('Hand carry', $document->delivery_method);
         $this->assertSame(1, $document->attachments()->count());
         Storage::disk('local')->assertExists($document->attachments()->sole()->physicalPath());
         $this->assertDatabaseHas('document_office_assignments', [
             'document_id' => $document->id,
-            'office' => 'Administrative Unit',
-            'status' => 'Awaiting receipt',
-        ]);
-        $this->assertDatabaseHas('document_office_assignments', [
-            'document_id' => $document->id,
-            'office' => 'Curriculum Implementation Division',
+            'office' => 'SDO-Records Unit',
             'status' => 'Awaiting receipt',
         ]);
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
-            'to_office' => 'Administrative Unit',
-            'remarks' => 'Review records.',
+            'to_office' => 'SDO-Records Unit',
+            'remarks' => null,
         ]);
-        $this->assertDatabaseHas('document_movements', [
-            'document_id' => $document->id,
-            'to_office' => 'Curriculum Implementation Division',
-            'remarks' => 'Review curriculum.',
-        ]);
-        $this->assertDatabaseCount('notifications', 2);
+        $this->assertDatabaseCount('document_route_steps', 0);
+        $this->assertDatabaseCount('notifications', 1);
 
         $receipt = $this->get(route('tracking.index', ['tracking' => $document->tracking_number]));
         $receipt
             ->assertOk()
             ->assertSee('Save your tracking QR code')
-            ->assertSee('Target date')
-            ->assertSee('Oct 14, 2026')
             ->assertSee('QR code for '.$document->tracking_number)
             ->assertSee('data:image/svg+xml;base64,', false)
             ->assertDontSee('Submit your document to the Records staff.');
@@ -106,25 +91,20 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertOk()
             ->assertSee('Document submitted')
             ->assertSee('Client document')
-            ->assertSee('Administrative Unit')
-            ->assertSee('Curriculum Implementation Division')
+            ->assertSee('SDO-Records Unit')
             ->assertDontSee('Travel request')
             ->assertDontSee('Alex Rivera')
-            ->assertDontSee('School Office')
-            ->assertDontSee('Review records.')
-            ->assertDontSee('Review curriculum.');
+            ->assertDontSee('School Office');
 
         $this->actingAs($staff)
             ->get(route('platform.documents.view', $document))
             ->assertOk()
             ->assertSee('Alex Rivera')
             ->assertSee('School Office')
-            ->assertSee('Review records.')
-            ->assertDontSee('Review curriculum.')
             ->assertDontSee('Employee number');
     }
 
-    public function test_public_submission_uses_manila_date_and_year(): void
+    public function test_public_submission_uses_the_new_tracking_format_across_a_year_boundary(): void
     {
         $this->travelTo(Carbon::parse('2026-12-31 23:30:00', 'UTC'));
         $payload = $this->payload();
@@ -134,7 +114,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertRedirect();
 
         $document = Document::query()->sole();
-        $this->assertStringStartsWith('DTS-2027-', $document->tracking_number);
+        $this->assertMatchesRegularExpression('/^SDONV[1-9]{11}$/', $document->tracking_number);
         $this->assertNull($document->received_at);
         $this->assertSame(DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, $document->status);
     }
@@ -156,6 +136,8 @@ class ClientDocumentSubmissionTest extends TestCase
 
     public function test_guest_can_submit_a_physical_document_without_uploading_a_file(): void
     {
+        // 01:30 on Oct 15 in Manila is still Oct 14 in UTC, so office dates must follow Manila time.
+        $this->travelTo(Carbon::parse('2026-10-14 17:30:00', 'UTC'));
         Storage::fake('local');
         $recordsStaff = User::factory()->create([
             'office' => 'SDO-Records Unit',
@@ -195,11 +177,7 @@ class ClientDocumentSubmissionTest extends TestCase
             'document_id' => $document->id,
             'office' => 'SDO-Records Unit',
         ]);
-        $this->assertDatabaseHas('document_route_steps', [
-            'document_id' => $document->id,
-            'office' => 'Administrative Unit',
-            'remarks' => 'Please review.',
-        ]);
+        $this->assertDatabaseCount('document_route_steps', 0);
         $this->assertDatabaseCount('document_movements', 1);
         $this->assertDatabaseCount('document_office_assignments', 1);
         $this->assertDatabaseCount('notifications', 1);
@@ -211,7 +189,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertSee('Submit your document to the Records staff.')
-            ->assertSee('Awaiting physical document')
+            ->assertSee('title="Pending: Waiting for paper copy">Pending</span>', false)
             ->assertDontSee('Assigned to Administrative Unit')
             ->assertSee('Date submitted');
 
@@ -230,7 +208,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertOk()
             ->assertSee('Alex Rivera')
             ->assertSee('Not received')
-            ->assertSee('Requested destinations after paper intake')
+            ->assertDontSee('Requested destinations after paper intake')
             ->assertSee('Confirm paper received');
 
         $this->get(route('platform.documents'))
@@ -247,15 +225,15 @@ class ClientDocumentSubmissionTest extends TestCase
         ])->assertRedirectToRoute('platform.documents.view', $document);
 
         $document->refresh();
-        $this->assertSame('Administrative Unit', $document->current_office);
-        $this->assertSame('Forwarded', $document->status);
+        $this->assertSame('SDO-Records Unit', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->status);
         $this->assertSame($recordsStaff->id, $document->registered_by);
-        $this->assertSame(today()->toDateString(), $document->received_at->toDateString());
-        $this->assertSame(Document::targetDueDate(today(), 'Standard')->toDateString(), $document->due_at->toDateString());
+        $this->assertSame('2026-10-15', $document->received_at->toDateString());
+        $this->assertNull($document->due_at);
         $this->assertDatabaseCount('document_route_steps', 0);
-        $this->assertDatabaseCount('document_movements', 3);
+        $this->assertDatabaseCount('document_movements', 2);
         $this->assertDatabaseCount('document_office_assignments', 1);
-        $this->assertDatabaseCount('notifications', 2);
+        $this->assertDatabaseCount('notifications', 1);
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
             'action' => 'received',
@@ -274,7 +252,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertOk()
             ->assertSee('Alex Rivera');
         $this->get(route('platform.documents.edit', $document))
-            ->assertForbidden();
+            ->assertOk();
 
         $unrelatedStaff = User::factory()->create([
             'office' => 'Finance Unit',
@@ -286,7 +264,7 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->actingAs($destinationStaff)
             ->get(route('platform.documents.view', $document))
-            ->assertOk();
+            ->assertNotFound();
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
@@ -294,7 +272,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertDontSee('Submit your document to the Records staff.');
     }
 
-    public function test_records_is_not_added_twice_when_selected_for_a_physical_document(): void
+    public function test_records_is_the_only_route_until_paper_is_received(): void
     {
         Storage::fake('local');
         $recordsStaff = User::factory()->create([
@@ -302,7 +280,6 @@ class ClientDocumentSubmissionTest extends TestCase
             'permissions' => ['platform.index' => true],
         ]);
         $payload = $this->payload();
-        $payload['destinations'] = ['SDO-Records Unit'];
         unset($payload['attachment']);
 
         $response = $this->post(route('submission.store'), $payload);
@@ -312,7 +289,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertDatabaseCount('document_office_assignments', 1);
         $this->assertDatabaseCount('document_movements', 1);
         $this->assertDatabaseCount('notifications', 1);
-        $this->assertDatabaseCount('document_route_steps', 1);
+        $this->assertDatabaseCount('document_route_steps', 0);
 
         $document = Document::query()->sole();
         $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
@@ -329,7 +306,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertDatabaseCount('document_route_steps', 0);
     }
 
-    public function test_records_remains_assigned_when_it_is_also_a_requested_destination(): void
+    public function test_records_can_forward_after_receiving_the_paper(): void
     {
         Storage::fake('local');
         $recordsStaff = User::factory()->create([
@@ -337,9 +314,8 @@ class ClientDocumentSubmissionTest extends TestCase
             'permissions' => ['platform.index' => true],
         ]);
         $payload = $this->payload();
-        $payload['destinations'] = ['SDO-Records Unit', 'Administrative Unit'];
-        $payload['route_remarks'] = ['File at Records.', 'Review this.'];
         unset($payload['attachment']);
+        $payload['client_remarks'] = 'Please ask Records to send this to the right office.';
         $this->post(route('submission.store'), $payload);
         $document = Document::query()->sole();
 
@@ -351,12 +327,16 @@ class ClientDocumentSubmissionTest extends TestCase
             ],
         ])->assertRedirectToRoute('platform.documents.view', $document);
 
-        $this->assertDatabaseCount('document_office_assignments', 2);
-        $this->assertDatabaseHas('document_office_assignments', [
-            'document_id' => $document->id,
-            'office' => 'SDO-Records Unit',
-            'status' => DocumentMovement::STATUS_RECEIVED,
-        ]);
+        $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'forwarded',
+                'source_office' => 'SDO-Records Unit',
+                'destinations' => ['Administrative Unit'],
+                'destination_remarks' => ['Review this.'],
+            ],
+        ])->assertRedirect();
+
+        $this->assertDatabaseCount('document_office_assignments', 1);
         $this->assertDatabaseHas('document_office_assignments', [
             'document_id' => $document->id,
             'office' => 'Administrative Unit',
@@ -364,30 +344,29 @@ class ClientDocumentSubmissionTest extends TestCase
         ]);
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
-            'to_office' => 'SDO-Records Unit',
-            'remarks' => 'File at Records.',
+            'to_office' => 'Administrative Unit',
+            'remarks' => 'Review this.',
         ]);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertSee('Review this.')
+            ->assertDontSee('Please ask Records to send this to the right office.');
     }
 
-    public function test_records_receipt_rolls_back_when_dispatch_notification_fails_then_retries_once(): void
+    public function test_records_receipt_does_not_dispatch_unselected_routes(): void
     {
         Storage::fake('local');
         $recordsStaff = User::factory()->create([
             'office' => 'SDO-Records Unit',
             'permissions' => ['platform.index' => true],
         ]);
-        User::factory()->create(['office' => 'Administrative Unit']);
+        $otherStaff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $payload = $this->payload();
         unset($payload['attachment']);
         $this->post(route('submission.store'), $payload);
         $document = Document::query()->sole();
 
-        $fail = true;
-        Event::listen(NotificationSent::class, function () use (&$fail): void {
-            if ($fail) {
-                throw new \RuntimeException('Destination notification failed.');
-            }
-        });
         $receipt = [
             'workflow' => [
                 'action' => 'received',
@@ -398,27 +377,21 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->actingAs($recordsStaff)
             ->post(route('platform.documents.movements.store', $document), $receipt)
-            ->assertInternalServerError();
+            ->assertRedirectToRoute('platform.documents.view', $document);
 
         $document->refresh();
-        $this->assertSame(DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, $document->status);
-        $this->assertNull($document->registered_by);
-        $this->assertDatabaseCount('document_route_steps', 1);
-        $this->assertDatabaseCount('document_movements', 1);
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->status);
+        $this->assertSame($recordsStaff->id, $document->registered_by);
+        $this->assertDatabaseCount('document_route_steps', 0);
+        $this->assertDatabaseCount('document_movements', 2);
         $this->assertDatabaseCount('document_office_assignments', 1);
         $this->assertDatabaseCount('notifications', 1);
 
-        $fail = false;
-        $this->post(route('platform.documents.movements.store', $document), $receipt)
-            ->assertRedirectToRoute('platform.documents.view', $document);
-        $this->assertDatabaseCount('document_route_steps', 0);
-        $this->assertDatabaseCount('document_movements', 3);
-        $this->assertDatabaseCount('document_office_assignments', 1);
-        $this->assertDatabaseCount('notifications', 2);
+        $this->actingAs($otherStaff)->get(route('platform.documents.view', $document))->assertNotFound();
 
-        $this->post(route('platform.documents.movements.store', $document), $receipt)
-            ->assertForbidden();
-        $this->assertDatabaseCount('document_movements', 3);
+        $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), $receipt)
+            ->assertSessionHasErrors('workflow.action');
+        $this->assertDatabaseCount('document_movements', 2);
     }
 
     public function test_name_and_office_are_required(): void
@@ -435,12 +408,11 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertDatabaseCount('documents', 0);
     }
 
-    public function test_type_destinations_and_matching_remarks_are_validated(): void
+    public function test_type_and_client_routing_instructions_are_validated(): void
     {
         Storage::fake('local');
         $payload = $this->payload();
         $payload['type'] = 'Unknown type';
-        $payload['destinations'] = ['Administrative Unit', 'Administrative Unit'];
         $payload['route_remarks'] = ['Only one note'];
 
         $this->from(route('submission.create'))
@@ -448,24 +420,100 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertRedirect(route('submission.create'))
             ->assertSessionHasErrors([
                 'type' => 'Select a recognized document type.',
-                'destinations.0' => 'Select each destination office only once.',
-                'route_remarks' => 'Provide one remarks field for each destination office.',
+                'route_remarks' => 'Give routing instructions to Records staff at the counter.',
             ]);
 
         $this->assertDatabaseCount('documents', 0);
     }
 
-    public function test_client_cannot_request_more_than_five_destination_offices(): void
+    public function test_client_can_leave_routing_instructions_for_records_without_choosing_offices(): void
     {
         $payload = $this->payload();
         unset($payload['attachment']);
-        $payload['destinations'] = array_slice(Document::officeOptions(), 0, 6);
-        $payload['route_remarks'] = array_fill(0, 6, null);
+        $payload['client_remarks'] = 'Please send copies to Budget and Legal for review.';
+
+        $this->post(route('submission.store'), $payload)->assertRedirect();
+
+        $document = Document::query()->sole();
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'to_office' => 'SDO-Records Unit',
+            'remarks' => 'Please send copies to Budget and Legal for review.',
+        ]);
+        $this->assertDatabaseCount('document_route_steps', 0);
+
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $this->actingAs($records)
+            ->getJson(route('platform.documents.intake', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertJsonPath('document.client_remarks', 'Please send copies to Budget and Legal for review.')
+            ->assertJsonPath('document.delivery_method', 'Hand carry')
+            ->assertJsonPath('document.routes', []);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertDontSee('Please send copies to Budget and Legal for review.');
+    }
+
+    public function test_client_routing_instructions_must_be_short_text(): void
+    {
+        $payload = $this->payload();
+        unset($payload['attachment']);
+        $payload['client_remarks'] = ['Budget Unit'];
+
+        $this->post(route('submission.store'), $payload)
+            ->assertSessionHasErrors(['client_remarks' => 'Enter your routing instructions as text.']);
+
+        $payload['client_remarks'] = str_repeat('x', 1001);
+        $this->post(route('submission.store'), $payload)
+            ->assertSessionHasErrors(['client_remarks' => 'Keep routing instructions within 1,000 characters.']);
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_client_can_choose_official_channel_as_delivery_method(): void
+    {
+        $payload = $this->payload();
+        unset($payload['attachment']);
+        $payload['delivery_method'] = 'Official channel';
+
+        $this->post(route('submission.store'), $payload)->assertRedirect();
+
+        $this->assertSame('Official channel', Document::query()->sole()->delivery_method);
+    }
+
+    public function test_client_delivery_method_rejects_unrecognized_values(): void
+    {
+        $payload = $this->payload();
+        $payload['delivery_method'] = 'Courier';
+
+        $this->post(route('submission.store'), $payload)
+            ->assertSessionHasErrors(['delivery_method' => 'Choose Hand carry or Official channel.']);
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_client_must_choose_a_delivery_method(): void
+    {
+        $payload = $this->payload();
+        unset($payload['delivery_method'], $payload['attachment']);
+
+        $this->post(route('submission.store'), $payload)
+            ->assertSessionHasErrors(['delivery_method' => 'Choose how the paper copy will reach the Records Unit.']);
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_client_cannot_choose_destination_offices(): void
+    {
+        $payload = $this->payload();
+        unset($payload['attachment']);
+        $payload['destinations'] = ['Administrative Unit'];
 
         $this->from(route('submission.create'))
             ->post(route('submission.store'), $payload)
             ->assertRedirect(route('submission.create'))
-            ->assertSessionHasErrors(['destinations' => 'Select no more than five destination offices.']);
+            ->assertSessionHasErrors(['destinations' => 'Records staff choose the destination offices after intake.']);
 
         $this->assertDatabaseCount('documents', 0);
     }
@@ -480,7 +528,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->post(route('submission.store'), $payload)
             ->assertRedirect(route('submission.create'))
             ->assertSessionHasErrors([
-                'destinations.0' => 'Select a recognized destination office.',
+                'destinations' => 'Records staff choose the destination offices after intake.',
             ]);
 
         $this->assertDatabaseCount('documents', 0);
@@ -517,8 +565,7 @@ class ClientDocumentSubmissionTest extends TestCase
     public function test_notification_failure_rolls_back_submission_and_allows_retry(): void
     {
         Storage::fake('local');
-        User::factory()->create(['office' => 'Administrative Unit']);
-        User::factory()->create(['office' => 'Curriculum Implementation Division']);
+        User::factory()->count(2)->create(['office' => 'SDO-Records Unit']);
         $key = (string) Str::uuid();
         $fail = true;
         $notificationsSent = 0;
@@ -528,8 +575,6 @@ class ClientDocumentSubmissionTest extends TestCase
             }
         });
         $payload = $this->payload($key);
-        $payload['destinations'] = ['Administrative Unit', 'Curriculum Implementation Division'];
-        $payload['route_remarks'] = ['Review records.', 'Review curriculum.'];
 
         $this->from(route('submission.create'))
             ->post(route('submission.store'), $payload)
@@ -549,8 +594,8 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->assertDatabaseCount('documents', 1);
         $this->assertDatabaseCount('attachments', 1);
-        $this->assertDatabaseCount('document_movements', 2);
-        $this->assertDatabaseCount('document_office_assignments', 2);
+        $this->assertDatabaseCount('document_movements', 1);
+        $this->assertDatabaseCount('document_office_assignments', 1);
         $this->assertDatabaseCount('notifications', 2);
     }
 
@@ -591,10 +636,9 @@ class ClientDocumentSubmissionTest extends TestCase
             'submission_key' => $key ?? (string) Str::uuid(),
             'name' => 'Alex Rivera',
             'office' => 'School Office',
+            'delivery_method' => 'Hand carry',
             'title' => 'Travel request',
             'type' => 'Request',
-            'destinations' => ['Administrative Unit'],
-            'route_remarks' => ['Please review.'],
             'attachment' => UploadedFile::fake()->createWithContent('request.pdf', '%PDF-1.4 sample'),
             'privacy_consent' => '1',
         ];

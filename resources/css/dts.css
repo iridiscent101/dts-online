@@ -614,7 +614,6 @@ body::before {
             width: var(--dts-control-h-sm);
             height: var(--dts-control-h-sm);
             padding: 0;
-            overflow: hidden;
             flex: 0 0 auto;
             border-radius: 4px;
             font-size: 0;
@@ -873,14 +872,14 @@ body::before {
             min-width: 150px;
     }
 
-    & [data-controller="table"] :is(th, td)[data-column="priority"] {
-            min-width: 100px;
+    & [data-controller="table"] :is(th, td)[data-column="received-at"],
+    & [data-controller="table"] :is(th, td)[data-column="created-at"] {
+            min-width: 145px;
+            white-space: nowrap;
     }
 
-    & [data-controller="table"] :is(th, td)[data-column="received-at"],
-    & [data-controller="table"] :is(th, td)[data-column="due-at"],
-    & [data-controller="table"] :is(th, td)[data-column="updated-at"] {
-            min-width: 145px;
+    & [data-controller="table"] :is(th, td)[data-column="registered-time"] {
+            min-width: 120px;
             white-space: nowrap;
     }
 
@@ -1005,7 +1004,7 @@ body::before {
 
 .dts-metrics {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-bottom: 20px;
 }
@@ -1065,11 +1064,7 @@ body::before {
     color: var(--dts-ink-3);
 }
 
-@media (max-width: 991px) {
-    .dts-metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-}
+
 
 .dts-icon {
     width: 34px;
@@ -1144,20 +1139,9 @@ body::before {
     border-bottom: 1px solid var(--dts-border);
 }
 
-.dts-office-queue-table th:nth-child(1) {
-    width: 29%;
-}
-
-.dts-office-queue-table th:nth-child(2) {
-    width: 37%;
-}
-
+/* Quick action gets a fixed width (it fits four 40px icons per line); the two text columns share the rest equally. */
 .dts-office-queue-table th:nth-child(3) {
-    width: 14%;
-}
-
-.dts-office-queue-table th:nth-child(4) {
-    width: 20%;
+    width: 212px;
 }
 
 .dts-recent-documents-table th:nth-child(1) {
@@ -1191,16 +1175,6 @@ body::before {
 
 .dts-office-queue-table .dts-table-action {
     white-space: normal;
-}
-
-.dts-due-date {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-}
-
-.dts-due-date.is-overdue {
-    color: var(--dts-danger-text);
-    font-weight: 650;
 }
 
 .dts-table-action {
@@ -1340,7 +1314,7 @@ body::before {
 }
 
 .dts-table.dts-office-queue-table {
-    min-width: 560px;
+    min-width: 760px;
 }
 
 .dts-office-queue-table :is(th, td):first-child {
@@ -1411,22 +1385,9 @@ body::before {
     font-weight: 600;
 }
 
+/* Look and compact size come from the shared select style (dts-shared.css). */
 .dts-page-size-toolbar select {
     width: 78px;
-    min-height: var(--dts-control-h-sm);
-    padding: 3px 28px 3px 10px;
-    border: 1px solid var(--dts-border-strong);
-    border-radius: 5px;
-    background-color: #fff;
-    color: var(--dts-charcoal);
-    font: inherit;
-    font-size: 0.875rem;
-    cursor: pointer;
-}
-
-.dts-page-size-toolbar select:hover,
-.dts-page-size-toolbar select:focus {
-    border-color: var(--dts-green);
 }
 
 dts-registry {
@@ -1737,11 +1698,6 @@ turbo-frame:has(dts-column-menu) [data-controller="table"]>footer .btn-group {
     font-weight: 600;
 }
 
-.dts-field select {
-    padding-right: 32px;
-    cursor: pointer;
-}
-
 /* Type-to-search lists get a chevron so they read as a choice, not a free text box. */
 .dts-list-input {
     position: relative;
@@ -1917,6 +1873,17 @@ turbo-frame:has(dts-column-menu) [data-controller="table"]>footer .btn-group {
     font-weight: 600;
 }
 
+/* Tracking no. / Subject cells: a long subject (even one long word) wraps inside its column instead of spilling out. */
+.dts-record-link {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.dts-record-link > span {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
 .dts-record-status {
     display: inline-flex;
     max-width: 100%;
@@ -1988,6 +1955,13 @@ a.dts-record-status:hover,
     --dts-status-mark-size: 0.9em;
     color: var(--dts-danger-text);
     background: var(--dts-danger-soft);
+}
+
+.dts-record-status[data-status="cancelled"] {
+    --dts-status-mark: '98';
+    --dts-status-mark-size: 1em;
+    color: var(--dts-text-muted);
+    background: #eceff3;
 }
 
 .dts-record-status[data-status="resubmitted"],
@@ -2118,9 +2092,11 @@ a.dts-record-status:hover,
     overflow: hidden;
 }
 
-/* Office name and status stay on one row: a long name wraps in its own column, the badge stays beside it. */
+/* Office name and status share a row when there is room; in a narrow column the badge drops below the name
+   instead of squeezing it to one letter per line. */
 .dts-office-status-item {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
     gap: 4px 10px;
@@ -2156,7 +2132,7 @@ a.dts-record-status:hover,
 }
 
 .dts-office-status-name {
-    flex: 1 1 auto;
+    flex: 1 1 8rem;
     min-width: 0;
     overflow-wrap: break-word;
     white-space: normal; /* registry cells are nowrap (Orchid's text-truncate) */
@@ -2164,26 +2140,6 @@ a.dts-record-status:hover,
     font-size: 0.9rem;
     font-weight: 600;
     line-height: 1.3;
-}
-
-.dts-priority {
-    display: inline-flex;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: var(--dts-surface-2);
-    color: var(--dts-text-muted);
-    font-size: 0.875rem;
-    font-weight: 650;
-}
-
-.dts-priority[data-priority="high"] {
-    background: var(--dts-warning-soft);
-    color: var(--dts-warning-text);
-}
-
-.dts-priority[data-priority="urgent"] {
-    background: var(--dts-danger-soft);
-    color: var(--dts-danger-text);
 }
 
 .dts-registry-pagination {
@@ -2205,15 +2161,6 @@ a.dts-record-status:hover,
 
 .dts-page-controls label {
     margin: 0;
-}
-
-.dts-page-controls select {
-    min-height: var(--dts-control-h-sm);
-    padding: 3px 28px 3px 9px;
-    border: 1px solid var(--dts-input-border);
-    border-radius: 4px;
-    background-color: #fff;
-    color: var(--dts-charcoal);
 }
 
 .dts-page-button {
@@ -2302,6 +2249,18 @@ a.dts-record-status:hover,
     margin: 0;
     font-size: clamp(1.25rem, 2vw, 1.75rem);
     line-height: 1.25;
+}
+
+.dts-workspace-header-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.dts-workspace-header-actions .dts-button {
+    min-height: 44px;
+    white-space: nowrap;
 }
 
 .dts-workspace-close {
@@ -2483,8 +2442,12 @@ a.dts-record-status:hover,
     display: block;
 }
 
+.dts-workspace-fields select {
+    width: 100%;
+    min-width: 0;
+}
+
 .dts-workspace-fields input,
-.dts-workspace-fields select,
 .dts-workspace-fields textarea {
     width: 100%;
     min-height: var(--dts-control-h);
@@ -2596,8 +2559,12 @@ a.dts-record-status:hover,
     font-weight: 700;
 }
 
+.dts-workspace-routing select {
+    width: 100%;
+    min-width: 0;
+}
+
 .dts-workspace-routing input,
-.dts-workspace-routing select,
 .dts-workspace-routing textarea {
     width: 100%;
     min-width: 0;
@@ -2754,6 +2721,10 @@ a.dts-record-status:hover,
     background: var(--dts-danger-text);
 }
 
+.dts-workspace-timeline-entry:has(.dts-record-status[data-status="cancelled"])::before {
+    background: var(--dts-text-muted);
+}
+
 .dts-workspace-timeline-entry:has(.dts-record-status[data-status="approved"], .dts-record-status[data-status="completed"])::before {
     background: var(--dts-green);
 }
@@ -2870,6 +2841,7 @@ a.dts-record-status:hover,
         padding: 12px 16px;
     }
 
+
     .dts-workspace-tabs {
         padding: 0 8px;
     }
@@ -2964,6 +2936,12 @@ a.dts-record-status:hover,
 
 .dts-app-dialog-content {
     padding: 20px 24px;
+}
+
+/* Inactivity warning: the countdown keeps its width as the digits change. */
+.dts-idle-countdown {
+    font-variant-numeric: tabular-nums;
+    color: var(--dts-text-strong, inherit);
 }
 
 .dts-app-dialog-content p {
@@ -3385,6 +3363,129 @@ a.dts-record-status:hover,
     color: var(--dts-text-muted);
 }
 
+/* Fast action buttons (dts-workflow-routing): the backend's per-office actions as large toggle buttons. */
+.dts-action-choices {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: var(--dts-space-2);
+}
+
+.dts-action-choices-label {
+    color: var(--dts-charcoal);
+    font-weight: 700;
+}
+
+.dts-action-choice-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--dts-space-2);
+}
+
+.dts-action-choice {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    min-height: 44px;
+    padding: 8px 18px;
+    border: 2px solid var(--dts-green);
+    border-radius: var(--dts-radius);
+    background: #fff;
+    color: var(--dts-green-dark);
+    font-size: var(--dts-text);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.dts-action-choice:hover {
+    background: var(--dts-green-soft);
+}
+
+.dts-action-choice:focus-visible {
+    outline: 3px solid var(--dts-gold);
+    outline-offset: 2px;
+}
+
+.dts-action-choice[aria-pressed="true"] {
+    background: var(--dts-green);
+    color: #fff;
+}
+
+.dts-action-choice[aria-pressed="true"]::before {
+    content: "";
+    width: 6px;
+    height: 11px;
+    margin: -3px 10px 0 0;
+    border: solid currentColor;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+}
+
+.dts-action-choice:disabled {
+    border-color: var(--dts-border);
+    color: var(--dts-text-faint);
+    cursor: not-allowed;
+}
+
+.dts-action-choice.is-receive {
+    min-width: 180px;
+}
+
+.dts-action-choice-hint {
+    min-height: 1.4em;
+    margin: 0;
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-sm);
+}
+
+.dts-action-choice-hint:empty {
+    min-height: 0;
+}
+
+.dts-action-choice-hint.is-error {
+    color: var(--dts-danger-text);
+    font-weight: 700;
+}
+
+/* Restore reopens a finished document, so it stands apart from the everyday actions. */
+.dts-action-restore {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--dts-space-3);
+    padding: var(--dts-space-3);
+    border: 1px dashed var(--dts-border-strong);
+    border-radius: var(--dts-radius);
+    background: var(--dts-warning-soft);
+}
+
+.dts-action-restore p {
+    margin: 2px 0 0;
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-sm);
+}
+
+.dts-action-restore[hidden],
+.dts-action-choice-list[hidden],
+.dts-action-choices-label[hidden] {
+    display: none;
+}
+
+.dts-action-choice.is-restore {
+    border-color: var(--dts-brown);
+    color: var(--dts-brown);
+}
+
+.dts-action-choice.is-restore:hover {
+    background: #fff;
+}
+
+.dts-action-choice.is-restore[aria-pressed="true"] {
+    background: var(--dts-brown);
+    color: #fff;
+}
+
 .dts-workflow-actions {
     display: flex;
     flex-wrap: wrap;
@@ -3392,6 +3493,11 @@ a.dts-record-status:hover,
     justify-content: flex-end;
     gap: 10px;
     padding-top: 20px;
+}
+
+/* Recent activity sits under the queue, closed by default. */
+.dts-dashboard-recent .dts-dashboard-activity {
+    margin-top: 12px;
 }
 
 .dts-dashboard-activity {
@@ -3405,11 +3511,6 @@ a.dts-record-status:hover,
 
 .dts-dashboard-activity a:hover {
     color: var(--dts-green);
-}
-
-.dts-activity {
-    border-left: 1px solid var(--dts-border);
-    padding-left: 20px;
 }
 
 .dts-office {
@@ -3429,108 +3530,6 @@ a.dts-record-status:hover,
     font-size: 0.875rem;
     color: var(--dts-text-muted);
     margin-top: 4px;
-}
-
-.dts-sidebar-heading {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.dts-notification-heading-actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.dts-notification-read-all {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: var(--dts-control-h-sm);
-    padding: 0 10px;
-    border: 1px solid var(--dts-border-strong);
-    border-radius: 4px;
-    background: #fff;
-    color: var(--dts-green);
-    font-size: var(--dts-text-xs);
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-.dts-notification-read-all:hover {
-    border-color: var(--dts-green);
-    background: var(--dts-green-soft);
-}
-
-.dts-notification-read-all svg {
-    width: 15px;
-    height: 15px;
-}
-
-.dts-notification {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 8px 0;
-    border-top: 1px solid var(--dts-border);
-    color: var(--dts-text-strong);
-    text-decoration: none;
-}
-
-.dts-notification:hover strong {
-    color: var(--dts-green);
-}
-
-.dts-notification>span:last-child {
-    min-width: 0;
-}
-
-.dts-notification strong,
-.dts-notification small {
-    display: block;
-    overflow-wrap: anywhere;
-}
-
-.dts-notification small {
-    margin-top: 3px;
-    color: var(--dts-text-muted);
-    font-size: 0.875rem;
-    line-height: 1.45;
-}
-
-.dts-notification-icon {
-    display: grid;
-    place-items: center;
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    background: var(--dts-green-soft);
-    color: var(--dts-green);
-}
-
-.dts-notification-icon svg {
-    width: 14px;
-    height: 14px;
-}
-
-.dts-notification-icon.is-due-soon {
-    background: var(--dts-warning-soft);
-    color: var(--dts-warning-text);
-}
-
-.dts-notification-icon.is-overdue {
-    background: var(--dts-danger-soft);
-    color: var(--dts-danger);
-}
-
-.dts-notification-icon.is-recovered {
-    background: var(--dts-green-soft);
-    color: var(--dts-green);
 }
 
 .dts-activity-empty {
@@ -3902,8 +3901,14 @@ a:focus-visible {
     margin-left: 5px;
 }
 
+.dts-field select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+
 .dts-field input,
-.dts-field select,
+.dts-field select[multiple],
 .dts-field textarea {
     display: block;
     width: 100%;
@@ -3918,8 +3923,7 @@ a:focus-visible {
     box-sizing: border-box;
 }
 
-.dts-field input,
-.dts-field select {
+.dts-field input {
     min-height: var(--dts-control-h);
 }
 
@@ -4498,50 +4502,70 @@ a:focus-visible {
 
 .dts-tracking-label {
     display: grid;
-    grid-template-columns: 84px minmax(0, 1fr);
-    align-items: center;
-    gap: 10px;
+    grid-template-columns: 96px minmax(0, 1fr);
+    grid-template-rows: 96px auto;
+    column-gap: 10px;
+    row-gap: 6px;
     width: min(100%, 340px);
-    min-height: 112px;
     padding: 9px;
     border: 1px solid var(--dts-border-strong);
     border-radius: 4px;
     background: #fff;
+    color: var(--dts-charcoal);
 }
 
 .dts-tracking-label img {
     display: block;
-    width: 84px;
-    height: 84px;
+    width: 96px;
+    height: 96px;
 }
 
-.dts-tracking-label-copy {
+.dts-tracking-label-details {
     display: grid;
-    min-width: 0;
-    gap: 4px;
-}
-
-.dts-tracking-label-copy span {
-    color: var(--dts-green);
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.dts-tracking-label-copy strong {
-    overflow-wrap: anywhere;
-    color: var(--dts-charcoal);
+    grid-template-columns: auto minmax(0, 1fr);
+    align-content: center;
+    column-gap: 8px;
+    row-gap: 2px;
+    margin: 0;
     font-size: 0.875rem;
     line-height: 1.25;
 }
 
-.dts-tracking-label-copy small {
+.dts-tracking-label-details dt {
+    color: var(--dts-text-muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1.45;
+    text-transform: uppercase;
+}
+
+.dts-tracking-label-details dd {
+    margin: 0;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.dts-tracking-label-footer {
+    display: grid;
+    grid-column: 1 / -1;
+    gap: 2px;
+    padding-top: 6px;
+    border-top: 1px solid var(--dts-border-strong);
+    text-align: center;
+}
+
+.dts-tracking-label-footer strong {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
+.dts-tracking-label-footer small {
     color: var(--dts-text-muted);
     font-size: 0.75rem;
 }
 
 .dts-print-label-button {
-    justify-content: center;
-    width: min(100%, 340px);
     margin-top: 12px;
 }
 
@@ -4939,9 +4963,37 @@ a:focus-visible {
     line-height: 1.5;
 }
 
-.form-control,
-.form-select {
+.form-control {
     min-height: var(--dts-control-h);
+}
+
+/* Orchid's fields and buttons use the DTS corners and border (Bootstrap's are 2-3px and grey), and its checkboxes
+   the DTS green instead of Bootstrap blue. */
+.form-control,
+.btn {
+    border-radius: var(--dts-control-radius, 5px);
+}
+
+.form-control {
+    border-color: var(--dts-input-border);
+}
+
+/* Orchid pads fields to 39px while DTS buttons are 36px; trimmed so fields and buttons in one row line up.
+   Phones keep the 44px minimum (--dts-control-h). */
+input.form-control,
+.ts-wrapper .ts-control {
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.form-check-input:checked {
+    border-color: var(--dts-green);
+    background-color: var(--dts-green);
+}
+
+.form-check-input:focus {
+    border-color: var(--dts-green);
+    box-shadow: 0 0 0 0.2rem rgb(33 110 57 / 25%);
 }
 
 .form-signin :is(.form-control, .form-select, .btn) {
@@ -5008,6 +5060,14 @@ a:focus-visible {
 :is(a, button, input, select, textarea):focus-visible {
     outline: 3px solid var(--dts-green);
     outline-offset: 3px;
+}
+
+/* Select boxes keep the shared focus ring (dts-shared.css) everywhere, the document workspace included. */
+select:focus-visible,
+.dts-document-workspace select:focus-visible {
+    outline: 2px solid var(--dts-green);
+    outline-offset: 1px;
+    border-color: var(--dts-green);
 }
 
 @media (min-width: 992px) {
@@ -5197,14 +5257,6 @@ a:focus-visible {
 
     .aside>.aside-collapse>.to-top {
         display: none !important;
-    }
-}
-
-@media (max-width: 1199px) {
-    .dts-activity {
-        border-left: 0;
-        border-top: 1px solid var(--dts-border);
-        padding: 24px 0 0;
     }
 }
 
@@ -5818,8 +5870,12 @@ td[data-column="select"] {
     overflow-wrap: break-word;
 }
 
-.dts-paper-received-done a {
-    justify-self: start;
+.dts-paper-received-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 4px;
 }
 
 .dts-office-queue-table tr.is-paper-received td {
@@ -5827,7 +5883,462 @@ td[data-column="select"] {
 }
 
 /* Paper submissions: offices that get the document once Records confirms the paper copy. */
-.dts-record-status[data-status="waiting-for-paper"] {
+.dts-record-status[data-status="waiting-for-paper-copy"] {
+    color: var(--dts-ink-2);
+    background: var(--dts-surface-2);
+}
+
+.dts-section-description {
+    max-width: 62ch;
+    margin: 4px 0 0;
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-sm);
+}
+
+/* Search lists take focus only so their scrollbar can be clicked without closing them; no outline for that. */
+dts-searchable [data-suggestions]:focus {
+    outline: none;
+}
+
+/* Login: password field with a keyboard-reachable "Show password" button (partials/password-input). */
+.dts-password-field {
+    position: relative;
+}
+
+.dts-password-field .form-control {
+    padding-right: 52px;
+}
+
+.dts-password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--dts-text-muted);
+    cursor: pointer;
+}
+
+.dts-password-toggle:hover {
+    color: var(--dts-green);
+}
+
+.dts-password-toggle[aria-pressed="false"] .dts-password-hide,
+.dts-password-toggle[aria-pressed="true"] .dts-password-show {
+    display: none;
+}
+
+.dts-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding-left: 0;
+}
+
+.dts-remember .form-check-input {
+    float: none;
+    width: 24px;
+    height: 24px;
+    margin: 0;
+}
+
+.dts-switch-user {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+}
+
+/* My Account, "Account access" (orchid/profile-account): padded and labelled like the Orchid form cards around it. */
+.dts-profile-account {
+    padding: 1.5rem;
+}
+
+.dts-profile-account-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 24px;
+    margin: 0;
+}
+
+@media (max-width: 767.98px) {
+    .dts-profile-account-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.dts-profile-account dt {
+    margin-bottom: 6px;
+    color: var(--dts-text-strong);
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.dts-profile-account dd {
+    margin: 0;
+    color: var(--dts-charcoal);
+}
+
+.dts-profile-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dts-profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 4px 12px;
+    border: 1px solid var(--dts-border);
+    border-radius: 999px;
+    background: var(--dts-surface);
+    color: var(--dts-text-strong);
+    font-size: var(--dts-text-sm);
+    font-weight: 600;
+}
+
+.dts-profile-chip svg {
+    width: 14px;
+    height: 14px;
+    color: var(--dts-green);
+}
+
+.dts-profile-abilities {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dts-profile-abilities li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+}
+
+.dts-profile-abilities svg {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+    margin-top: 3px;
+    color: var(--dts-green);
+}
+
+.dts-profile-account-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 20px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--dts-line);
+    color: var(--dts-text-muted);
+    font-size: var(--dts-text-sm);
+}
+
+/* Short explanation under a field, e.g. why the dates of a pending paper submission are disabled. */
+.dts-field-hint {
+    display: block;
+    margin: 6px 0 0;
+    color: var(--dts-text-muted);
+    font-size: var(--dts-text-sm);
+    line-height: 1.45;
+}
+
+.dts-workspace-fields > .dts-field-hint {
+    margin-top: -10px;
+}
+
+/* Stale-edit conflict in the document panel: the explanation and a "Refresh document" button (dts.js showStaleEdit). */
+.dts-workspace-form-errors.is-stale-edit:not([hidden]) {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+}
+
+.dts-workspace-form-errors.is-stale-edit p {
+    margin: 0;
+}
+
+/* Document panel: "Your office can act on this document" banner on the Details tab, and the marker on the
+   Routing & History tab, so the next step is visible without knowing where the routing form is. */
+.dts-workspace-next {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    margin: 0 0 20px;
+    padding: 12px 16px;
+    border: 1px solid var(--dts-green);
+    border-left-width: 4px;
+    border-radius: 6px;
+    background: var(--dts-green-soft);
+    color: var(--dts-charcoal);
+}
+
+.dts-workspace-next > svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--dts-green);
+}
+
+.dts-workspace-next p {
+    flex: 1 1 18rem;
+    margin: 0;
+}
+
+.dts-workspace-next .dts-button svg {
+    width: 14px;
+    height: 14px;
+}
+
+.dts-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--dts-green);
+    color: #fff;
+    font-size: var(--dts-text-xs);
+    font-weight: 700;
+    line-height: 1.5;
+    vertical-align: middle;
+}
+
+/* Dashboard queue: why a document is waiting for the office ("Sent to your office. Receive it first."). */
+.dts-queue-reason {
+    display: block;
+    margin-top: 6px;
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-xs);
+    line-height: 1.4;
+    white-space: normal;
+}
+
+/* Registry "Status guide" (partials/status-guide): a dropdown like the Columns menu. */
+.dts-status-guide {
+    position: relative;
+}
+
+.dts-status-guide > summary {
+    list-style: none;
+    min-height: var(--dts-control-h-sm);
+    padding: 3px 12px;
+}
+
+.dts-status-guide > summary::-webkit-details-marker {
+    display: none;
+}
+
+.dts-status-guide[open] > summary {
+    border-color: var(--dts-green);
+    background: var(--dts-green-soft);
+    color: var(--dts-green);
+}
+
+.dts-status-guide-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    width: min(440px, calc(100vw - 32px));
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+    padding: 14px 16px;
+    border: 1px solid var(--dts-border);
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgb(29 42 58 / 16%);
+}
+
+.dts-status-guide-panel > strong {
+    display: block;
+    margin-bottom: 10px;
+    color: var(--dts-charcoal);
+}
+
+.dts-status-guide-panel dl {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+
+.dts-status-guide-panel dl > div {
+    display: grid;
+    grid-template-columns: 11rem minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+}
+
+.dts-status-guide-panel dd {
+    margin: 0;
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-sm);
+    line-height: 1.45;
+}
+
+@media (max-width: 575.98px) {
+    .dts-status-guide-panel {
+        right: auto;
+        left: 0;
+    }
+
+    .dts-status-guide-panel dl > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+    }
+}
+
+/* Registry rows open the document panel when clicked anywhere (dts.js); show that on hover. */
+#document-registry tbody tr:has(.dts-record-link) {
+    cursor: pointer;
+}
+
+#document-registry tbody tr:hover .dts-record-link a strong {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.dts-editor-required-note {
+    margin: 0 0 12px;
+}
+
+/* Acting office and Action: line up the two dropdowns along their bottom edge, however long the Action label grows. */
+dts-workflow-routing > .dts-workspace-fields:first-child {
+    align-items: end;
+}
+
+/* Orchid's searchable selects (Tom Select: admin filters, user roles and offices) match the shared select style in
+   dts-shared.css: same border, corners and focus ring, and single choices get the DTS chevron. The chevron is drawn
+   on the wrapper because Orchid resets the inner control's background. */
+.ts-wrapper .ts-control {
+    min-height: var(--dts-control-h);
+    border: 1px solid var(--dts-input-border);
+    border-radius: var(--dts-control-radius, 5px);
+}
+
+.ts-wrapper:not(.disabled):hover .ts-control {
+    border-color: var(--dts-green);
+}
+
+.ts-wrapper.focus .ts-control {
+    border-color: var(--dts-green);
+    outline: 2px solid var(--dts-green);
+    outline-offset: 1px;
+    box-shadow: none;
+}
+
+.ts-wrapper.single {
+    position: relative;
+}
+
+.ts-wrapper.single .ts-control {
+    padding-right: 36px;
+    cursor: pointer;
+}
+
+.ts-wrapper.single::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    z-index: 2;
+    width: 14px;
+    height: 14px;
+    transform: translateY(-50%);
+    background: var(--dts-select-chevron) no-repeat center;
+    pointer-events: none;
+}
+
+/* Office picker locked for non-administrators: show the offices as plain, readable chips with no remove buttons. */
+.page-platform-systems-users-edit .ts-wrapper.disabled .ts-control {
+    opacity: 1;
+    background: var(--dts-cream);
+}
+
+.page-platform-systems-users-edit .ts-wrapper.disabled .item .remove,
+.page-platform-systems-users-edit .ts-wrapper.disabled .clear-button,
+.page-platform-systems-users-edit .ts-wrapper.disabled.has-items .ts-control>input {
+    display: none !important;
+}
+
+/* Permission descriptions are shown, not hidden in a hover tooltip. */
+.dts-permission-description {
+    display: block;
+    margin-top: 2px;
+    color: var(--dts-ink-3);
+    font-size: var(--dts-text-xs);
+    font-weight: 400;
+    white-space: normal;
+}
+
+/* Action queue: rows waiting for the client's paper get a "Paper received" button; it becomes a note once confirmed. */
+.dts-office-queue-table .dts-paper-received {
+    justify-content: flex-start;
+    gap: 6px;
+    max-width: 100%;
+    min-height: var(--dts-control-h-sm);
+    padding: 4px 10px;
+    font-size: var(--dts-text-sm);
+    line-height: 1.25;
+    text-align: left;
+}
+
+/* Rows past the first five wait behind "Show more"; the phone layout sets rows to grid, so keep them hidden. */
+.dts-office-queue-table tbody tr[hidden] {
+    display: none !important;
+}
+
+.dts-queue-more {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.dts-queue-more a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dts-green);
+    font-weight: 600;
+}
+
+.dts-paper-received-done {
+    display: grid;
+    gap: 4px;
+    color: var(--dts-green-dark);
+    font-size: var(--dts-text-sm);
+    font-weight: 600;
+    overflow-wrap: break-word;
+}
+
+.dts-paper-received-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 4px;
+}
+
+.dts-office-queue-table tr.is-paper-received td {
+    background: var(--dts-green-soft);
+}
+
+/* Paper submissions: offices that get the document once Records confirms the paper copy. */
+.dts-record-status[data-status="waiting-for-paper-copy"] {
     color: var(--dts-ink-2);
     background: var(--dts-surface-2);
 }
@@ -6286,4 +6797,343 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 .dts-change-before {
     color: var(--dts-text-muted, #5f6368);
     text-decoration: line-through;
+}
+
+/* Action queue: icon-only action buttons. The label shows as a tooltip on hover and on keyboard focus. */
+.dts-queue-icons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.dts-queue-icon {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--dts-green);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--dts-green);
+    text-decoration: none;
+}
+
+.dts-queue-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.dts-queue-icon:hover {
+    background: var(--dts-green-soft);
+}
+
+.dts-queue-icon.is-primary {
+    background: var(--dts-green);
+    color: #fff;
+}
+
+.dts-queue-icon.is-primary:hover {
+    background: var(--dts-green-dark);
+}
+
+.dts-queue-icon:focus-visible {
+    outline: 3px solid var(--dts-gold, #f2c230);
+    outline-offset: 2px;
+}
+
+
+@media (pointer: coarse) {
+    .dts-queue-icon {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+/* Table rows: the tracking number and its copy button on one line. */
+.dts-record-code {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+}
+
+/* A long tracking number breaks inside its own space instead of pushing the copy button out of the cell. */
+.dts-record-code a {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.dts-record-code .dts-copy-button {
+    flex: 0 0 auto;
+}
+
+/* Icon-only buttons where the icon is clear and the button repeats or sits in a toolbar (row Edit/Delete, queue
+   actions, Columns, Status guide, Print, Copy). Text buttons stay for anything that saves or changes a status.
+   The hover text ([data-tooltip]) lives in dts-shared.css. */
+.dts-button.dts-icon-only {
+    width: var(--dts-control-h);
+    padding: 0;
+}
+
+.dts-button.dts-icon-only svg {
+    width: 18px;
+    height: 18px;
+}
+
+
+/* Status guide: the two kinds of "Pending", listed under its meaning. */
+.dts-status-guide-kinds {
+    margin: 4px 0 0;
+    padding-left: 18px;
+}
+
+.dts-status-guide-kinds li + li {
+    margin-top: 2px;
+}
+
+/* Before an office receives its route: one prominent Receive button and a short note (dts.js syncReceiveOnly). */
+.dts-receive-first {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-left: 4px solid var(--dts-green);
+    border-radius: 4px;
+    background: var(--dts-green-soft);
+    color: var(--dts-text-strong);
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.dts-button.dts-button-receive {
+    min-height: 48px;
+    padding: 10px 24px;
+    border-color: var(--dts-green);
+    background: var(--dts-green);
+    color: #fff;
+    font-size: 1.0625rem;
+}
+
+.dts-button.dts-button-receive:hover:not(:disabled) {
+    background: #18542b;
+}
+
+/* "Add remark": a separate control under the routing form, for received, active routes. */
+.dts-office-remark {
+    display: grid;
+    justify-items: start;
+    gap: 10px;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--dts-border);
+}
+
+.dts-office-remark-panel {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+}
+
+.dts-office-remark-panel label {
+    font-weight: 600;
+}
+
+.dts-office-remark-panel textarea {
+    width: 100%;
+    min-height: 84px;
+    padding: 8px 10px;
+    border: 1px solid var(--dts-input-border);
+    border-radius: var(--dts-control-radius, 5px);
+    font: inherit;
+    resize: vertical;
+}
+
+.dts-office-remark-panel textarea:focus-visible {
+    outline: 2px solid var(--dts-green);
+    outline-offset: 1px;
+    border-color: var(--dts-green);
+}
+
+.dts-office-remark-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* "Send to another office" dialog (Outgoing list). */
+.dts-additional-route-fields {
+    display: grid;
+    gap: 14px;
+}
+
+.dts-additional-route-document {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    white-space: normal;
+}
+
+.dts-additional-route-document strong {
+    color: var(--dts-text-strong);
+}
+
+.dts-additional-route-confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--dts-border-strong);
+    border-radius: 5px;
+    background: var(--dts-warning-soft, #fff8e6);
+    line-height: 1.45;
+    cursor: pointer;
+}
+
+.dts-additional-route-confirm input {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    accent-color: var(--dts-green);
+}
+
+/* Outgoing list: "Send to another office" row action, outlined so Edit stays the main button. */
+.dts-row-actions .dts-row-action.dts-row-action-send {
+    border: 1px solid var(--dts-green) !important;
+    background: #fff !important;
+    color: var(--dts-green) !important;
+}
+
+.dts-row-actions .dts-row-action.dts-row-action-send:hover {
+    background: var(--dts-green-soft) !important;
+}
+
+/* Label preview on the document page: the signature strip under "By" (print sizes in orchid/document-label). */
+.dts-tracking-label .dts-tracking-label-signature {
+    display: block;
+}
+
+.dts-tracking-label .dts-tracking-label-signature img {
+    width: auto;
+    max-width: 100%;
+    height: 18px;
+    object-fit: contain;
+    object-position: left center;
+}
+
+/* Profile: signature picture for QR labels. */
+.dts-profile-signature {
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+}
+
+.dts-profile-signature label {
+    font-weight: 600;
+}
+
+.dts-profile-signature-preview {
+    display: grid;
+    place-items: center;
+    width: min(100%, 320px);
+    min-height: 96px;
+    padding: 10px;
+    border: 1px dashed var(--dts-border-strong);
+    border-radius: 5px;
+    background: #fff;
+}
+
+.dts-profile-signature-preview img {
+    max-width: 100%;
+    max-height: 120px;
+    object-fit: contain;
+}
+
+.dts-profile-signature-saved:empty {
+    display: none;
+}
+
+.dts-profile-signature-saved {
+    margin: 0;
+    color: var(--dts-green);
+    font-weight: 600;
+}
+
+/* Phones: the status guide opens as a full-width sheet instead of a panel pinned to its button, which ran past the
+   screen edge; each status sits above its meaning. */
+@media (max-width: 767px) {
+    .dts-status-guide-panel {
+        position: fixed;
+        top: 88px;
+        right: 16px;
+        left: 16px;
+        width: auto;
+        max-height: calc(100dvh - 112px);
+    }
+
+    .dts-status-guide-panel dl > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+    }
+}
+
+/* Form errors on Orchid screens: the same box, text and colours as the DTS forms (sign-in, registration). */
+.dts-form-errors {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1px solid var(--dts-danger);
+    border-radius: 6px;
+    background: var(--dts-danger-soft);
+    color: var(--dts-danger-dark);
+}
+
+.dts-form-errors-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+}
+
+.dts-form-errors ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+}
+
+body .invalid-feedback {
+    color: var(--dts-danger-dark);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.form-control.is-invalid,
+.was-validated .form-control:invalid {
+    border-color: var(--dts-danger);
+}
+
+.form-control.is-invalid:focus {
+    border-color: var(--dts-danger);
+    box-shadow: 0 0 0 0.2rem rgb(180 35 24 / 20%);
+}
+
+/* Toasts sit at the bottom right instead of Orchid's top right, where they covered each page's main button
+   ("New document", "Save") for their 8 seconds. Phones: across the bottom. */
+.toast-wrapper {
+    top: auto;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    left: auto;
+    width: min(24rem, calc(100vw - 2rem));
+    overflow: visible;
+}
+
+@media (max-width: 767px) {
+    .toast-wrapper {
+        right: 1rem;
+        bottom: 1rem;
+        left: 1rem;
+        width: auto;
+    }
 }

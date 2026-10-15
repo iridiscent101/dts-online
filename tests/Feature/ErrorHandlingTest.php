@@ -18,12 +18,13 @@ class ErrorHandlingTest extends TestCase
         $this->get('/__test-error-403')
             ->assertForbidden()
             ->assertSee('Access denied')
-            ->assertSee('Return to dashboard');
+            // Guests are sent to the public tracking page, never the staff area.
+            ->assertSee('Go to the tracking page');
 
         $this->get('/__test-error-404')
             ->assertNotFound()
             ->assertSee('Page not found')
-            ->assertSee('Return to dashboard');
+            ->assertSee('Go to the tracking page');
 
         $this->get('/__test-error-500')
             ->assertInternalServerError()

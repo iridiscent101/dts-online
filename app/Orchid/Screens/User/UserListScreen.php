@@ -42,7 +42,7 @@ class UserListScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'User Management';
+        return 'User management';
     }
 
     /**
@@ -146,7 +146,7 @@ class UserListScreen extends Screen
             }
         });
 
-        Toast::info(__('User was saved.'));
+        Toast::success(__('User was saved.'));
     }
 
     public function remove(Request $request): void
@@ -156,7 +156,7 @@ class UserListScreen extends Screen
 
         $user->delete();
 
-        Toast::info(__('User was removed'));
+        Toast::success(__('User was removed.'));
     }
 
     public function bulkRemove(Request $request): void
@@ -181,7 +181,7 @@ class UserListScreen extends Screen
             }
         });
 
-        Toast::info($users->count().' users were removed.');
+        Toast::success($users->count().' users were removed.');
     }
 
     private function perPage(): int

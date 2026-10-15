@@ -24,8 +24,8 @@ class ClientDocumentSubmissionController extends Controller
         return view('client-document-submission', [
             'submissionKey' => (string) Str::uuid(),
             'documentTypes' => Document::typeOptions(),
-            'officeOptions' => Document::officeOptions(),
             'originOptions' => Document::originOptions(),
+            'deliveryMethods' => Document::DELIVERY_METHODS,
         ]);
     }
 
@@ -42,61 +42,37 @@ class ClientDocumentSubmissionController extends Controller
         $attachment = null;
         try {
             $document = DB::transaction(function () use ($data, $request, $notifications, &$attachment): Document {
-                $requestedDestinations = $data['destinations'];
-                $routeRemarks = $data['route_remarks'] ?? [];
                 $physicalSubmission = ! $request->hasFile('attachment');
-                $destinations = $physicalSubmission ? [self::RECORDS_OFFICE] : $requestedDestinations;
-                $recordsIndex = array_search(self::RECORDS_OFFICE, $requestedDestinations, true);
-                $intakeRemark = $recordsIndex !== false && filled($routeRemarks[$recordsIndex] ?? null)
-                    ? trim($routeRemarks[$recordsIndex])
-                    : null;
                 $document = Document::create([
-                    'tracking_number' => 'DTS-'.today('Asia/Manila')->format('Y').'-'.Str::upper(bin2hex(random_bytes(10))),
+                    'tracking_number' => Document::newTrackingNumber(),
                     'subject' => $data['title'],
                     'document_type' => $data['type'],
                     'sender' => $data['name'],
                     'origin' => $data['office'],
-                    'current_office' => $destinations[0],
+                    'delivery_method' => $data['delivery_method'],
+                    'current_office' => self::RECORDS_OFFICE,
                     'status' => $physicalSubmission
                         ? DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                         : DocumentMovement::STATUS_AWAITING_RECEIPT,
                     'received_at' => $physicalSubmission ? null : today('Asia/Manila')->toDateString(),
-                    'due_at' => $physicalSubmission ? null : Document::targetDueDate(today('Asia/Manila'), 'Standard')->toDateString(),
                     'priority' => 'Standard',
-                    'remarks' => filled($routeRemarks[count($requestedDestinations) - 1] ?? null)
-                        ? trim($routeRemarks[count($requestedDestinations) - 1])
-                        : null,
                     'client_submission_key' => $data['submission_key'],
                 ]);
 
-                if ($physicalSubmission) {
-                    foreach ($requestedDestinations as $index => $office) {
-                        DB::table('document_route_steps')->insert([
-                            'document_id' => $document->id,
-                            'sequence' => $index + 1,
-                            'office' => $office,
-                            'remarks' => filled($routeRemarks[$index] ?? null) ? trim($routeRemarks[$index]) : null,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
-                foreach ($destinations as $index => $office) {
-                    $movement = $document->movements()->create([
-                        'action' => DocumentMovement::ACTION_SENT,
-                        'from_office' => null,
-                        'to_office' => $office,
-                        'from_status' => null,
-                        'to_status' => $document->status,
-                        'remarks' => $physicalSubmission ? $intakeRemark : (filled($routeRemarks[$index] ?? null) ? trim($routeRemarks[$index]) : null),
-                    ]);
+                $movement = $document->movements()->create([
+                    'action' => DocumentMovement::ACTION_SENT,
+                    'from_office' => null,
+                    'to_office' => self::RECORDS_OFFICE,
+                    'from_status' => null,
+                    'to_status' => $document->status,
+                    'remarks' => $data['client_remarks'] ?? null,
+                ]);
 
-                    $document->officeAssignments()->create([
-                        'office' => $office,
-                        'status' => $document->status,
-                        'movement_id' => $movement->getKey(),
-                    ]);
-                }
+                $document->officeAssignments()->create([
+                    'office' => self::RECORDS_OFFICE,
+                    'status' => $document->status,
+                    'movement_id' => $movement->getKey(),
+                ]);
 
                 if ($request->hasFile('attachment')) {
                     $attachment = (new File($request->file('attachment'), 'local', 'documents'))->load();
@@ -105,7 +81,7 @@ class ClientDocumentSubmissionController extends Controller
 
                 activity('documents')
                     ->performedOn($document)
-                    ->withProperties(['action' => 'client_submit', 'offices' => $requestedDestinations, 'attachment_count' => $attachment === null ? 0 : 1, 'privacy_consent' => true])
+                    ->withProperties(['action' => 'client_submit', 'offices' => [self::RECORDS_OFFICE], 'attachment_count' => $attachment === null ? 0 : 1, 'privacy_consent' => true])
                     ->log('Document submitted');
 
                 $notifications->submitted($document);

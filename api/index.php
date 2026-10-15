@@ -126,7 +126,7 @@ if ($path === '/_cron/daily') {
     $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
     $results = [];
 
-    foreach (['documents:notify-due', 'notifications:prune-read'] as $command) {
+    foreach (['notifications:prune-read'] as $command) {
         $results[$command] = $kernel->call($command) === 0;
         error_log(sprintf('VERCEL_CRON %s: %s', $command, trim($kernel->output())));
     }

@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 /**
  * Once an office has processed a document, its details are locked: changing them needs a reason, which is kept in
- * the history. Completed and archived documents are closed records that only an administrator can unlock.
+ * the history. Completed, released and archived documents are closed records that only an administrator can unlock.
  */
 class FinishedDocumentLockTest extends TestCase
 {
@@ -70,6 +70,35 @@ class FinishedDocumentLockTest extends TestCase
             'Sender name was misspelled at registration',
             $document->activities()->where('description', 'Document details updated')->latest('id')->first()->properties['correction_reason'],
         );
+    }
+
+    public function test_released_document_is_closed_to_staff_and_requires_an_admin_reason_for_corrections(): void
+    {
+        $staff = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true],
+        ]);
+        $document = $this->document(DocumentMovement::STATUS_RELEASED);
+
+        $this->actingAs($staff)
+            ->get(route('platform.documents.edit', $document))
+            ->assertForbidden();
+        $this->post(route('platform.documents.edit', $document).'/save', ['document' => $this->payload($document)])
+            ->assertForbidden();
+
+        $admin = User::factory()->create(['office' => 'Records Unit']);
+        $admin->replaceRoles([Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG])->id]);
+        $this->actingAs($admin)
+            ->post(route('platform.documents.edit', $document).'/save', ['document' => $this->payload($document)])
+            ->assertSessionHasErrors(['document.correction_reason' => self::REASON_REQUIRED]);
+
+        $this->post(route('platform.documents.edit', $document).'/save', ['document' => [
+            ...$this->payload($document),
+            'correction_reason' => 'Corrected after paper release',
+        ]])->assertSessionHasNoErrors();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame('Corrected sender', $document->fresh()->sender);
     }
 
     public function test_staff_must_give_a_reason_to_change_a_processed_documents_details(): void

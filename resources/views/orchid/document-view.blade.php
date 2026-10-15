@@ -8,7 +8,7 @@
                     <p class="dts-eyebrow dts-tracking-eyebrow">{{ $document->tracking_number }} @include('orchid.partials.copy-button', ['text' => $document->tracking_number])</p>
                     <div class="dts-document-title-row">
                         <h2>{{ $document->subject }}</h2>
-                        <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}">{{ $document->status }}</span>
+                        <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($document->status) }}>{{ \App\Support\StatusLabel::for($document->status) }}</span>
                     </div>
                     <p class="dts-muted">{{ $document->document_type }} from {{ $document->origin }}</p>
                 </div>
@@ -23,9 +23,11 @@
                     <div><dt>Document type</dt><dd>{{ $document->document_type }}</dd></div>
                     <div><dt>Originating office / school{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->origin }}</dd></div>
                     <div><dt>Sender{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->sender }}</dd></div>
+                    @if (filled($document->delivery_method))
+                        <div><dt>Delivery</dt><dd>{{ $document->delivery_method }}</dd></div>
+                    @endif
                     <div><dt>Date received</dt><dd>{{ $document->received_at?->format('M d, Y') ?? 'Not received' }}</dd></div>
-                    <div><dt>Due date</dt><dd>{{ $document->due_at?->format('M d, Y') ?? 'Not set' }}</dd></div>
-                    <div><dt>Priority</dt><dd>{{ $document->priority }}</dd></div>
+                    <div><dt>Time registered</dt><dd>{{ $document->created_at?->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</dd></div>
                     <div class="tw:col-span-full dts-document-office-statuses">
                         <dt>Assigned offices</dt>
                         <dd>@include('orchid.cells.document-office-statuses', ['document' => $document, 'onDocumentPage' => true])</dd>
@@ -77,7 +79,7 @@
                     $availableActions = $workflowActionOptionsByOffice[$workflowOffice] ?? [];
                     // Includes the acting office: Restore may send the document back to it (dts.js blocks it for other actions).
                     $destinationOffices = \App\Models\Document::officeOptions();
-                    $selectedAction = old('workflow.action', count($availableActions) === 1 ? array_key_first($availableActions) : '');
+                    $selectedAction = old('workflow.action', count($availableActions) === 1 && array_key_first($availableActions) !== \App\Models\DocumentMovement::ACTION_RESTORED ? array_key_first($availableActions) : '');
                     $selectedDestinations = old('workflow.destinations', array_filter([(string) old('workflow.destination')]));
                     $selectedDestinationRemarks = old('workflow.destination_remarks', []);
                 @endphp
@@ -169,8 +171,9 @@
                         </template>
                     </dts-workflow-routing>
                     <div class="dts-workflow-actions">
-                        <button type="submit" class="dts-button dts-button-primary" formaction="{{ route('platform.documents.movements.store', $document) }}" formmethod="POST" data-confirm-message="Save this routing update?" data-confirm-title="Save routing update" data-confirm-label="Save update"><x-orchid-icon path="bs.signpost-split" /> Save routing update</button>
+                        <button type="submit" class="dts-button dts-button-primary" formaction="{{ route('platform.documents.movements.store', $document) }}" formmethod="POST" data-confirm-message="Save this routing update?" data-confirm-title="Save routing update" data-confirm-label="Save update"><x-orchid-icon path="bs.signpost-split" /> <span data-workflow-submit-label>Save routing update</span></button>
                     </div>
+                    @include('orchid.partials.office-remark', ['id' => 'document-office-remark'])
                 @endif
             </section>
 
@@ -182,7 +185,7 @@
                         ->push(['movement' => null, 'at' => $document->created_at]);
                     $timelineDays = $timelineEntries->map(fn (array $entry, int $index): array => [...$entry, 'index' => $index])
                         ->groupBy(fn (array $entry): string => $entry['at']->toDateString());
-                    $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'note' => 'bs.dot'];
+                    $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.dot'];
                 @endphp
                 <div class="dts-staff-timeline">
                     @foreach ($timelineDays as $day => $entries)
@@ -216,9 +219,9 @@
                                                 <small>{{ $movement->to_office }}</small>
                                             @endif
                                             @if ($movement->from_status === null)
-                                                <small class="dts-timeline-status">{{ $movement->to_status }}</small>
+                                                <small class="dts-timeline-status">{{ \App\Support\StatusLabel::for($movement->to_status) }}</small>
                                             @elseif ($movement->from_status !== $movement->to_status)
-                                                <small class="dts-timeline-status">{{ $movement->from_status }} &rarr; {{ $movement->to_status }}</small>
+                                                <small class="dts-timeline-status">{{ \App\Support\StatusLabel::for($movement->from_status) }} &rarr; {{ \App\Support\StatusLabel::for($movement->to_status) }}</small>
                                             @endif
                                             @if ($movement->remarks)
                                                 <p>{{ $movement->remarks }}</p>
@@ -245,7 +248,7 @@
                             <span class="dts-audit-icon" aria-hidden="true"><x-orchid-icon path="bs.activity" /></span>
                             <div>
                                 <strong>{{ $activity->description }}</strong>
-                                <small class="dts-timeline-meta"><span>{{ $activity->causer?->name ?? 'System' }}</span><span aria-hidden="true">&middot;</span><time datetime="{{ $activity->created_at->toIso8601String() }}">{{ $activity->created_at->format('M d, Y g:i A') }}</time></small>
+                                <small class="dts-timeline-meta"><span>{{ $activity->causer?->name ?? 'System' }}</span><span aria-hidden="true">&middot;</span><time datetime="{{ $activity->created_at->toIso8601String() }}">{{ $activity->created_at->format('M d, Y · g:i A') }}</time></small>
                                 @if (data_get($activity->properties, 'file_name'))
                                     <small>{{ data_get($activity->properties, 'file_name') }}</small>
                                 @elseif (filled(data_get($activity->properties, 'to_office')) && data_get($activity->properties, 'from_office') !== data_get($activity->properties, 'to_office'))
@@ -268,22 +271,22 @@
             <details class="dts-form-section dts-tracking-label-section" aria-labelledby="tracking-label-heading">
                 <summary class="dts-section-heading tw:cursor-pointer tw:list-none"><h3 id="tracking-label-heading"><x-orchid-icon path="bs.upc-scan" /> Tracking label</h3></summary>
                 @include('orchid.partials.tracking-label')
-                <a class="dts-button dts-button-secondary dts-print-label-button" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener noreferrer"><x-orchid-icon path="bs.printer" /> Print label</a>
+                <a class="dts-button dts-button-secondary dts-icon-only dts-print-label-button" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener noreferrer" data-tooltip="Print label"><x-orchid-icon path="bs.printer" /><span class="visually-hidden">Print label</span></a>
             </details>
             <details class="dts-form-section dts-document-summary" aria-labelledby="document-status-heading">
                 <summary class="dts-section-heading tw:cursor-pointer tw:list-none"><h3 id="document-status-heading">Record summary</h3></summary>
                 <dl class="dts-metadata">
                     <dt>Tracking number</dt><dd>{{ $document->tracking_number }} @include('orchid.partials.copy-button', ['text' => $document->tracking_number])</dd>
                     <dt>Registered by</dt><dd>{{ $document->client_submission_key ? 'Client submission' : ($document->registeredBy?->name ?? 'System') }}</dd>
-                    <dt>Registered on</dt><dd>{{ $document->created_at->format('M d, Y g:i A') }}</dd>
+                    <dt>Registered on</dt><dd>{{ $document->created_at->format('M d, Y · g:i A') }}</dd>
                     <dt>Last changed by</dt><dd>{{ $lastChangedBy }}</dd>
-                    <dt>Last changed on</dt><dd>{{ $lastChangedAt->format('M d, Y g:i A') }}</dd>
+                    <dt>Last changed on</dt><dd>{{ $lastChangedAt->format('M d, Y · g:i A') }}</dd>
                     {{-- Staff limited to their own office's activity only see their office's downloads; the screen sets
                          downloadsScopedToOffice when it narrows that data, and the wording says so. --}}
                     @php($officeDownloads = $downloadsScopedToOffice ?? false)
                     @php($notDownloaded = $officeDownloads ? 'Not downloaded by your office yet' : 'Not downloaded yet')
                     <dt>{{ $officeDownloads ? 'Last downloaded by your office' : 'Last downloaded by' }}</dt><dd>{{ $lastDownloadedBy ?? $notDownloaded }}</dd>
-                    <dt>Last downloaded on</dt><dd>{{ $lastDownloadedAt?->format('M d, Y g:i A') ?? $notDownloaded }}</dd>
+                    <dt>Last downloaded on</dt><dd>{{ $lastDownloadedAt?->format('M d, Y · g:i A') ?? $notDownloaded }}</dd>
                     @if ($lastDownloadedFile)
                         <dt>Downloaded file</dt><dd>{{ $lastDownloadedFile }}</dd>
                     @endif

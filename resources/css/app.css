@@ -16,3 +16,15 @@
     --color-slate-200: #d8c66f;
     --color-slate-300: #b3843f;
 }
+
+/* Public pages: the copy button matches the Refresh button (44px square, green outline). */
+.dts-public-page .dts-copy-button {
+    width: 44px;
+    min-height: 44px;
+    border-color: #216e39;
+}
+
+.dts-public-status-guide[open] .dts-public-status-guide-chevron,
+.dts-public-remarks[open] .dts-public-remarks-chevron {
+    transform: rotate(180deg);
+}

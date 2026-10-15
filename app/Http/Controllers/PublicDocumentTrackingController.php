@@ -21,14 +21,14 @@ class PublicDocumentTrackingController extends Controller
         $trackingInput = $request->query('tracking', '');
         $trackingNumber = is_string($trackingInput) ? Str::upper(trim($trackingInput)) : '';
         $document = null;
-        $trackingError = is_string($trackingInput) ? null : 'Enter a valid DTS tracking number.';
+        $trackingError = is_string($trackingInput) ? null : 'Enter a valid tracking number.';
         $searched = $trackingInput !== '';
 
         if ($searched && $trackingError === null) {
             $validator = Validator::make(
                 ['tracking' => $trackingNumber],
-                ['tracking' => ['required', 'string', 'max:32', 'regex:/^DTS-[A-Z0-9-]+$/']],
-                ['tracking.regex' => 'Enter a valid DTS tracking number.'],
+                ['tracking' => ['required', 'string', 'max:32', 'regex:/^(?:SDONV[1-9]{11}|DTS-[A-Z0-9-]+)$/']],
+                ['tracking.regex' => 'Enter a valid tracking number.'],
                 ['tracking' => 'tracking number'],
             );
 
@@ -41,11 +41,11 @@ class PublicDocumentTrackingController extends Controller
                         'tracking_number',
                         'subject',
                         'document_type',
+                        'sender',
                         'client_submission_key',
                         'current_office',
                         'status',
                         'received_at',
-                        'due_at',
                         'created_at',
                     ])
                     ->withCount('attachments')
@@ -61,8 +61,11 @@ class PublicDocumentTrackingController extends Controller
                                     'to_office',
                                     'from_status',
                                     'to_status',
+                                    'remarks',
+                                    'acted_by',
                                     'created_at',
                                 ])
+                                ->with('actor:id,name')
                                 ->reorder()
                                 ->oldest('created_at')
                                 ->oldest('id');

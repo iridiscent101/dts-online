@@ -30,7 +30,6 @@ class DocumentMovementController extends Controller
             if ($wasAwaitingPaper && $transition['action'] === DocumentMovement::ACTION_RECEIVED) {
                 $document->update([
                     'received_at' => today('Asia/Manila')->toDateString(),
-                    'due_at' => Document::targetDueDate(today('Asia/Manila'), $document->priority)->toDateString(),
                     'registered_by' => $user->getAuthIdentifier(),
                 ]);
                 $requestedRoutes = DB::table('document_route_steps')
@@ -76,12 +75,6 @@ class DocumentMovementController extends Controller
                 DocumentMovement::ACTION_RESTORED,
             ], true)) {
                 $notifications->assigned($document, $transition['action'], $user, $transition['offices']);
-            }
-
-            if (isset($transition['final_records_office'])) {
-                $notifications->assigned($document, DocumentMovement::ACTION_FORWARDED, $user, [$transition['final_records_office']]);
-                $transition['message'] = $routing->successMessage($document, $transition['action'], $transition['offices'])
-                    .' Sent to Records Unit for final completion.';
             }
 
             return $transition;

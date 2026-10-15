@@ -1,18 +1,31 @@
+@php
+    // Everyday actions the backend offers this user's offices; Restore (reopening a finished document) is not one.
+    $everydayActions = collect($workflowActionOptions)->flatMap(fn (array $actions): array => $actions)
+        ->except(\App\Models\DocumentMovement::ACTION_RESTORED);
+    $canRestore = collect($workflowActionOptions)->contains(fn (array $actions): bool => array_key_exists(\App\Models\DocumentMovement::ACTION_RESTORED, $actions));
+    $nextStep = $everydayActions->has(\App\Models\DocumentMovement::ACTION_RECEIVED)
+        ? 'Receive it first. After that you can forward or complete it.'
+        : 'Next: '.$everydayActions->values()->join(', ', ' or ').'.';
+@endphp
 <div class="dts-workspace-shell" data-workspace-shell data-workspace-url="{{ route('platform.documents.workspace', $document) }}">
     <header class="dts-workspace-header">
         <div class="tw:min-w-0">
             <p class="dts-eyebrow dts-tracking-eyebrow">DOCUMENT WORKSPACE · {{ $document->tracking_number }} @include('orchid.partials.copy-button', ['text' => $document->tracking_number])</p>
             <div class="dts-workspace-title-row">
                 <h2 id="dts-workspace-title" class="tw:break-words">{{ $document->subject }}</h2>
-                <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}">{{ $document->status }}</span>
+                <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($document->status) }}>{{ \App\Support\StatusLabel::for($document->status) }}</span>
             </div>
         </div>
-        <button type="button" class="dts-workspace-close" data-workspace-close aria-label="Close document workspace">×</button>
+        {{-- Print label is always here, not only right after Paper received. --}}
+        <div class="dts-workspace-header-actions">
+            <a class="dts-button dts-button-secondary dts-icon-only" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener" data-turbo="false" data-tooltip="Print label"><x-orchid-icon path="bs.printer" /><span class="visually-hidden">Print label</span></a>
+            <button type="button" class="dts-workspace-close" data-workspace-close aria-label="Close document workspace">×</button>
+        </div>
     </header>
 
     <div class="dts-workspace-tabs" role="tablist" aria-label="Document sections">
         <button type="button" id="dts-workspace-details-tab" role="tab" aria-selected="true" aria-controls="dts-workspace-details" tabindex="0" data-workspace-tab="details">Details</button>
-        <button type="button" id="dts-workspace-routing-tab" role="tab" aria-selected="false" aria-controls="dts-workspace-routing" tabindex="-1" data-workspace-tab="routing">Routing &amp; History @if ($canRoute)<span class="dts-tab-badge">Action needed</span>@endif</button>
+        <button type="button" id="dts-workspace-routing-tab" role="tab" aria-selected="false" aria-controls="dts-workspace-routing" tabindex="-1" data-workspace-tab="routing">Routing &amp; History @if ($everydayActions->isNotEmpty())<span class="dts-tab-badge">Action needed</span>@endif</button>
     </div>
 
     <div id="dts-workspace-details" class="dts-workspace-panels dts-workspace-panels-single" role="tabpanel" aria-labelledby="dts-workspace-details-tab" data-workspace-panel="details">
@@ -21,8 +34,13 @@
                 {{-- The routing form lives on the other tab; this makes the next step visible. It scrolls with the details. --}}
                 <div class="dts-workspace-next">
                     <x-orchid-icon path="bs.signpost-split" />
-                    <p><strong>Your office can act on this document.</strong> Receive it, forward it, or record a decision.</p>
-                    <button type="button" class="dts-button dts-button-primary" data-workspace-take-action>Take action <x-orchid-icon path="bs.arrow-right" /></button>
+                    @if ($everydayActions->isNotEmpty())
+                        <p><strong>Your office can act on this document.</strong> {{ $nextStep }}</p>
+                        <button type="button" class="dts-button dts-button-primary" data-workspace-take-action>Take action <x-orchid-icon path="bs.arrow-right" /></button>
+                    @elseif ($canRestore)
+                        <p><strong>This document is finished.</strong> You can restore it if it needs more work.</p>
+                        <button type="button" class="dts-button dts-button-secondary" data-workspace-take-action>Restore options <x-orchid-icon path="bs.arrow-right" /></button>
+                    @endif
                 </div>
             @endif
             <div class="dts-workspace-section-heading">
@@ -50,15 +68,15 @@
                 ] as $label => $value)
                     <div><dt>{{ $label }}</dt><dd>{{ filled($value) ? $value : '—' }}</dd></div>
                 @endforeach
+                @if (filled($document->delivery_method))
+                    <div><dt>Delivery</dt><dd>{{ $document->delivery_method }}</dd></div>
+                @endif
                 <div>
-                    <dt>Dates</dt>
-                    <dd class="tw:grid tw:grid-cols-2 tw:gap-3">
-                        <span><small class="tw:block tw:text-xs tw:uppercase tw:text-slate-500">Received</small>{{ $document->received_at?->format('d M Y') ?? 'Not received' }}</span>
-                        <span class="tw:border-s tw:border-[var(--dts-border-strong)] tw:ps-3"><small class="tw:block tw:text-xs tw:uppercase tw:text-slate-500">Due</small>{{ $document->due_at?->format('d M Y') ?? 'Not set' }}</span>
-                    </dd>
+                    <dt>Date received</dt>
+                    <dd>{{ $document->received_at?->format('M d, Y') ?? 'Not received' }}</dd>
                 </div>
                 @foreach ([
-                    'Priority' => $document->priority,
+                    'Time registered' => $document->created_at?->timezone('Asia/Manila')->format('M d, Y · g:i A'),
                     'Status' => $document->status,
                     'Registered by' => $document->registeredBy?->name,
                 ] as $label => $value)
@@ -102,13 +120,11 @@
                             <datalist id="workspace-origin-units">@foreach (\App\Models\Document::originOptions() as $originOption)<option value="{{ $originOption }}"></option>@endforeach</datalist>
                         </div>
                         <label><span>Sender <span aria-hidden="true">*</span></span><input name="document[sender]" value="{{ $document->sender }}" required maxlength="180" @readonly($document->detailsAreLocked())></label>
-                        {{-- A paper submission has no received date until Records confirms the paper copy, so both dates wait. --}}
+                        {{-- A paper submission has no received date until Records confirms the paper copy. --}}
                         <label><span>Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</span><input type="date" name="document[received]" value="{{ $document->received_at?->toDateString() }}" @readonly($document->detailsAreLocked()) @required($document->received_at !== null) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
-                        <label>Due date<input type="date" name="document[due]" value="{{ $document->due_at?->toDateString() }}" @readonly($document->detailsAreLocked()) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
                         @if ($document->received_at === null)
-                            <p id="workspace-dates-pending" class="dts-field-hint dts-workspace-field-wide">Not received yet. Both dates are set when the Records Unit confirms the paper copy.</p>
+                            <p id="workspace-dates-pending" class="dts-field-hint dts-workspace-field-wide">Not received yet. The date is set when the Records Unit confirms the paper copy.</p>
                         @endif
-                        <label><span>Priority <span aria-hidden="true">*</span></span><select name="document[priority]" required @if ($document->detailsAreLocked()) disabled data-locked-select @endif>@foreach (array_keys(\App\Models\Document::PRIORITIES) as $priority)<option value="{{ $priority }}" @selected($document->priority === $priority)>{{ $priority }}</option>@endforeach</select></label>
                         <label class="dts-workspace-field-wide">Description<textarea name="document[description]" rows="4" maxlength="3000" @readonly($document->detailsAreLocked())>{{ $document->description }}</textarea></label>
                     </div>
                     @if ($document->canEditOfficeAssignmentsBy(request()->user()) && $document->routesAreEditable())
@@ -132,21 +148,21 @@
                 @forelse ($routeAssignments as $assignment)
                     @php($canViewRouteHistory = $canViewAllHistory || $historyOfficeNames->contains($assignment->office))
                     <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $assignment->office }}" data-workspace-route-history-access="{{ $canViewRouteHistory ? 'true' : 'false' }}" aria-pressed="false">
-                        <span class="dts-workspace-entry-heading"><strong>{{ $assignment->office }}</strong><span class="dts-record-status" data-status="{{ str($assignment->status)->lower()->replace(' ', '-') }}">{{ $assignment->status }}</span></span>
+                        <span class="dts-workspace-entry-heading"><strong>{{ $assignment->office }}</strong><span class="dts-record-status" data-status="{{ str($assignment->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($assignment->status) }}>{{ \App\Support\StatusLabel::for($assignment->status) }}</span></span>
                         @if ($canViewRouteHistory)
-                            <span class="dts-muted">Sent {{ ($sentDates->get($assignment->office) ?? $assignment->created_at)?->timezone('Asia/Manila')->format('d M Y, g:i A') }}</span>
-                            @if ($receivedDates->has($assignment->office))<span class="dts-muted">Received {{ $receivedDates->get($assignment->office)->timezone('Asia/Manila')->format('d M Y, g:i A') }}</span>@endif
+                            <span class="dts-muted">Sent {{ ($sentDates->get($assignment->office) ?? $assignment->created_at)?->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</span>
+                            @if ($receivedDates->has($assignment->office))<span class="dts-muted">Received {{ $receivedDates->get($assignment->office)->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</span>@endif
                         @endif
                     </button>
                 @empty
                     @if ($waitingOffices->isEmpty())
-                    <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $document->current_office }}" data-workspace-route-history-access="{{ $canViewAllHistory || $historyOfficeNames->contains($document->current_office) ? 'true' : 'false' }}" aria-pressed="false"><strong>{{ $document->current_office }}</strong><span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}">{{ $document->status }}</span></button>
+                    <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $document->current_office }}" data-workspace-route-history-access="{{ $canViewAllHistory || $historyOfficeNames->contains($document->current_office) ? 'true' : 'false' }}" aria-pressed="false"><strong>{{ $document->current_office }}</strong><span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($document->status) }}>{{ \App\Support\StatusLabel::for($document->status) }}</span></button>
                     @endif
                 @endforelse
                 {{-- Offices the client chose; they receive the document once Records confirms the paper copy. --}}
                 @foreach ($waitingOffices as $waitingOffice)
                     <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $waitingOffice }}" data-workspace-route-waiting data-workspace-route-history-access="{{ $canViewAllHistory || $historyOfficeNames->contains($waitingOffice) ? 'true' : 'false' }}" aria-pressed="false">
-                        <span class="dts-workspace-entry-heading"><strong>{{ $waitingOffice }}</strong><span class="dts-record-status" data-status="waiting-for-paper">{{ \App\Models\Document::ROUTE_WAITING_FOR_PAPER }}</span></span>
+                        <span class="dts-workspace-entry-heading"><strong>{{ $waitingOffice }}</strong><span class="dts-record-status" data-status="waiting-for-paper-copy">{{ \App\Models\Document::ROUTE_WAITING_FOR_PAPER }}</span></span>
                         <span class="dts-muted">Receives it after the paper copy reaches the Records Unit</span>
                     </button>
                 @endforeach
@@ -161,7 +177,7 @@
                             <div class="dts-workspace-fields">
                                 <label><span class="dts-workspace-source-heading">Acting office <span class="dts-record-status" data-workflow-source-status aria-live="polite"></span></span>
                                     <select name="workflow[source_office]" data-workflow-source-office aria-label="Acting office" required>
-                                        @foreach ($workflowStates as $state)<option value="{{ $state['office'] }}" data-status="{{ str($state['status'])->lower()->replace(' ', '-') }}" data-status-label="{{ $state['status'] }}">{{ $state['office'] }}</option>@endforeach
+                                        @foreach ($workflowStates as $state)<option value="{{ $state['office'] }}" data-status="{{ str($state['status'])->lower()->replace(' ', '-') }}" data-status-label="{{ \App\Support\StatusLabel::for($state['status']) }}">{{ $state['office'] }}</option>@endforeach
                                     </select>
                                 </label>
                                 <label><span class="dts-workspace-label-row">Action</span>
@@ -190,7 +206,8 @@
                             </div>
                             <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea></label>
                         </dts-workflow-routing>
-                        <div class="dts-workspace-actions"><button type="button" class="dts-button dts-button-primary" data-workspace-routing-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span>Save routing update</button></div>
+                        <div class="dts-workspace-actions"><button type="button" class="dts-button dts-button-primary" data-workspace-routing-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span><span data-workflow-submit-label>Save routing update</span></button></div>
+                        @include('orchid.partials.office-remark', ['id' => 'workspace-office-remark'])
                     </div>
                 </div>
             @endif

@@ -18,12 +18,20 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee('Track a document')
             ->assertSee(asset('images/icon.png'))
             ->assertSee('SDO – Nueva Vizcaya')
-            ->assertSee('Staff sign in')
+            ->assertDontSee('Staff sign in')
+            ->assertSee('<title>Track a document | DocuTrackS</title>', false)
+            ->assertSee('Docu<span class="text-[#86562D]">TrackS</span>', false)
+            ->assertSee('placeholder="Enter your tracking number"', false)
+            ->assertDontSee('DTS tracking number')
             ->assertSee('Track document')
             ->assertSee('data-open-submission', false)
             ->assertSee('id="submission-dialog"', false)
-            ->assertSee('data-options="destination-offices"', false)
-            ->assertSee('Add another office')
+            ->assertSee('How will the paper copy reach the Records Unit?')
+            ->assertSee('name="delivery_method" value="Hand carry" required', false)
+            ->assertSee('name="delivery_method" value="Official channel" required', false)
+            // Counter intake: Records routes every submission, so clients do not choose offices.
+            ->assertDontSee('data-options="destination-offices"', false)
+            ->assertDontSee('Add another office')
             ->assertDontSee('Enter its DTS tracking number to view the latest recorded movement.')
             ->assertDontSee('No matching document');
     }
@@ -48,7 +56,7 @@ class PublicDocumentTrackingTest extends TestCase
             'tracking_number' => 'DTS-2026-000123',
             'subject' => 'Budget <script>alert("private")</script>',
             'document_type' => 'Memorandum',
-            'sender' => 'Private Sender',
+            'sender' => 'Maria Santos',
             'origin' => 'Private Origin',
             'current_office' => 'Curriculum Implementation Division',
             'status' => 'Received',
@@ -95,16 +103,42 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSeeInOrder([
                 'Current status',
                 'Administrative Unit received the document',
-                'Records Unit forwarded it to Administrative Unit',
+                'Document/s forwarded to Administrative Unit',
                 'Document registered',
             ])
             ->assertSee('data-kind="received"', false)
             ->assertSee('data-kind="moved"', false)
-            ->assertDontSee('Private Sender')
+            ->assertSeeInOrder(['Sender', 'Maria Santos'])
+            ->assertSee('Office destination')
             ->assertDontSee('Private Origin')
             ->assertDontSee('Private document remarks')
-            ->assertDontSee('Private forwarding remarks')
-            ->assertDontSee('Private Employee');
+            ->assertSee('Private forwarding remarks')
+            ->assertSee('Private receipt remarks')
+            ->assertSee('Processed by')
+            ->assertSee('Private Employee')
+            ->assertDontSee('Staff sign in');
+    }
+
+    public function test_public_timeline_escapes_movement_remarks_and_staff_names(): void
+    {
+        $actor = User::factory()->create(['name' => '<script>alert("staff")</script>']);
+        $document = Document::factory()->create(['tracking_number' => 'DTS-2026-000125']);
+        $document->movements()->create([
+            'action' => 'acknowledge',
+            'from_office' => 'Records Unit',
+            'to_office' => 'Records Unit',
+            'from_status' => 'Forwarded',
+            'to_status' => 'Received',
+            'remarks' => '<script>alert("remark")</script>',
+            'acted_by' => $actor->id,
+        ]);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertSee('&lt;script&gt;alert(&quot;remark&quot;)&lt;/script&gt;', false)
+            ->assertSee('&lt;script&gt;alert(&quot;staff&quot;)&lt;/script&gt;', false)
+            ->assertDontSee('<script>alert("remark")</script>', false)
+            ->assertDontSee('<script>alert("staff")</script>', false);
     }
 
     public function test_registration_office_does_not_change_after_the_document_is_forwarded(): void
@@ -163,26 +197,6 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee('Forwarded');
     }
 
-    public function test_target_date_shows_how_many_days_are_left_until_every_office_finishes(): void
-    {
-        $document = Document::factory()->received()->create([
-            'tracking_number' => 'DTS-2026-000129',
-            'due_at' => now('Asia/Manila')->subDays(2)->toDateString(),
-        ]);
-
-        $this->get(route('tracking.index', ['tracking' => 'DTS-2026-000129']))
-            ->assertOk()
-            ->assertSee('Overdue by 2 days');
-
-        $document->update(['due_at' => now('Asia/Manila')->addDay()->toDateString()]);
-        $this->get(route('tracking.index', ['tracking' => 'DTS-2026-000129']))
-            ->assertSee('Due in 1 day');
-
-        $document->officeAssignments()->update(['status' => 'Completed']);
-        $this->get(route('tracking.index', ['tracking' => 'DTS-2026-000129']))
-            ->assertDontSee('data-due-badge', false);
-    }
-
     public function test_office_routes_show_whether_each_office_has_finished(): void
     {
         $document = Document::factory()->received()->create([
@@ -238,7 +252,8 @@ class PublicDocumentTrackingTest extends TestCase
                 'Today',
                 'Records Unit placed it on hold',
                 'Latest',
-                'Status: On Hold',
+                'Status',
+                'On Hold',
                 now('Asia/Manila')->subDays(3)->format('F j, Y'),
                 'Legal Unit returned it to Records Unit',
                 'Document registered',
@@ -272,7 +287,7 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee('Assigned to Records Unit')
             ->assertDontSee('Assigned to Records Unit and Administrative Unit')
             ->assertSee('data-from-office="Administrative Unit" data-to-office="Administrative Unit" class="dts-public-timeline-item hidden', false)
-            ->assertSee("timelineOffice.addEventListener('change'", false);
+            ->assertSee("if (event.target.id === 'timeline-office') showOfficeTimeline(event.target.value);", false);
     }
 
     public function test_office_without_recorded_movements_has_a_clear_empty_timeline(): void
@@ -306,13 +321,31 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertDontSee('Document movement');
     }
 
+    public function test_new_tracking_number_is_searchable_without_breaking_legacy_numbers(): void
+    {
+        $newDocument = Document::factory()->create(['tracking_number' => 'SDONV12345678911']);
+        $legacyDocument = Document::factory()->create(['tracking_number' => 'DTS-2026-000123']);
+
+        $this->get(route('tracking.index', ['tracking' => strtolower($newDocument->tracking_number)]))
+            ->assertOk()
+            ->assertSee($newDocument->tracking_number);
+
+        $this->get(route('tracking.index', ['tracking' => $legacyDocument->tracking_number]))
+            ->assertOk()
+            ->assertSee($legacyDocument->tracking_number);
+
+        $this->get(route('tracking.index', ['tracking' => 'SDONV12345678910']))
+            ->assertOk()
+            ->assertSee('Enter a valid tracking number.');
+    }
+
     public function test_invalid_tracking_number_is_rejected_without_searching(): void
     {
         Document::factory()->create(['tracking_number' => 'DTS-2026-000123']);
 
         $this->get(route('tracking.index', ['tracking' => "DTS-2026-000123' OR 1=1--"]))
             ->assertOk()
-            ->assertSee('Enter a valid DTS tracking number.')
+            ->assertSee('Enter a valid tracking number.')
             ->assertDontSee('Document movement');
     }
 
@@ -320,7 +353,7 @@ class PublicDocumentTrackingTest extends TestCase
     {
         $this->get(route('tracking.index').'?tracking[]=DTS-2026-000123')
             ->assertOk()
-            ->assertSee('Enter a valid DTS tracking number.');
+            ->assertSee('Enter a valid tracking number.');
     }
 
     public function test_array_office_filter_is_ignored_without_an_error_page(): void

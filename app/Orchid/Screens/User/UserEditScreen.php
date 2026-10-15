@@ -51,7 +51,7 @@ class UserEditScreen extends Screen
      */
     public function name(): ?string
     {
-        return $this->user->exists ? 'Edit User' : 'Create User';
+        return $this->user->exists ? 'Edit user' : 'Create user';
     }
 
     /**
@@ -184,7 +184,7 @@ class UserEditScreen extends Screen
             $user->replaceRoles($request->input('user.roles', []));
         });
 
-        Toast::info(__('User was saved.'));
+        Toast::success(__('User was saved.'));
 
         return redirect()->route('platform.systems.users');
     }
@@ -200,7 +200,7 @@ class UserEditScreen extends Screen
 
         $user->delete();
 
-        Toast::info(__('User was removed'));
+        Toast::success(__('User was removed.'));
 
         return redirect()->route('platform.systems.users');
     }

@@ -16,6 +16,8 @@ class DocumentMovement extends Model
 
     public const ACTION_ARCHIVE = 'archive';
 
+    public const ACTION_CANCELLED = 'cancelled';
+
     public const ACTION_APPROVED = 'approved';
 
     public const ACTION_COMPLETED = 'completed';
@@ -45,6 +47,8 @@ class DocumentMovement extends Model
     public const STATUS_APPROVED = 'Approved';
 
     public const STATUS_ARCHIVED = 'Archived';
+
+    public const STATUS_CANCELLED = 'Cancelled';
 
     public const STATUS_AWAITING_RECEIPT = 'Awaiting receipt';
 
@@ -167,7 +171,7 @@ class DocumentMovement extends Model
     public function title(): string
     {
         $actionTitle = match ($this->action) {
-            self::ACTION_ACKNOWLEDGE, self::ACTION_RECEIVED => $this->from_status === self::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Received by Records Unit' : 'Receipt acknowledged',
+            self::ACTION_ACKNOWLEDGE, self::ACTION_RECEIVED => $this->from_status === self::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Received by Records Unit' : 'Document received',
             self::ACTION_SENT => "Sent to {$this->to_office}",
             self::ACTION_FORWARD, self::ACTION_FORWARDED => "Forwarded to {$this->to_office}",
             self::ACTION_RETURNED => "Returned to {$this->to_office}",
@@ -180,6 +184,7 @@ class DocumentMovement extends Model
             self::ACTION_COMPLETED => 'Document completed',
             self::ACTION_ARCHIVE => 'Document archived',
             self::ACTION_RESTORED => "Restored to {$this->to_office}",
+            self::ACTION_CANCELLED => "Route to {$this->to_office} cancelled",
             default => null,
         };
 
@@ -210,7 +215,7 @@ class DocumentMovement extends Model
                 ? "{$this->to_office} received the paper document"
                 : "{$this->to_office} received the document",
             self::ACTION_SENT => $this->from_office ? "{$this->from_office} sent it to {$this->to_office}" : "Sent to {$this->to_office}",
-            self::ACTION_FORWARD, self::ACTION_FORWARDED => $this->from_office ? "{$this->from_office} forwarded it to {$this->to_office}" : "Forwarded to {$this->to_office}",
+            self::ACTION_FORWARD, self::ACTION_FORWARDED => "Document/s forwarded to {$this->to_office}",
             self::ACTION_RETURNED => "{$actingOffice} returned it to {$this->to_office}",
             self::ACTION_RESUBMITTED => "{$actingOffice} resubmitted it to {$this->to_office}",
             self::ACTION_REVIEWED => "{$actingOffice} reviewed the document",
@@ -221,8 +226,9 @@ class DocumentMovement extends Model
             self::ACTION_COMPLETED => "{$actingOffice} marked it completed",
             self::ACTION_ARCHIVE => "{$actingOffice} archived the document",
             self::ACTION_RESTORED => "Restored to {$this->to_office}",
+            self::ACTION_CANCELLED => "Route to {$this->to_office} cancelled",
             default => match (true) {
-                $this->from_office !== $this->to_office => "{$actingOffice} forwarded it to {$this->to_office}",
+                $this->from_office !== $this->to_office => "Document/s forwarded to {$this->to_office}",
                 $this->from_status !== $this->to_status => "{$actingOffice} changed the status to {$this->to_status}",
                 default => "{$actingOffice} added a routing note",
             },
@@ -240,6 +246,7 @@ class DocumentMovement extends Model
             self::ACTION_APPROVED, self::ACTION_COMPLETED, self::ACTION_ARCHIVE => 'done',
             self::ACTION_ON_HOLD => 'hold',
             self::ACTION_RETURNED, self::ACTION_REJECTED => 'returned',
+            self::ACTION_CANCELLED => 'cancelled',
             default => $this->from_office !== $this->to_office ? 'moved' : 'note',
         };
     }
@@ -249,20 +256,11 @@ class DocumentMovement extends Model
      */
     public static function actionOptions(): array
     {
-        // Short verbs for what the person does, not the status the document ends up in.
         return [
-            self::ACTION_SENT => 'Send',
             self::ACTION_RECEIVED => 'Receive',
             self::ACTION_FORWARDED => 'Forward',
-            self::ACTION_RETURNED => 'Return',
-            self::ACTION_RESUBMITTED => 'Resubmit',
-            self::ACTION_REVIEWED => 'Review',
-            self::ACTION_APPROVED => 'Approve',
-            self::ACTION_REJECTED => 'Reject',
-            self::ACTION_ON_HOLD => 'Put on hold',
-            self::ACTION_RELEASED => 'Release',
             self::ACTION_COMPLETED => 'Complete',
-            self::ACTION_ARCHIVE => 'Archive',
+            self::ACTION_RELEASED => 'Release',
             self::ACTION_RESTORED => 'Restore',
         ];
     }
@@ -280,14 +278,7 @@ class DocumentMovement extends Model
      */
     public static function availableActionOptionsForStatus(string $status): array
     {
-        $actions = collect(self::actionOptions())
-            ->only(self::availableActionsForStatus($status));
-
-        if ($status !== self::STATUS_AWAITING_PHYSICAL_DOCUMENT && self::requiresAcknowledgement($status)) {
-            $actions->forget(self::ACTION_RECEIVED);
-        }
-
-        return $actions->all();
+        return collect(self::actionOptions())->only(self::availableActionsForStatus($status))->all();
     }
 
     /**
@@ -309,47 +300,13 @@ class DocumentMovement extends Model
             ],
             self::STATUS_AWAITING_RECEIPT, self::STATUS_FORWARDED, self::STATUS_RETURNED, self::STATUS_RESUBMITTED => [
                 self::ACTION_RECEIVED,
-                self::ACTION_FORWARDED,
-                self::ACTION_RETURNED,
-                self::ACTION_RESUBMITTED,
-                self::ACTION_REVIEWED,
-                self::ACTION_APPROVED,
-                self::ACTION_REJECTED,
-                self::ACTION_ON_HOLD,
-                self::ACTION_COMPLETED,
-                self::ACTION_ARCHIVE,
             ],
-            self::STATUS_RECEIVED => [
+            self::STATUS_RECEIVED, self::STATUS_REVIEWED, self::STATUS_APPROVED, self::STATUS_ON_HOLD => [
                 self::ACTION_FORWARDED,
-                self::ACTION_RETURNED,
-                self::ACTION_RESUBMITTED,
-                self::ACTION_REVIEWED,
-                self::ACTION_APPROVED,
-                self::ACTION_REJECTED,
-                self::ACTION_ON_HOLD,
                 self::ACTION_COMPLETED,
-                self::ACTION_ARCHIVE,
-            ],
-            self::STATUS_REVIEWED => [
-                self::ACTION_FORWARDED,
-                self::ACTION_RETURNED,
-                self::ACTION_APPROVED,
-                self::ACTION_REJECTED,
-                self::ACTION_ON_HOLD,
-                self::ACTION_COMPLETED,
-                self::ACTION_ARCHIVE,
-            ],
-            self::STATUS_APPROVED => [
-                self::ACTION_FORWARDED,
                 self::ACTION_RELEASED,
-                self::ACTION_COMPLETED,
-                self::ACTION_ARCHIVE,
             ],
-            self::STATUS_ON_HOLD => [
-                self::ACTION_RELEASED,
-                self::ACTION_RETURNED,
-            ],
-            self::STATUS_ARCHIVED, self::STATUS_COMPLETED => [
+            self::STATUS_ARCHIVED, self::STATUS_COMPLETED, self::STATUS_REJECTED, self::STATUS_RELEASED => [
                 self::ACTION_RESTORED,
             ],
             default => [],

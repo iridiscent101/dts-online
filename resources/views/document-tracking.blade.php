@@ -3,41 +3,25 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="DocuTrack public document tracking portal for SDO – Nueva Vizcaya">
-    <title>Track a Document | DocuTrack</title>
+    <meta name="description" content="DocuTrackS public document tracking portal for SDO – Nueva Vizcaya">
+    <title>Track a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css', 'resources/js/copy-button.js'])
+    @vite(['resources/css/app.css', 'resources/js/copy-button.js', 'resources/js/crowd-canvas.js', 'resources/js/tracking-refresh.js'])
 </head>
-<body class="flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
+<body class="dts-public-page flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
         <span class="bg-[#216E39]"></span>
         <span class="bg-[#F2C230]"></span>
         <span class="bg-[#86562D]"></span>
     </div>
 
-    <header class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
-            <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 text-slate-900 no-underline">
-                <img src="{{ asset('images/icon.png') }}" alt="" width="48" height="48" class="size-10 shrink-0 rounded-lg sm:size-12">
-                <span class="min-w-0">
-                    <strong class="block text-xl font-bold leading-none tracking-tight text-[#26332B] sm:text-2xl">Docu<span class="text-[#86562D]">Track</span></strong>
-                    <span class="block text-xs font-semibold leading-tight text-slate-600 sm:text-sm">SDO – Nueva Vizcaya</span>
-                    <span class="hidden text-xs leading-tight text-slate-600 sm:block">Document Tracking System</span>
-                </span>
-            </a>
-
-            @auth
-                <a href="{{ route('platform.main') }}" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-sm border border-[#216E39] px-4 py-2 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#216E39]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">
-                    <x-orchid-icon path="bs.grid" class="size-4" />
-                    <span class="hidden sm:inline">Open dashboard</span>
-                </a>
-            @else
-                <a href="{{ route('platform.login') }}" class="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-sm border border-[#216E39] px-4 py-2 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#216E39]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">
-                    <x-orchid-icon path="bs.person" class="size-4" />
-                    <span class="hidden sm:inline">Staff sign in</span>
-                </a>
-            @endauth
+    <header class="relative overflow-hidden border-b border-slate-200 bg-white">
+        {{-- People walking across the top of every public page (resources/js/crowd-canvas.js); the DocuTrackS branding
+             sits in the landing's intro section. Decorative, so hidden from screen readers; it stands still for people
+             who turn off animations. --}}
+        <div class="relative h-28 sm:h-40" aria-hidden="true">
+            <canvas data-crowd-canvas data-src="{{ asset('images/landing/crowd-peeps.png') }}" data-rows="15" data-cols="7" class="absolute inset-0 size-full"></canvas>
         </div>
     </header>
 
@@ -62,12 +46,12 @@
                                         maxlength="32"
                                         autocomplete="off"
                                         spellcheck="false"
-                                        placeholder="Enter your DTS tracking number"
-                                        class="h-12 min-w-0 grow border-0 bg-transparent text-base font-medium uppercase text-slate-900 outline-none placeholder:font-normal placeholder:text-slate-400"
+                                        placeholder="Enter your tracking number"
+                                        class="h-12 min-w-0 grow border-0 bg-transparent text-base font-medium uppercase text-slate-900 outline-none placeholder:font-normal placeholder:normal-case placeholder:text-slate-400"
                                     >
                                 </div>
                             </div>
-                            <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm border border-[#F2C230] bg-[#F2C230] px-6 py-3 text-base font-semibold text-slate-900 hover:bg-[#D9A91C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                            <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm border-2 border-[#F2C230] bg-[#F2C230] px-6 text-base font-semibold text-slate-900 hover:bg-[#D9A91C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                                 Track document
                                 <x-orchid-icon path="bs.arrow-right" class="size-4" />
                             </button>
@@ -80,40 +64,71 @@
                         @endif
                     </div>
                     <div class="border-t border-white/25 pt-5 lg:border-0 lg:pt-0">
-                        <a href="{{ route('submission.create') }}" data-open-submission class="inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-sm border-2 border-white bg-white px-6 py-3 text-base font-bold text-[#216E39] no-underline shadow-md hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto">
-                            <x-orchid-icon path="bs.send" class="size-5" /> Send a document
+                        <a href="{{ route('submission.create') }}" data-open-submission class="inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-sm border-2 border-white bg-white px-6 text-base font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto">
+                            <x-orchid-icon path="bs.send" class="size-4" /> Send a document
                         </a>
                     </div>
                 </div>
             </div>
         </section>
 
+        @unless ($searched && ! $trackingError)
+            {{-- Landing: who runs the service. Photos go in public/images/landing/; a dashed placeholder shows until each one exists. --}}
+            @php
+                $landingPhotos = [
+                    ['file' => 'office.jpg', 'caption' => 'SDO Nueva Vizcaya division office'],
+                    ['file' => 'records.jpg', 'caption' => 'Records Unit counter'],
+                    ['file' => 'schools.jpg', 'caption' => 'Serving the schools of Nueva Vizcaya'],
+                ];
+            @endphp
+            <section class="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10" aria-labelledby="landing-heading">
+                <div class="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
+                    <img src="{{ asset('images/icon.png') }}" alt="" width="176" height="176" class="size-32 rounded-2xl sm:size-44">
+                    <div>
+                        <p class="text-sm font-semibold uppercase tracking-wide text-[#86562D]">Department of Education · SDO – Nueva Vizcaya</p>
+                        <h2 id="landing-heading" class="mt-1 text-4xl font-bold leading-none tracking-tight text-[#26332B] sm:text-5xl">Docu<span class="text-[#86562D]">TrackS</span></h2>
+                        <p class="mt-2 text-lg font-semibold text-slate-700">Document Tracking System</p>
+                        <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Send your document to the Records Unit and follow it from office to office. Enter the tracking number on your receipt or scan its QR code to see where it is now.</p>
+                    </div>
+                </div>
+                <ul class="mt-6 grid gap-4 sm:grid-cols-3">
+                    @foreach ($landingPhotos as $photo)
+                        <li>
+                            <figure class="overflow-hidden rounded-sm border border-slate-300 bg-white">
+                                @if (file_exists(public_path('images/landing/'.$photo['file'])))
+                                    <img src="{{ asset('images/landing/'.$photo['file']) }}" alt="{{ $photo['caption'] }}" class="aspect-[4/3] w-full object-cover" loading="lazy">
+                                @else
+                                    <div class="grid aspect-[4/3] w-full place-items-center border-b-2 border-dashed border-slate-300 bg-[#F8F4E7] text-center text-slate-500">
+                                        <span class="grid justify-items-center gap-2 px-4 text-sm"><x-orchid-icon path="bs.image" class="size-8" />Photo coming soon</span>
+                                    </div>
+                                @endif
+                                <figcaption class="px-4 py-3 text-base font-semibold text-slate-800">{{ $photo['caption'] }}</figcaption>
+                            </figure>
+                        </li>
+                    @endforeach
+                </ul>
+                <ol class="mt-6 grid gap-3 sm:grid-cols-3">
+                    @foreach ([
+                        ['bs.send', 'Send', 'Fill in the form online or bring your document to the Records Unit.'],
+                        ['bs.inbox', 'Records Unit receives', 'Records staff receive it and send it to the right office.'],
+                        ['bs.search', 'Track', 'Use your tracking number to see each office, status and remarks.'],
+                    ] as [$icon, $title, $text])
+                        <li class="flex gap-3 rounded-sm border border-slate-300 bg-white p-4">
+                            <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-[#216E39] text-white"><x-orchid-icon :path="$icon" class="size-5" /></span>
+                            <span><strong class="block text-base text-slate-900">{{ $loop->iteration }}. {{ $title }}</strong><span class="text-sm leading-6 text-slate-600">{{ $text }}</span></span>
+                        </li>
+                    @endforeach
+                </ol>
+            </section>
+        @endunless
+
         @if ($searched && ! $trackingError)
-        <section class="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8" aria-live="polite">
+        <p class="sr-only" role="status" data-tracking-announcer></p>
+        <section class="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8" data-tracking-results>
             @if (session('submitted'))
                 <p class="mb-6 rounded-sm border border-emerald-300 bg-emerald-50 px-5 py-4 font-medium text-emerald-900" role="status">
                     Document submitted. Save the tracking number below to follow its progress.
                 </p>
-            @endif
-            @if ($document?->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-                {{-- Paper submissions only start moving once Records has the paper copy, so tell the client what to do. --}}
-                <section class="mb-6 rounded-sm border border-[#216E39]/40 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="next-steps-heading">
-                    <h2 id="next-steps-heading" class="text-lg font-semibold text-slate-900">What happens next</h2>
-                    <ol class="mt-4 grid gap-4 sm:grid-cols-3">
-                        <li class="flex gap-3">
-                            <span class="grid size-8 shrink-0 place-items-center rounded-full bg-[#216E39] font-semibold text-white" aria-hidden="true">1</span>
-                            <div><strong class="block text-slate-900">Bring the paper copy</strong><span class="text-sm text-slate-700">Take the signed paper document to the SDO Records Unit. Show this tracking number or QR code.</span></div>
-                        </li>
-                        <li class="flex gap-3">
-                            <span class="grid size-8 shrink-0 place-items-center rounded-full border-2 border-[#216E39] font-semibold text-[#216E39]" aria-hidden="true">2</span>
-                            <div><strong class="block text-slate-900">Records confirms it</strong><span class="text-sm text-slate-700">Once Records receives the paper, the offices you chose get your document.</span></div>
-                        </li>
-                        <li class="flex gap-3">
-                            <span class="grid size-8 shrink-0 place-items-center rounded-full border-2 border-[#216E39] font-semibold text-[#216E39]" aria-hidden="true">3</span>
-                            <div><strong class="block text-slate-900">Follow it here</strong><span class="text-sm text-slate-700">Each office's progress shows on this page. Come back anytime with your tracking number.</span></div>
-                        </li>
-                    </ol>
-                </section>
             @endif
             @if ($document)
                 @php
@@ -122,28 +137,14 @@
                     $displayStatus = $assignedOffices->count() > 1
                         ? ($allOfficesFinished ? 'All offices finished' : 'In progress')
                         : ($assignedOffices->first()['status'] ?? $document->status);
-                    $statusClasses = match ($displayStatus) {
-                        'Awaiting receipt', 'Awaiting physical document', 'On Hold' => 'border-amber-300 bg-amber-50 text-amber-900',
-                        'Received', 'Approved', 'Completed', 'All offices finished' => 'border-emerald-300 bg-emerald-50 text-emerald-800',
-                        'Forwarded', 'In progress' => 'border-[#86562D]/40 bg-[#F8F4E7] text-[#86562D]',
-                        'Returned', 'Rejected' => 'border-red-300 bg-red-50 text-red-800',
-                        default => 'border-slate-300 bg-slate-100 text-slate-700',
-                    };
                     $statusMeanings = [
                         ...\App\Models\DocumentMovement::STATUS_MEANINGS,
                         \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the document after you bring the paper copy to the Records Unit.',
+                        // Same wording as the status guide.
+                        \App\Models\DocumentMovement::STATUS_FORWARDED => 'The document was sent on to the next office. It waits there until that office receives it.',
+                        \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released the document. Processing is finished.',
                     ];
                     $routeStatuses = $routeOffices->pluck('status')->unique()->filter(fn (string $status): bool => array_key_exists($status, $statusMeanings));
-                    $dueBadge = null;
-                    if ($document->due_at && ! $allOfficesFinished) {
-                        $daysLeft = (int) now('Asia/Manila')->startOfDay()->diffInDays(\Illuminate\Support\Carbon::parse($document->due_at->toDateString(), 'Asia/Manila'), false);
-                        $dueBadge = match (true) {
-                            $daysLeft < 0 => ['Overdue by '.abs($daysLeft).' '.str('day')->plural(abs($daysLeft)), 'border-red-300 bg-red-50 text-red-800'],
-                            $daysLeft === 0 => ['Due today', 'border-amber-300 bg-amber-50 text-amber-900'],
-                            $daysLeft <= 3 => ['Due in '.$daysLeft.' '.str('day')->plural($daysLeft), 'border-amber-300 bg-amber-50 text-amber-900'],
-                            default => ['Due in '.$daysLeft.' days', 'border-slate-300 bg-slate-100 text-slate-700'],
-                        };
-                    }
                 @endphp
 
                 {{-- Wide screens: the status card sets the row height; the movement card grows with its content up to that height. --}}
@@ -153,15 +154,22 @@
                             <div>
                                 <p class="text-sm font-semibold uppercase text-[#216E39]">Current status</p>
                                 <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-                                    <h2 id="document-summary-heading" class="break-all text-2xl font-semibold text-slate-900">{{ $document->tracking_number }}</h2>
+                                    <h2 id="document-summary-heading" class="break-all text-xl font-semibold text-slate-900 sm:text-2xl">{{ $document->tracking_number }}</h2>
                                     @include('orchid.partials.copy-button', ['text' => $document->tracking_number])
                                 </div>
                             </div>
-                            <span class="dts-public-status inline-flex min-h-8 items-center rounded-sm border px-3 py-1 text-sm font-semibold {{ $statusClasses }}">{{ $displayStatus }}</span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                @include('partials.public-status-badge', ['status' => $displayStatus, 'class' => 'dts-public-status min-h-11 px-3'])
+                                {{-- Updates the results in place (resources/js/tracking-refresh.js); without JavaScript the link reloads the page. --}}
+                                <a href="{{ route('tracking.index', array_filter(['tracking' => $trackingNumber, 'office' => $selectedOffice])) }}" data-tracking-refresh class="dts-tracking-refresh inline-flex size-11 shrink-0 items-center justify-center rounded-sm border border-[#216E39] bg-white text-[#216E39] no-underline hover:bg-[#216E39]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]" title="Refresh status" aria-label="Refresh status">
+                                    <x-orchid-icon path="bs.arrow-clockwise" class="size-5" />
+                                </a>
+                            </div>
                         </div>
+                        <p class="mt-2 text-sm text-slate-500">Last checked {{ now('Asia/Manila')->format('M d, Y · g:i A') }}</p>
 
                         <div class="grid gap-4 border-t border-slate-200 pt-4">
-                            <h3 class="text-lg font-semibold leading-7 text-slate-900">{{ $document->client_submission_key ? 'Client document' : $document->subject }}</h3>
+                            <h3 class="text-lg font-semibold leading-7 text-slate-900 [overflow-wrap:anywhere]">{{ $document->client_submission_key ? 'Client document' : $document->subject }}</h3>
                             @if ($document->client_submission_key && $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
                                 <p class="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">Submit your document to the Records staff.</p>
                             @endif
@@ -208,7 +216,7 @@
                                                     </span>
                                                     <span class="min-w-0 grow">
                                                         <span class="block text-base font-semibold text-slate-800">{{ $assignment['office'] }}</span>
-                                                        <span class="block text-sm text-slate-600">{{ $assignment['status'] }}<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
+                                                        <span class="block text-sm text-slate-600">{{ \App\Support\StatusLabel::for($assignment['status']) }}@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-500"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
                                                     </span>
                                                     @if ($routeLinks)
                                                         <span class="sr-only">, show history</span>
@@ -225,11 +233,11 @@
                                         @if ($routeStatuses->isNotEmpty())
                                             <details class="mt-3 rounded-sm border border-slate-200 bg-[#F8F4E7]/60 px-3 py-2" @if ($routeOffices->count() === 1) open @endif>
                                                 <summary class="cursor-pointer py-3 text-sm font-semibold text-[#216E39]">What {{ $routeStatuses->count() === 1 ? 'does this status' : 'do these statuses' }} mean?</summary>
-                                                <dl class="mt-2 grid gap-2 text-sm">
+                                                <dl class="mt-1 grid divide-y divide-slate-200 text-sm">
                                                     @foreach ($routeStatuses as $status)
-                                                        <div>
-                                                            <dt class="inline font-semibold text-slate-800">{{ $status }}:</dt>
-                                                            <dd class="inline text-slate-600">{{ $statusMeanings[$status] }}</dd>
+                                                        <div class="grid justify-items-start gap-1 py-3">
+                                                            <dt>@include('partials.public-status-badge', ['status' => $status])</dt>
+                                                            <dd class="leading-6 text-slate-600">{{ $statusMeanings[$status] }}</dd>
                                                         </div>
                                                     @endforeach
                                                 </dl>
@@ -241,21 +249,17 @@
                                     <dt class="text-sm font-medium text-slate-500">Document type</dt>
                                     <dd class="mt-1 text-base font-semibold text-slate-800">{{ $document->document_type }}</dd>
                                 </div>
+                                {{-- Client submissions keep the sender private, as they do the subject. --}}
+                                @if (filled($document->sender) && ! $document->client_submission_key)
+                                    <div>
+                                        <dt class="text-sm font-medium text-slate-500">Sender</dt>
+                                        <dd class="mt-1 text-base font-semibold text-slate-800 [overflow-wrap:anywhere]">{{ $document->sender }}</dd>
+                                    </div>
+                                @endif
                                 <div>
                                     <dt class="text-sm font-medium text-slate-500">{{ $document->client_submission_key ? 'Date submitted' : 'Date received' }}</dt>
                                     <dd class="mt-1 text-base font-semibold text-slate-800">{{ ($document->client_submission_key ? $document->created_at : $document->received_at)?->format('M d, Y') ?? 'Not received yet' }}</dd>
                                 </div>
-                                @if ($document->due_at)
-                                    <div>
-                                        <dt class="text-sm font-medium text-slate-500">Target date</dt>
-                                        <dd class="mt-1 flex flex-wrap items-center gap-2 text-base font-semibold text-slate-800">
-                                            {{ $document->due_at->format('M d, Y') }}
-                                            @if ($dueBadge)
-                                                <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-sm font-semibold {{ $dueBadge[1] }}" data-due-badge>{{ $dueBadge[0] }}</span>
-                                            @endif
-                                        </dd>
-                                    </div>
-                                @endif
                             </dl>
                             @if ($qrCodeDataUri)
                                 <div class="flex items-center gap-4 border-t border-slate-200 pt-4">
@@ -277,6 +281,7 @@
                             <p class="text-sm font-semibold uppercase text-[#216E39]">Routing history</p>
                             <h2 id="movement-heading" class="mt-1 text-2xl font-semibold text-slate-900">Document movement</h2>
                         </div>
+                        @include('partials.public-status-guide', ['class' => 'mt-4'])
                         @php
                             $timelineEvents = $document->movements->reverse()->values()
                                 ->map(fn (\App\Models\DocumentMovement $movement): array => [
@@ -289,21 +294,21 @@
                             $latestEventIndex = $timelineEvents->first(fn (array $event): bool => $event['visible'])['index'] ?? null;
                             $timelineDays = $timelineEvents->groupBy(fn (array $event): string => $event['at']->copy()->timezone('Asia/Manila')->toDateString());
                             $timelineToday = now('Asia/Manila');
-                            $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'note' => 'bs.dot'];
+                            $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.dot'];
                         @endphp
                         @if ($timelineOffices->count() > 1)
-                            <form id="timeline-filter" method="GET" action="{{ route('tracking.index') }}#movement-heading" class="mt-4 flex flex-wrap items-end gap-3">
+                            <form id="timeline-filter" method="GET" action="{{ route('tracking.index') }}#movement-heading" class="mt-4 flex flex-wrap items-end gap-3" data-registration-offices='@json($registrationOffices?->values()->all() ?? [])' data-initial-office="{{ $initialOffice }}">
                                 <input type="hidden" name="tracking" value="{{ $trackingNumber }}">
                                 <div class="min-w-48 grow">
                                     <label for="timeline-office" class="block text-sm font-semibold text-slate-800">View timeline by office</label>
-                                    <select id="timeline-office" name="office" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 text-base focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
+                                    <select id="timeline-office" name="office" class="mt-2 w-full">
                                         <option value="">All offices (combined history)</option>
                                         @foreach ($timelineOffices as $office)
                                             <option value="{{ $office }}" @selected($selectedOffice === $office)>{{ $office }}</option>
                                         @endforeach
                                     </select>
                                 </div>
-                                <button type="submit" class="min-h-11 rounded-sm bg-[#216E39] px-4 py-2 font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">View timeline</button>
+                                <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-sm bg-[#216E39] px-4 text-sm font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">View timeline</button>
                             </form>
                         @endif
 
@@ -321,9 +326,11 @@
                                                     <div class="min-w-0 pt-1">
                                                         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                                             <strong class="text-base font-semibold text-slate-900">{{ $document->client_submission_key ? 'Document submitted' : 'Document registered' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
-                                                            <time class="text-sm text-slate-500" datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('h:i A') }}</time>
                                                         </div>
                                                         <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting paper at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
+                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                                                            <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
+                                                        </dl>
                                                     </div>
                                                 </li>
                                             @else
@@ -332,10 +339,32 @@
                                                     <div class="min-w-0 pt-1">
                                                         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                                             <strong class="text-base font-semibold text-slate-900">{{ $movement->publicSummary() }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
-                                                            <time class="text-sm text-slate-500" datetime="{{ $movement->created_at->toIso8601String() }}">{{ $movement->created_at->timezone('Asia/Manila')->format('h:i A') }}</time>
                                                         </div>
-                                                        @if (filled($movement->to_status) && $movement->from_status !== $movement->to_status)
-                                                            <p class="mt-1 text-sm text-slate-600">Status: {{ $movement->to_status }}</p>
+                                                        {{-- Originating office, destination office, status, remarks, date and time, and who processed it. --}}
+                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                                                            @if (filled($movement->from_office))
+                                                                <dt class="font-medium text-slate-500">From</dt><dd class="text-slate-800">{{ $movement->from_office }}</dd>
+                                                            @endif
+                                                            @if (filled($movement->to_office) && $movement->to_office !== $movement->from_office)
+                                                                <dt class="font-medium text-slate-500">Office destination</dt><dd class="text-slate-800">{{ $movement->to_office }}</dd>
+                                                            @endif
+                                                            @if (filled($movement->to_status))
+                                                                <dt class="self-center font-medium text-slate-500">Status</dt><dd>@include('partials.public-status-badge', ['status' => $movement->to_status])</dd>
+                                                            @endif
+                                                            <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $movement->created_at->toIso8601String() }}">{{ $movement->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $movement->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
+                                                            @if ($movement->actor?->name)
+                                                                <dt class="font-medium text-slate-500">Processed by</dt><dd class="text-slate-800">{{ $movement->actor->name }}</dd>
+                                                            @endif
+                                                        </dl>
+                                                        @if (filled($movement->remarks) && ! ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null))
+                                                            <details class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60">
+                                                                <summary class="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-sm font-semibold text-[#216E39]">
+                                                                    <x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" />
+                                                                    <span class="grow">Remarks</span>
+                                                                    <x-orchid-icon path="bs.chevron-down" class="dts-public-remarks-chevron size-4 shrink-0" />
+                                                                </summary>
+                                                                <p class="whitespace-pre-line border-t border-slate-200 px-3 py-2 text-sm leading-6 text-slate-800">{{ $movement->remarks }}</p>
+                                                            </details>
                                                         @endif
                                                     </div>
                                                 </li>
@@ -362,6 +391,12 @@
             @endif
         </section>
         @endif
+
+        @unless ($document)
+            <section class="mx-auto w-full max-w-6xl px-5 pb-8 sm:px-8" aria-label="Status guide">
+                @include('partials.public-status-guide')
+            </section>
+        @endunless
     </main>
 
     @include('client-document-submission', ['embedded' => true])
@@ -372,32 +407,30 @@
             <span>Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</span>
         </div>
     </footer>
-    @if ($document && $timelineOffices->count() > 1)
+    @if ($document)
+        {{-- Office timeline filter. Elements are looked up on each use and the office data sits on the form, so the
+             results can be swapped in place by the Refresh button (resources/js/tracking-refresh.js). --}}
         <script nonce="{{ Vite::cspNonce() }}">
-            const timelineFilter = document.getElementById('timeline-filter');
-            const timelineOffice = document.getElementById('timeline-office');
-            const movementHeading = document.getElementById('movement-heading');
-            const registrationEvent = document.getElementById('registration-event');
-            const registrationOffice = document.getElementById('registration-office');
-            const timelineEmpty = document.getElementById('timeline-empty');
-            const registrationOffices = @json($registrationOffices?->values()->all() ?? []);
-            const initialOffice = @json($initialOffice);
-            const registrationOfficeText = registrationOffice.textContent.replace(/(Assigned to |Awaiting paper at ).*/, '$1');
-
             function setVisible(element, visible) {
                 element.classList.toggle('hidden', !visible);
                 element.classList.toggle('grid', visible);
             }
 
             function showOfficeTimeline(office) {
-                timelineOffice.value = office;
+                const filter = document.getElementById('timeline-filter');
+                if (!filter) return;
+                const registrationEvent = document.getElementById('registration-event');
+                const registrationOffice = document.getElementById('registration-office');
+                const registrationOffices = JSON.parse(filter.dataset.registrationOffices || '[]');
+
+                document.getElementById('timeline-office').value = office;
                 document.querySelectorAll('.dts-route-link[data-timeline-office]').forEach((card) => {
                     if (card.dataset.timelineOffice === office) card.setAttribute('aria-current', 'true');
                     else card.removeAttribute('aria-current');
                 });
 
                 setVisible(registrationEvent, office === '' || registrationOffices.includes(office));
-                registrationOffice.textContent = registrationOfficeText + (office || initialOffice);
+                registrationOffice.textContent = registrationOffice.textContent.replace(/(Assigned to |Awaiting paper at ).*/, '$1') + (office || filter.dataset.initialOffice);
 
                 document.querySelectorAll('[data-movement]').forEach((movement) => {
                     setVisible(movement, office === '' || movement.dataset.fromOffice === office || movement.dataset.toOffice === office);
@@ -411,7 +444,7 @@
                 document.querySelectorAll('[data-timeline-latest]').forEach((label) => { label.hidden = true; });
                 const latest = visibleItems[0]?.querySelector('[data-timeline-latest]');
                 if (latest) latest.hidden = false;
-                timelineEmpty.classList.toggle('hidden', visibleItems.length > 0);
+                document.getElementById('timeline-empty').classList.toggle('hidden', visibleItems.length > 0);
 
                 const url = new URL(window.location.href);
                 if (office) url.searchParams.set('office', office);
@@ -419,11 +452,21 @@
                 window.history.replaceState(null, '', url);
             }
 
-            timelineFilter.querySelector('button').hidden = true;
-            timelineOffice.addEventListener('change', () => showOfficeTimeline(timelineOffice.value));
-            timelineFilter.addEventListener('submit', (event) => {
+            // The "View timeline" button is for pages without JavaScript; here the list filters as soon as it changes.
+            function prepareTimelineFilter() {
+                const button = document.querySelector('#timeline-filter button[type="submit"]');
+                if (button) button.hidden = true;
+            }
+
+            prepareTimelineFilter();
+            document.addEventListener('dts:tracking-updated', prepareTimelineFilter);
+            document.addEventListener('change', (event) => {
+                if (event.target.id === 'timeline-office') showOfficeTimeline(event.target.value);
+            });
+            document.addEventListener('submit', (event) => {
+                if (event.target.id !== 'timeline-filter') return;
                 event.preventDefault();
-                showOfficeTimeline(timelineOffice.value);
+                showOfficeTimeline(document.getElementById('timeline-office').value);
             });
 
             // Office cards filter the history too; tapping the selected card again shows all offices.
@@ -433,7 +476,7 @@
                 event.preventDefault();
                 showOfficeTimeline(card.getAttribute('aria-current') === 'true' ? '' : card.dataset.timelineOffice);
                 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                movementHeading.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+                document.getElementById('movement-heading').scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
             });
         </script>
     @endif

@@ -95,6 +95,7 @@ class DocumentViewScreen extends Screen
                 : collect(),
             'canViewAllHistory' => $visibleOffices === null,
             'qrCodeDataUri' => app(DocumentTrackingLabel::class)->dataUri($this->document),
+            'labelDetails' => app(DocumentTrackingLabel::class)->details($this->document),
             'lastChangedBy' => $lastChangedBy
                 ?? $this->document->registeredBy?->name
                 ?? 'System',

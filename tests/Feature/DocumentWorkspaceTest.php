@@ -62,6 +62,81 @@ class DocumentWorkspaceTest extends TestCase
             ->assertDontSee('"completed":"Completed"', false);
     }
 
+    public function test_records_only_paper_receipt_offers_complete_and_release_in_the_workspace(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $receipt = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+            'acted_by' => $records->id,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Records Unit')->update(['movement_id' => $receipt->id]);
+
+        $this->actingAs($records)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertSee('"released":"Release"', false)
+            ->assertSee('"completed":"Complete"', false);
+
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+    }
+
+    public function test_records_only_paper_receipt_can_complete_without_recording_a_release(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $receipt = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+            'acted_by' => $records->id,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Records Unit')->update(['movement_id' => $receipt->id]);
+
+        $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'completed', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_COMPLETED, $document->fresh()->status);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
+    }
+
+    public function test_records_paper_receipt_does_not_offer_release_for_a_document_with_other_office_routes(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $receipt = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+            'acted_by' => $records->id,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Records Unit')->update(['movement_id' => $receipt->id]);
+        $document->officeAssignments()->create([
+            'office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_COMPLETED,
+        ]);
+
+        $this->actingAs($records)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertDontSee('"released":"Release"', false);
+
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+    }
+
     public function test_restore_is_not_offered_to_staff_outside_records(): void
     {
         $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
@@ -221,8 +296,7 @@ class DocumentWorkspaceTest extends TestCase
 
         $this->actingAs($recipient)
             ->postJson(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('document.destinations');
+            ->assertForbidden();
 
         $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
@@ -258,8 +332,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertDontSee('name="document[destinations][]"', false);
 
         $this->postJson(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors('document.destinations');
+            ->assertForbidden();
 
         $this->postJson(route('platform.documents.movements.store', $document), [
             'workflow' => ['source_office' => 'Records Unit', 'action' => 'reviewed'],
@@ -338,19 +411,19 @@ class DocumentWorkspaceTest extends TestCase
             ->postJson(route('platform.documents.movements.store', $document), [
                 'workflow' => [
                     'source_office' => 'Records Unit',
-                    'action' => 'reviewed',
-                    'remarks' => 'Reviewed in the workspace.',
+                    'action' => 'completed',
+                    'remarks' => 'Completed in the workspace.',
                 ],
             ])
             ->assertOk()
             ->assertJsonPath('visible', true);
 
-        $this->assertSame('Reviewed', $document->fresh()->status);
-        $this->assertSame('Reviewed', $document->officeAssignments()->sole()->status);
-        $this->assertSame('Reviewed in the workspace.', $document->movements()->sole()->remarks);
+        $this->assertSame('Completed', $document->fresh()->status);
+        $this->assertSame('Completed', $document->officeAssignments()->sole()->status);
+        $this->assertSame('Completed in the workspace.', $document->movements()->sole()->remarks);
         $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('Reviewed in the workspace.')
-            ->assertSee('data-status="reviewed">Reviewed', false)
+            ->assertSee('Completed in the workspace.')
+            ->assertSee('data-status="completed">Completed', false)
             ->assertSee('data-history-to="Records Unit"', false);
     }
 
@@ -583,8 +656,8 @@ class DocumentWorkspaceTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('platform.documents.workspace', $document))
-            ->assertSee('Sent 09 Oct 2026, 8:00 AM')
-            ->assertSee('Received 10 Oct 2026, 10:00 AM');
+            ->assertSee('Sent Oct 09, 2026 · 8:00 AM')
+            ->assertSee('Received Oct 10, 2026 · 10:00 AM');
     }
 
     /**

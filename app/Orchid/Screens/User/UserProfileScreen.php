@@ -37,7 +37,7 @@ class UserProfileScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'My Account';
+        return 'My account';
     }
 
     /**
@@ -89,6 +89,10 @@ class UserProfileScreen extends Screen
                 ->title(__('Account access'))
                 ->description(__('Your offices and roles decide which documents you see and what you can do. An administrator sets them.')),
 
+            Layout::block(Layout::view('orchid.profile-signature'))
+                ->title(__('Signature on labels'))
+                ->description(__('Printed under your name on the QR labels of documents you process.')),
+
             Layout::block(ProfilePasswordLayout::class)
                 ->title(__('Update Password'))
                 ->description(__('Ensure your account is using a long, random password to stay secure.'))
@@ -115,7 +119,7 @@ class UserProfileScreen extends Screen
             ->fill($request->collect('user')->only(['name', 'email'])->toArray())
             ->save();
 
-        Toast::info(__('Profile updated.'));
+        Toast::success(__('Profile updated.'));
     }
 
     public function changePassword(Request $request): void
@@ -130,6 +134,6 @@ class UserProfileScreen extends Screen
             $user->password = Hash::make($request->get('password'));
         })->save();
 
-        Toast::info(__('Password changed.'));
+        Toast::success(__('Password changed.'));
     }
 }

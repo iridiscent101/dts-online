@@ -25,7 +25,7 @@ class OfficeManagementTest extends TestCase
         $this->actingAs($manager)
             ->get(route('platform.systems.offices'))
             ->assertOk()
-            ->assertSee('Office Management')
+            ->assertSee('Office management')
             ->assertSee('Add');
 
         $this->actingAs($staff)
@@ -43,7 +43,7 @@ class OfficeManagementTest extends TestCase
         $this->actingAs($admin)
             ->get(route('platform.systems.offices.create'))
             ->assertOk()
-            ->assertSee('Create Office')
+            ->assertSee('Create office')
             ->assertSee('Included in SDO list')
             ->assertSee('Included in client list')
             ->assertSee('Active');

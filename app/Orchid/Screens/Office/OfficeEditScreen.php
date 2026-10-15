@@ -47,7 +47,7 @@ class OfficeEditScreen extends Screen
 
     public function name(): ?string
     {
-        return $this->office->exists ? 'Edit Office' : 'Create Office';
+        return $this->office->exists ? 'Edit office' : 'Create office';
     }
 
     public function description(): ?string
@@ -148,7 +148,7 @@ class OfficeEditScreen extends Screen
             }
         });
 
-        Toast::info(__('Office was saved.'));
+        Toast::success(__('Office was saved.'));
 
         return redirect()->route('platform.systems.offices');
     }

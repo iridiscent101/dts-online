@@ -83,7 +83,7 @@ class DocumentRegistrationTest extends TestCase
 
         $document = Document::query()->sole();
 
-        $this->assertMatchesRegularExpression('/^DTS-2026-[A-F0-9]{20}$/', $document->tracking_number);
+        $this->assertMatchesRegularExpression('/^SDONV[1-9]{11}$/', $document->tracking_number);
         $this->assertSame('Regional Office', $document->origin);
         $this->assertSame('Records Unit', $document->current_office);
         $this->assertSame($user->id, $document->registered_by);
@@ -103,7 +103,7 @@ class DocumentRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_registration_calculates_a_weekday_target_when_due_date_is_blank(): void
+    public function test_registration_does_not_create_a_due_date(): void
     {
         $user = User::factory()->create([
             'office' => 'Records Unit',
@@ -112,7 +112,7 @@ class DocumentRegistrationTest extends TestCase
         $documentData = $this->validDocumentData();
         $documentData['received'] = '2026-10-05';
         $documentData['priority'] = 'Extended';
-        unset($documentData['due']);
+        $documentData['due'] = '2026-10-01';
 
         $this->actingAs($user)->post(route('platform.documents.create').'/save', [
             'document' => $documentData,
@@ -120,8 +120,9 @@ class DocumentRegistrationTest extends TestCase
 
         $document = Document::query()->sole();
 
-        $this->assertSame('Extended', $document->priority);
-        $this->assertSame('2026-11-02', $document->due_at->toDateString());
+        // Priority is no longer chosen; a sent value is ignored and new documents are saved as "Standard".
+        $this->assertSame('Standard', $document->priority);
+        $this->assertNull($document->due_at);
     }
 
     public function test_registration_rejects_unsupported_attachments(): void
@@ -251,7 +252,7 @@ class DocumentRegistrationTest extends TestCase
             ->get(route('platform.documents.view', $document))
             ->assertOk()
             ->assertSee('Sent to Administrative Unit')
-            ->assertSee('Awaiting receipt')
+            ->assertSee('title="Pending: Not received yet">Pending</span>', false)
             ->assertSee('Review the records.')
             ->assertDontSee('Sent to Curriculum Implementation Division')
             ->assertDontSee('Review the curriculum.');

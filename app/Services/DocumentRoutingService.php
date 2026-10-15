@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\DocumentOfficeAssignment;
 use App\Models\User;
+use App\Support\StatusLabel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -14,9 +15,57 @@ class DocumentRoutingService
 {
     private const RECORDS_OFFICES = ['SDO-Records Unit', 'Records Unit'];
 
+    public function addAdditionalRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $remarks): void
+    {
+        DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $remarks): void {
+            $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
+            abort_unless(! $user->isReadOnlySupervisor()
+                && $user->hasAccess('platform.index')
+                && $user->isAssignedToOffice($sourceOffice), 403);
+
+            $priorForward = $currentDocument->movements()
+                ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
+                ->where('from_office', $sourceOffice)
+                ->latest('id')
+                ->first();
+            abort_unless($priorForward !== null, 403);
+
+            if ($currentDocument->isClosedRecord() || $currentDocument->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT) {
+                throw ValidationException::withMessages(['destination_office' => 'Restore the document before adding another office.']);
+            }
+
+            if ($sourceOffice === $destinationOffice || $currentDocument->officeAssignments()->where('office', $destinationOffice)->exists()) {
+                throw ValidationException::withMessages(['destination_office' => 'Choose a different office that is not already assigned.']);
+            }
+
+            $activeRoutes = $currentDocument->officeAssignments()
+                ->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
+                ->count();
+            if ($activeRoutes === 0 || $activeRoutes >= 5) {
+                throw ValidationException::withMessages(['destination_office' => 'A document can have no more than five active office routes.']);
+            }
+
+            $movement = $currentDocument->movements()->create([
+                'action' => DocumentMovement::ACTION_FORWARDED,
+                'from_office' => $sourceOffice,
+                'to_office' => $destinationOffice,
+                'from_status' => $priorForward->from_status,
+                'to_status' => DocumentMovement::STATUS_FORWARDED,
+                'remarks' => $remarks,
+                'acted_by' => $user->id,
+            ]);
+            $currentDocument->officeAssignments()->create([
+                'office' => $destinationOffice,
+                'status' => DocumentMovement::STATUS_FORWARDED,
+                'assigned_by' => $user->id,
+                'movement_id' => $movement->id,
+            ]);
+        });
+    }
+
     /**
      * @param  array{action: string, source_office?: string|null, destination?: string|null, destinations?: list<string>, remarks?: string|null, destination_remarks?: list<string|null>}  $workflow
-     * @return array{action: string, office: string, offices: list<string>, final_records_office?: string}
+     * @return array{action: string, office: string, offices: list<string>}
      */
     public function route(Document $document, User $user, array $workflow): array
     {
@@ -32,7 +81,7 @@ class DocumentRoutingService
 
             $action = $this->normalizeAction($workflow['action']);
             abort_if($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestore($user), 403);
-            $this->ensureTransitionIsAllowed($workflowState['status'], $action);
+            $this->ensureTransitionIsAllowed($user, $currentDocument, $workflowState, $action);
 
             if ($action === DocumentMovement::ACTION_COMPLETED
                 && in_array($workflowState['office'], self::RECORDS_OFFICES, true)
@@ -40,30 +89,6 @@ class DocumentRoutingService
                 throw ValidationException::withMessages([
                     'workflow.action' => 'Records Unit can complete the document after the other offices finish their routes.',
                 ]);
-            }
-
-            if ($action !== DocumentMovement::ACTION_RECEIVED
-                && $workflowState['status'] !== DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
-                && DocumentMovement::requiresAcknowledgement($workflowState['status'])) {
-                $receipt = $currentDocument->movements()->create([
-                    'action' => DocumentMovement::ACTION_RECEIVED,
-                    'from_office' => $workflowState['office'],
-                    'to_office' => $workflowState['office'],
-                    'from_status' => $workflowState['status'],
-                    'to_status' => DocumentMovement::STATUS_RECEIVED,
-                    'remarks' => 'Automatically recorded when processing began.',
-                    'acted_by' => $user->getAuthIdentifier(),
-                ]);
-
-                $currentDocument->officeAssignments()->updateOrCreate(
-                    ['office' => $workflowState['office']],
-                    [
-                        'status' => DocumentMovement::STATUS_RECEIVED,
-                        'assigned_by' => $user->getAuthIdentifier(),
-                        'movement_id' => $receipt->getKey(),
-                    ],
-                );
-                $workflowState['status'] = DocumentMovement::STATUS_RECEIVED;
             }
 
             $destinations = $this->destinations($workflow);
@@ -129,41 +154,14 @@ class DocumentRoutingService
                 );
             }
 
-            // When the last processing office finishes, Records Unit receives the final completion task.
             $remainingAssignment = null;
-            $finalRecordsOffice = null;
             if (in_array($status, DocumentMovement::FINISHED_STATUSES, true)) {
-                $assignments = $currentDocument->officeAssignments()->oldest('id');
-                $processingAssignment = (clone $assignments)
-                    ->whereNotIn('office', self::RECORDS_OFFICES)
+                $assignments = $currentDocument->officeAssignments()
                     ->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
-                    ->first();
-                $remainingAssignment = $processingAssignment
-                    ?? (clone $assignments)->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)->first();
-
-                if ($processingAssignment === null && ! in_array($workflowState['office'], self::RECORDS_OFFICES, true)) {
-                    $finalRecordsOffice = $currentDocument->officeAssignments
-                        ->pluck('office')
-                        ->first(fn (string $office): bool => in_array($office, self::RECORDS_OFFICES, true))
-                        ?? self::RECORDS_OFFICES[0];
-                    $finalMovement = $currentDocument->movements()->create([
-                        'action' => DocumentMovement::ACTION_FORWARDED,
-                        'from_office' => $workflowState['office'],
-                        'to_office' => $finalRecordsOffice,
-                        'from_status' => $status,
-                        'to_status' => DocumentMovement::STATUS_FORWARDED,
-                        'remarks' => 'For final completion by Records Unit.',
-                        'acted_by' => $user->getAuthIdentifier(),
-                    ]);
-                    $remainingAssignment = $currentDocument->officeAssignments()->updateOrCreate(
-                        ['office' => $finalRecordsOffice],
-                        [
-                            'status' => DocumentMovement::STATUS_FORWARDED,
-                            'assigned_by' => $user->getAuthIdentifier(),
-                            'movement_id' => $finalMovement->getKey(),
-                        ],
-                    );
-                }
+                    ->oldest('id');
+                $remainingAssignment = (clone $assignments)
+                    ->whereNotIn('office', self::RECORDS_OFFICES)
+                    ->first() ?? $assignments->first();
             }
 
             $currentDocument->update([
@@ -176,7 +174,6 @@ class DocumentRoutingService
                 'action' => $action,
                 'office' => $primaryOffice,
                 'offices' => $targetOffices,
-                'final_records_office' => $finalRecordsOffice,
             ], fn (mixed $value): bool => $value !== null);
         });
     }
@@ -186,7 +183,7 @@ class DocumentRoutingService
         $destinationLabel = $this->officeLabel($destination);
 
         return match ($action) {
-            DocumentMovement::ACTION_ACKNOWLEDGE, DocumentMovement::ACTION_RECEIVED => "Receipt for {$document->tracking_number} was acknowledged.",
+            DocumentMovement::ACTION_ACKNOWLEDGE, DocumentMovement::ACTION_RECEIVED => "{$document->tracking_number} was received.",
             DocumentMovement::ACTION_SENT => "{$document->tracking_number} was sent to {$destinationLabel}.",
             DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED => "{$document->tracking_number} was forwarded to {$destinationLabel}.",
             DocumentMovement::ACTION_RETURNED => "{$document->tracking_number} was returned to {$destinationLabel}.",
@@ -221,7 +218,12 @@ class DocumentRoutingService
         if (! $this->canRestore($user)) {
             unset($options[DocumentMovement::ACTION_RESTORED]);
         }
-        if (in_array($state['office'], self::RECORDS_OFFICES, true) && $this->hasUnfinishedNonRecordsRoutes($document)) {
+        $isRecordsOffice = in_array($state['office'], self::RECORDS_OFFICES, true);
+        $hasOtherActiveRoutes = $this->hasUnfinishedNonRecordsRoutes($document);
+        if (! $isRecordsOffice || $hasOtherActiveRoutes || ! $this->canRelease($document, $state['office'])) {
+            unset($options[DocumentMovement::ACTION_RELEASED]);
+        }
+        if ($isRecordsOffice && $hasOtherActiveRoutes) {
             unset($options[DocumentMovement::ACTION_COMPLETED]);
         }
 
@@ -237,6 +239,18 @@ class DocumentRoutingService
     {
         return $document->officeAssignments->contains(fn (DocumentOfficeAssignment $assignment): bool => ! in_array($assignment->office, self::RECORDS_OFFICES, true)
             && ! in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true));
+    }
+
+    private function canRelease(Document $document, string $office): bool
+    {
+        $assignment = $document->officeAssignments->firstWhere('office', $office);
+        $receipt = $assignment?->movement;
+
+        return $assignment?->status === DocumentMovement::STATUS_RECEIVED
+            && $receipt?->action === DocumentMovement::ACTION_RECEIVED
+            && ($receipt->from_status === DocumentMovement::STATUS_FORWARDED
+                || ($receipt->from_status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
+                    && $document->officeAssignments->count() === 1));
     }
 
     /**
@@ -303,14 +317,17 @@ class DocumentRoutingService
         };
     }
 
-    private function ensureTransitionIsAllowed(string $status, string $action): void
+    /**
+     * @param  array{office: string, status: string}  $state
+     */
+    private function ensureTransitionIsAllowed(User $user, Document $document, array $state, string $action): void
     {
-        if (in_array($action, DocumentMovement::availableActionsForStatus($status), true)) {
+        if (array_key_exists($action, $this->availableActionOptions($user, $document, $state))) {
             return;
         }
 
         throw ValidationException::withMessages([
-            'workflow.action' => "This document cannot be {$this->pastTense($action)} while its status is {$status}.",
+            'workflow.action' => "This document cannot be {$this->pastTense($action)} while its status is ".StatusLabel::for($state['status']).'.',
         ]);
     }
 

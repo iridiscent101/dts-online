@@ -30,14 +30,17 @@ document.addEventListener('click', async (event) => {
         await copyText(button.dataset.copyText, button.closest('dialog') ?? document.body);
         button.dataset.copyState = 'copied';
         if (label) label.textContent = 'Copied';
+        button.dataset.tooltip = 'Copied';
     } catch {
         button.dataset.copyState = 'failed';
         if (label) label.textContent = 'Copy failed';
+        button.dataset.tooltip = 'Copy failed';
     }
 
     clearTimeout(button.copyResetTimer);
     button.copyResetTimer = setTimeout(() => {
         delete button.dataset.copyState;
         if (label) label.textContent = 'Copy';
+        button.dataset.tooltip = 'Copy';
     }, 2000);
 });

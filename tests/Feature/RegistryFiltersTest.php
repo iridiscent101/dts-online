@@ -37,41 +37,32 @@ class RegistryFiltersTest extends TestCase
         $this->registry(['search' => 'MEMO-2026'])->assertSee('DTS-REFERENCE')->assertDontSee('DTS-OTHER');
     }
 
-    public function test_due_filter_lists_overdue_and_due_soon_documents_that_are_not_finished(): void
+    public function test_obsolete_due_filter_does_not_filter_documents(): void
     {
-        $this->document('DTS-OVERDUE', ['due_at' => '2026-10-13']);
-        $this->document('DTS-DONE-LATE', ['due_at' => '2026-10-10', 'status' => 'Completed']);
-        $this->document('DTS-DUE-TODAY', ['due_at' => '2026-10-14']);
-        $this->document('DTS-DUE-IN-2', ['due_at' => '2026-10-16']);
-        $this->document('DTS-DUE-LATER', ['due_at' => '2026-10-17']);
+        $this->document('DTS-FIRST');
+        $this->document('DTS-SECOND');
 
         $this->registry(['due' => 'overdue'])
-            ->assertSee('DTS-OVERDUE')
-            ->assertDontSee('DTS-DONE-LATE')
-            ->assertDontSee('DTS-DUE-TODAY')
-            ->assertSee('1 filter active');
-
-        $this->registry(['due' => 'soon'])
-            ->assertSee('DTS-DUE-TODAY')
-            ->assertSee('DTS-DUE-IN-2')
-            ->assertDontSee('DTS-OVERDUE')
-            ->assertDontSee('DTS-DUE-LATER');
-
-        $this->registry(['due' => 'anything'])->assertSee('DTS-DUE-LATER')->assertSee('No filters applied');
+            ->assertSee('DTS-FIRST')
+            ->assertSee('DTS-SECOND')
+            ->assertSee('No filters applied');
     }
 
-    public function test_priority_filter_and_active_filter_count(): void
+    public function test_priority_is_no_longer_a_filter(): void
     {
         $this->document('DTS-URGENT', ['priority' => 'Urgent']);
         $this->document('DTS-STANDARD', ['priority' => 'Standard']);
 
+        // Old links with ?priority= still open the registry; the value is ignored and only the date range counts.
         $this->registry(['priority' => 'Urgent', 'from' => '2026-10-01', 'to' => '2026-10-14'])
             ->assertSee('DTS-URGENT')
-            ->assertDontSee('DTS-STANDARD')
-            ->assertSee('<option value="Urgent" selected', false)
-            ->assertSee('2 filters active');
-
-        $this->registry(['priority' => 'Critical'])->assertSee('DTS-STANDARD')->assertSee('DTS-URGENT');
+            ->assertSee('DTS-STANDARD')
+            ->assertDontSee('id="registry-priority"', false)
+            ->assertSee('1 filter active')
+            ->assertSee('Date registered')
+            ->assertSee('Time registered')
+            ->assertSee('data-column="registered-time"', false)
+            ->assertDontSee('Last updated');
     }
 
     private function document(string $trackingNumber, array $attributes = []): Document

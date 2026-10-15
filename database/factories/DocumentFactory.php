@@ -33,8 +33,6 @@ class DocumentFactory extends Factory
      */
     public function definition(): array
     {
-        $receivedAt = fake()->dateTimeBetween('-90 days', 'now');
-
         return [
             'tracking_number' => sprintf('DTS-%s-%04d', now()->year, fake()->unique()->numberBetween(1, 9999)),
             'subject' => Str::headline(fake()->unique()->words(6, true)),
@@ -48,8 +46,7 @@ class DocumentFactory extends Factory
                 'Received',
                 'Forwarded',
             ]),
-            'received_at' => $receivedAt,
-            'due_at' => fake()->optional(0.75)->dateTimeBetween($receivedAt, '+30 days'),
+            'received_at' => fake()->dateTimeBetween('-90 days', 'now'),
             'priority' => fake()->randomElement(['Standard', 'Standard', 'Extended', 'Urgent']),
         ];
     }
@@ -71,6 +68,6 @@ class DocumentFactory extends Factory
 
     public function archived(): static
     {
-        return $this->state(fn (): array => ['status' => 'Archived', 'due_at' => null]);
+        return $this->state(fn (): array => ['status' => 'Archived']);
     }
 }

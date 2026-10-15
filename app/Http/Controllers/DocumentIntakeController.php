@@ -63,9 +63,15 @@ class DocumentIntakeController extends Controller
                 'priority' => $document->priority,
                 'sender' => $document->sender,
                 'origin' => $document->origin,
+                'delivery_method' => $document->delivery_method,
                 'submitted_on' => $document->created_at->copy()->timezone('Asia/Manila')->format('M j, Y'),
                 'status' => $document->status,
                 'routes' => $routes,
+                'client_remarks' => $document->movements()
+                    ->where('action', DocumentMovement::ACTION_SENT)
+                    ->where('to_office', 'SDO-Records Unit')
+                    ->oldest('id')
+                    ->value('remarks'),
                 'confirm_url' => route('platform.documents.movements.store', $document),
                 'view_url' => route('platform.documents.view', $document),
                 'label_url' => route('platform.documents.label', $document),

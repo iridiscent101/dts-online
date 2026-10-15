@@ -21,7 +21,7 @@
 
         // Dates are stored as timestamps; show them the way the details panel does.
         return preg_match('/^\d{4}-\d{2}-\d{2}/', $value) === 1
-            ? \Illuminate\Support\Carbon::parse($value)->format('d M Y')
+            ? \Illuminate\Support\Carbon::parse($value)->format('M d, Y')
             : $value;
     };
 @endphp

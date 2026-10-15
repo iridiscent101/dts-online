@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\DocumentAdditionalRouteController;
 use App\Http\Controllers\DocumentAttachmentController;
 use App\Http\Controllers\DocumentDeletionController;
 use App\Http\Controllers\DocumentIntakeController;
@@ -9,7 +10,10 @@ use App\Http\Controllers\DocumentLabelController;
 use App\Http\Controllers\DocumentLabelsController;
 use App\Http\Controllers\DocumentMovementController;
 use App\Http\Controllers\DocumentNotificationController;
+use App\Http\Controllers\DocumentRemarkController;
 use App\Http\Controllers\DocumentWorkspaceController;
+use App\Http\Controllers\UserSignatureController;
+use App\Http\Middleware\LogoutInactiveStaff;
 use App\Orchid\Screens\DocumentEditScreen;
 use App\Orchid\Screens\DocumentRegistrationScreen;
 use App\Orchid\Screens\DocumentViewScreen;
@@ -23,6 +27,7 @@ use App\Orchid\Screens\SystemHealthScreen;
 use App\Orchid\Screens\User\UserEditScreen;
 use App\Orchid\Screens\User\UserListScreen;
 use App\Orchid\Screens\User\UserProfileScreen;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Tabuna\Breadcrumbs\Trail;
 
@@ -69,6 +74,13 @@ Route::get('documents/{document}/label', DocumentLabelController::class)
 Route::get('notifications/{notification}/open', DocumentNotificationController::class)
     ->name('platform.notifications.open');
 
+// Inactivity sign-out (LogoutInactiveStaff): the page reports typing and clicks that send no request of their own, and
+// signs out when its countdown ends.
+Route::post('session/keep-alive', fn () => response()->noContent())
+    ->name('platform.session.keep-alive');
+Route::post('session/idle-sign-out', fn (Request $request) => LogoutInactiveStaff::signOut($request))
+    ->name('platform.session.idle-sign-out');
+
 // Background requests and actions (not page loads): at most 120 a minute per user.
 Route::middleware('throttle:staff-requests')->group(function (): void {
     Route::get('documents/intake', DocumentIntakeController::class)
@@ -85,6 +97,10 @@ Route::middleware('throttle:staff-requests')->group(function (): void {
         ->name('platform.documents.attachments.destroy');
     Route::post('documents/{document}/movements', DocumentMovementController::class)
         ->name('platform.documents.movements.store');
+    Route::post('documents/{document}/remarks', DocumentRemarkController::class)
+        ->name('platform.documents.remarks.store');
+    Route::post('documents/{document}/additional-routes', DocumentAdditionalRouteController::class)
+        ->name('platform.documents.additional-routes.store');
     Route::post('documents/bulk-delete', [DocumentDeletionController::class, 'bulk'])
         ->name('platform.documents.bulk-destroy');
     Route::post('documents/{document}/delete', DocumentDeletionController::class)
@@ -108,6 +124,12 @@ Route::screen('profile', UserProfileScreen::class)
     ->breadcrumbs(fn (Trail $trail) => $trail
         ->parent('platform.index')
         ->push(__('Profile'), route('platform.profile')));
+
+Route::get('profile/signature', [UserSignatureController::class, 'show'])
+    ->name('platform.profile.signature.show');
+Route::post('profile/signature', [UserSignatureController::class, 'store'])
+    ->middleware('throttle:staff-requests')
+    ->name('platform.profile.signature.store');
 
 // Platform > System > Users > User
 Route::screen('users/{user}/edit', UserEditScreen::class)

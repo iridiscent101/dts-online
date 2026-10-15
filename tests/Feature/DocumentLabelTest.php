@@ -3,9 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\DocumentMovement;
 use App\Models\User;
 use App\Services\DocumentTrackingLabel;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DocumentLabelTest extends TestCase
@@ -44,13 +48,78 @@ class DocumentLabelTest extends TestCase
         $response->assertOk()
             ->assertSee('Print label')
             ->assertSee('DTS-2026-000123')
-            ->assertSee('70mm 30mm')
+            ->assertSee('50mm 30mm')
             ->assertSee('data:image/svg+xml;base64,', false);
 
         preg_match('/src="data:image\/svg\+xml;base64,([^"]+)"/', $response->getContent(), $matches);
         $svg = base64_decode($matches[1] ?? '', true);
         $this->assertIsString($svg);
         $this->assertStringContainsString('<svg', $svg);
+    }
+
+    public function test_label_shows_the_latest_action_in_manila_time(): void
+    {
+        $user = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $document = Document::factory()->create([
+            'tracking_number' => 'DTS-2026-LATEST',
+            'current_office' => 'Records Unit',
+            'status' => 'Forwarded',
+        ]);
+
+        $this->travelTo(Carbon::parse('2026-10-14 01:00:00', 'UTC'));
+        DocumentMovement::factory()->for($document)->for(User::factory()->create(['name' => 'Earlier Staff']), 'actor')->create();
+        // 17:30 UTC on Oct 14 is 1:30 AM on Oct 15 in Manila.
+        $this->travelTo(Carbon::parse('2026-10-14 17:30:00', 'UTC'));
+        DocumentMovement::factory()->for($document)->for(User::factory()->create(['name' => 'Maria Santos']), 'actor')->create();
+
+        $this->actingAs($user)
+            ->get(route('platform.documents.label', $document))
+            ->assertOk()
+            ->assertSeeInOrder(['Status', 'Forwarded', 'Date', 'Oct 15, 2026', 'Time', '1:30 AM', 'By', 'Maria Santos', 'DTS-2026-LATEST'])
+            ->assertDontSee('Earlier Staff');
+
+        $this->get(route('platform.documents.labels', ['ids' => [$document->id]]))
+            ->assertOk()
+            ->assertSee('Maria Santos');
+    }
+
+    public function test_label_falls_back_to_the_registration_before_any_action(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-05 01:15:00', 'UTC'));
+        $registrar = User::factory()->create(['name' => 'Rosa Reyes']);
+        $document = Document::factory()->create(['registered_by' => $registrar->id]);
+
+        $details = app(DocumentTrackingLabel::class)->details($document);
+
+        $this->assertSame('Oct 5, 2026', $details['date']);
+        $this->assertSame('9:15 AM', $details['time']);
+        $this->assertSame('Rosa Reyes', $details['processedBy']);
+    }
+
+    public function test_label_data_uses_the_latest_processing_staff_members_signature(): void
+    {
+        Storage::fake('local');
+        $earlierStaff = User::factory()->create();
+        $latestStaff = User::factory()->create();
+        $earlierStaff->signature_path = UploadedFile::fake()->image('earlier.png')->store('staff-signatures', 'local');
+        $latestStaff->signature_path = UploadedFile::fake()->image('latest.png')->store('staff-signatures', 'local');
+        $earlierStaff->save();
+        $latestStaff->save();
+        $document = Document::factory()->create();
+        DocumentMovement::factory()->for($document)->for($earlierStaff, 'actor')->create();
+        $this->travel(1)->second();
+        DocumentMovement::factory()->for($document)->for($latestStaff, 'actor')->create();
+
+        $details = app(DocumentTrackingLabel::class)->details($document->fresh());
+
+        $this->assertSame($latestStaff->name, $details['processedBy']);
+        $this->assertSame(
+            'data:image/png;base64,'.base64_encode(Storage::disk('local')->get($latestStaff->signature_path)),
+            $details['processedBySignatureDataUri'],
+        );
     }
 
     public function test_tracking_qr_code_carries_the_sdo_seal(): void
@@ -105,7 +174,7 @@ class DocumentLabelTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Print labels')
-            ->assertSee('70mm 30mm')
+            ->assertSee('50mm 30mm')
             ->assertSeeInOrder(['DTS-2026-SECOND', 'DTS-2026-FIRST']);
         $this->assertSame(2, substr_count($response->getContent(), 'class="dts-tracking-label"'));
     }

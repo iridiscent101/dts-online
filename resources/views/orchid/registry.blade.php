@@ -1,6 +1,6 @@
     @php
         // A date range counts as one filter. The count shows on the Filters button and in the panel footer.
-        $activeFilterCount = collect(['office', 'type', 'status', 'due', 'priority'])->filter(fn (string $filter): bool => filled($filterValues[$filter] ?? null))->count()
+        $activeFilterCount = collect(['office', 'type', 'status'])->filter(fn (string $filter): bool => filled($filterValues[$filter] ?? null))->count()
             + (filled($filterValues['from'] ?? null) || filled($filterValues['to'] ?? null) ? 1 : 0);
         $hasAdvancedFilters = $activeFilterCount > 0;
     @endphp
@@ -51,29 +51,13 @@
                             <x-orchid-icon path="bs.chevron-down" class="dts-list-input-icon" aria-hidden="true" />
                         </div>
                         <datalist id="registry-statuses">
-                            @foreach (\App\Models\Document::STATUSES as $status)
+                            {{-- Shown names, once each: the two waiting statuses are one "Pending" option (the filter matches both). --}}
+                            @foreach (collect(\App\Models\Document::STATUSES)->map(fn (string $status): string => \App\Support\StatusLabel::for($status))->unique() as $status)
                                 <option value="{{ $status }}"></option>
                             @endforeach
                         </datalist>
                     </div>
                 @endif
-                <div class="dts-field">
-                    <label for="registry-due">Due</label>
-                    <select id="registry-due" data-filter="due">
-                        <option value="">Any due date</option>
-                        <option value="overdue" @selected($filterValues['due'] === 'overdue')>Overdue</option>
-                        <option value="soon" @selected($filterValues['due'] === 'soon')>Due within 2 days</option>
-                    </select>
-                </div>
-                <div class="dts-field">
-                    <label for="registry-priority">Priority</label>
-                    <select id="registry-priority" data-filter="priority">
-                        <option value="">All priorities</option>
-                        @foreach (array_keys(\App\Models\Document::PRIORITIES) as $priority)
-                            <option value="{{ $priority }}" @selected($filterValues['priority'] === $priority)>{{ $priority }}</option>
-                        @endforeach
-                    </select>
-                </div>
                 <div class="dts-field dts-date-range" role="group" aria-labelledby="registry-date-label">
                     <span id="registry-date-label" class="dts-field-label">Date received</span>
                     <div class="dts-date-range-fields">

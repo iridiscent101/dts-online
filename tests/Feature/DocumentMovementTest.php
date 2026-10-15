@@ -14,7 +14,7 @@ class DocumentMovementTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_first_processing_action_automatically_records_receipt(): void
+    public function test_office_must_receive_before_processing_a_forwarded_document(): void
     {
         $user = User::factory()->create([
             'office' => 'Administrative Unit',
@@ -25,20 +25,25 @@ class DocumentMovementTest extends TestCase
             'remarks' => null,
         ]);
 
-        $this->actingAs($user)
-            ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => [
-                    'action' => 'reviewed',
-                    'remarks' => 'Administrative review completed.',
-                ],
-            ])
-            ->assertRedirectToRoute('platform.documents.view', $document);
+        $url = route('platform.documents.movements.store', $document);
+        $this->actingAs($user)->postJson($url, [
+            'workflow' => ['action' => 'completed'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'destinations' => ['Records Unit']],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+
+        $this->assertDatabaseCount('document_movements', 0);
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'received'],
+        ])->assertOk();
 
         $document->refresh();
 
         $this->assertSame('Administrative Unit', $document->current_office);
-        $this->assertSame('Reviewed', $document->status);
-        $this->assertSame('Administrative review completed.', $document->remarks);
+        $this->assertSame('Received', $document->status);
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
             'action' => 'received',
@@ -46,28 +51,14 @@ class DocumentMovementTest extends TestCase
             'to_office' => 'Administrative Unit',
             'from_status' => 'Forwarded',
             'to_status' => 'Received',
-            'remarks' => 'Automatically recorded when processing began.',
+            'remarks' => null,
             'acted_by' => $user->id,
         ]);
-        $this->assertDatabaseHas('document_movements', [
-            'document_id' => $document->id,
-            'action' => 'reviewed',
-            'from_status' => 'Received',
-            'to_status' => 'Reviewed',
-            'remarks' => 'Administrative review completed.',
-            'acted_by' => $user->id,
-        ]);
+        $this->assertSame(1, $document->movements()->count());
 
         $this->get(route('platform.documents.view', $document))
             ->assertOk()
-            ->assertSee('Receipt acknowledged')
-            ->assertSee('Document reviewed')
-            ->assertSee('Administrative review completed.');
-
-        $this->get(route('platform.main'))
-            ->assertOk()
-            ->assertSee('Document reviewed')
-            ->assertSee($document->tracking_number);
+            ->assertSee('Document received');
     }
 
     public function test_every_assigned_office_can_acknowledge_independently(): void
@@ -175,8 +166,8 @@ class DocumentMovementTest extends TestCase
             ->assertSee('id="workflow-source-office" name="workflow[source_office]" required data-workflow-source-office', false)
             ->assertSee('value="Administrative Unit" selected>Administrative Unit — Awaiting receipt</option>', false)
             ->assertSee('id="workflow-action" name="workflow[action]" required data-workflow-action', false)
-            ->assertSee('value="reviewed"', false)
-            ->assertDontSee('>Receive</option>', false);
+            ->assertSee('value="received"', false)
+            ->assertDontSee('value="reviewed"', false);
 
         $this->get(route('platform.documents.view', [
             'document' => $document,
@@ -287,10 +278,10 @@ class DocumentMovementTest extends TestCase
             ->assertSee('value="Administrative Unit"', false)
             ->assertSee('Administrative Unit — Forwarded</option>', false)
             ->assertSee('Choose an action')
-            ->assertSee('value="reviewed"', false)
-            ->assertSee('>Review</option>', false)
-            ->assertSee('value="approved"', false)
-            ->assertSee('>Approve</option>', false)
+            ->assertSee('value="forwarded"', false)
+            ->assertDontSee('value="completed"', false)
+            ->assertDontSee('value="reviewed"', false)
+            ->assertDontSee('value="approved"', false)
             ->assertSee('data-action-options', false);
 
         $this->get(route('platform.documents.view', [
@@ -299,8 +290,8 @@ class DocumentMovementTest extends TestCase
         ]))
             ->assertOk()
             ->assertSee('value="Administrative Unit" selected>Administrative Unit — Forwarded</option>', false)
-            ->assertSee('value="reviewed"', false)
-            ->assertDontSee('>Receive</option>', false);
+            ->assertSee('value="received"', false)
+            ->assertDontSee('value="reviewed"', false);
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
@@ -500,7 +491,7 @@ class DocumentMovementTest extends TestCase
         ]);
     }
 
-    public function test_staff_can_review_a_document_without_remarks(): void
+    public function test_staff_can_complete_a_received_document_without_remarks(): void
     {
         $user = User::factory()->create([
             'office' => 'Records Unit',
@@ -510,13 +501,13 @@ class DocumentMovementTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => ['action' => 'reviewed'],
+                'workflow' => ['action' => 'completed'],
             ])
             ->assertRedirectToRoute('platform.documents.view', $document);
 
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
-            'action' => 'reviewed',
+            'action' => 'completed',
             'remarks' => null,
         ]);
     }
@@ -836,6 +827,12 @@ class DocumentMovementTest extends TestCase
 
         $this->actingAs($administrativeUser)
             ->post(route('platform.documents.movements.store', $document), [
+                'workflow' => ['action' => 'received', 'source_office' => 'Administrative Unit'],
+            ])
+            ->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->actingAs($administrativeUser)
+            ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
                     'action' => 'completed',
                     'remarks' => 'Administrative work is complete.',
@@ -844,7 +841,7 @@ class DocumentMovementTest extends TestCase
             ->assertRedirectToRoute('platform.documents.view', $document);
 
         $this->assertSame('Records Unit', $document->fresh()->current_office);
-        $this->assertSame('Forwarded', $document->fresh()->status);
+        $this->assertSame('Received', $document->fresh()->status);
 
         $this->actingAs($recordsUser)
             ->post(route('platform.documents.movements.store', $document), [
@@ -875,36 +872,187 @@ class DocumentMovementTest extends TestCase
         ]);
     }
 
-    public function test_final_office_decisions_return_to_records_for_completion(): void
+    public function test_last_office_can_complete_without_automatically_returning_to_records(): void
     {
         $firstOffice = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $secondOffice = User::factory()->create(['office' => 'Curriculum Implementation Division', 'permissions' => ['platform.index' => true]]);
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
-        $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => 'Approved']);
+        $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => 'Received']);
 
         $this->actingAs($firstOffice)->post(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'rejected', 'source_office' => 'Administrative Unit'],
+            'workflow' => ['action' => 'completed', 'source_office' => 'Administrative Unit'],
         ])->assertRedirectToRoute('platform.documents.view', $document);
 
         $this->assertSame('Curriculum Implementation Division', $document->fresh()->current_office);
-        $this->assertSame('Approved', $document->fresh()->status);
+        $this->assertSame('Received', $document->fresh()->status);
 
         $this->actingAs($secondOffice)->post(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'Curriculum Implementation Division'],
+            'workflow' => ['action' => 'completed', 'source_office' => 'Curriculum Implementation Division'],
         ])->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->assertSame('Curriculum Implementation Division', $document->fresh()->current_office);
+        $this->assertSame('Completed', $document->fresh()->status);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Records Unit']);
+        $this->assertSame(0, $records->notifications()->count());
+    }
+
+    public function test_office_can_explicitly_forward_to_records_for_release(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+
+        $this->actingAs($staff)->post(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'forwarded',
+                'source_office' => 'Administrative Unit',
+                'destination' => 'SDO-Records Unit',
+                'remarks' => 'For release at the counter.',
+            ],
+        ])->assertRedirectToRoute('platform.main');
 
         $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
-        $this->assertSame('Forwarded', $document->fresh()->status);
-        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Records Unit', 'status' => 'Forwarded']);
-        $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'from_office' => 'Curriculum Implementation Division', 'to_office' => 'SDO-Records Unit', 'action' => 'forwarded']);
+        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->fresh()->status);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit']);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'Administrative Unit',
+            'to_office' => 'SDO-Records Unit',
+            'remarks' => 'For release at the counter.',
+        ]);
         $this->assertSame(1, $records->notifications()->count());
+    }
 
-        $this->actingAs($records)->post(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'completed', 'source_office' => 'SDO-Records Unit'],
-        ])->assertRedirectToRoute('platform.documents.view', $document);
+    public function test_only_records_can_release_an_explicitly_forwarded_document_after_receipt(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $url = route('platform.documents.movements.store', $document);
 
-        $this->assertSame('Completed', $document->fresh()->status);
+        $this->actingAs($staff)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'Administrative Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame(['forwarded', 'received', 'released'], $document->movements()->oldest('id')->pluck('action')->all());
+    }
+
+    public function test_records_cannot_release_while_another_office_route_is_active(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $otherStaff = User::factory()->create(['office' => 'Curriculum Implementation Division', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($staff)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+
+        $this->actingAs($otherStaff)->postJson($url, [
+            'workflow' => ['action' => 'completed', 'source_office' => 'Curriculum Implementation Division'],
+        ])->assertOk();
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame(1, $document->movements()->where('action', 'released')->count());
+    }
+
+    public function test_records_can_restore_a_released_document_if_pickup_was_recorded_in_error(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create([
+            'current_office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_RELEASED,
+        ]);
+
+        $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'restore',
+                'source_office' => 'SDO-Records Unit',
+                'destination' => 'SDO-Records Unit',
+                'remarks' => 'Pickup was recorded in error.',
+            ],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => 'restore',
+            'from_status' => DocumentMovement::STATUS_RELEASED,
+            'remarks' => 'Pickup was recorded in error.',
+        ]);
+    }
+
+    public function test_a_historical_approved_route_can_finish_under_the_new_actions(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create([
+            'current_office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_APPROVED,
+        ]);
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'completed', 'source_office' => 'Administrative Unit'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_COMPLETED, $document->fresh()->status);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => 'completed',
+            'from_status' => DocumentMovement::STATUS_APPROVED,
+        ]);
+    }
+
+    public function test_old_processing_actions_are_no_longer_accepted(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $url = route('platform.documents.movements.store', $document);
+
+        foreach (['approved', 'rejected', 'on_hold', 'reviewed', 'returned', 'resubmitted', 'archive'] as $action) {
+            $this->actingAs($staff)->postJson($url, [
+                'workflow' => ['action' => $action, 'destination' => 'Records Unit'],
+            ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+        }
+
+        $this->assertDatabaseCount('document_movements', 0);
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
     }
 
     public function test_staff_handoff_cannot_exceed_five_destinations(): void
@@ -993,7 +1141,7 @@ class DocumentMovementTest extends TestCase
         $this->assertSame(1, $document->movements()->where('action', 'completed')->count());
     }
 
-    public function test_assigned_staff_can_archive_a_received_document_with_a_reason(): void
+    public function test_completion_records_a_reason_without_duplicate_activity(): void
     {
         $user = User::factory()->create([
             'office' => 'Records Unit',
@@ -1004,22 +1152,22 @@ class DocumentMovementTest extends TestCase
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'archive',
+                    'action' => 'completed',
                     'remarks' => 'Processing is complete.',
                 ],
             ])
             ->assertRedirectToRoute('platform.documents.view', $document);
 
-        $this->assertSame('Archived', $document->fresh()->status);
+        $this->assertSame('Completed', $document->fresh()->status);
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
-            'action' => 'archive',
+            'action' => 'completed',
             'to_office' => 'Records Unit',
-            'to_status' => 'Archived',
+            'to_status' => 'Completed',
             'remarks' => 'Processing is complete.',
         ]);
         $this->assertDatabaseMissing('activity_log', [
-            'description' => 'Document archived',
+            'description' => 'Document completed',
             'subject_type' => Document::class,
             'subject_id' => $document->id,
         ]);
@@ -1030,31 +1178,31 @@ class DocumentMovementTest extends TestCase
             ->assertSee($user->name);
     }
 
-    public function test_archiving_one_office_route_keeps_another_unfinished_route_active(): void
+    public function test_completing_one_office_route_keeps_another_unfinished_route_active(): void
     {
-        $user = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        $user = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
         $document->officeAssignments()->create([
-            'office' => 'Administrative Unit',
+            'office' => 'Records Unit',
             'status' => 'Awaiting receipt',
         ]);
 
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => ['action' => 'archive', 'source_office' => 'Records Unit'],
+                'workflow' => ['action' => 'completed', 'source_office' => 'Administrative Unit'],
             ])
             ->assertRedirectToRoute('platform.documents.view', $document);
 
-        $this->assertSame('Administrative Unit', $document->fresh()->current_office);
+        $this->assertSame('Records Unit', $document->fresh()->current_office);
         $this->assertSame('Awaiting receipt', $document->fresh()->status);
         $this->assertDatabaseHas('document_office_assignments', [
             'document_id' => $document->id,
-            'office' => 'Records Unit',
-            'status' => 'Archived',
+            'office' => 'Administrative Unit',
+            'status' => 'Completed',
         ]);
         $this->assertDatabaseHas('document_office_assignments', [
             'document_id' => $document->id,
-            'office' => 'Administrative Unit',
+            'office' => 'Records Unit',
             'status' => 'Awaiting receipt',
         ]);
     }
@@ -1250,7 +1398,7 @@ class DocumentMovementTest extends TestCase
             ])
             ->assertRedirect(route('platform.documents.view', $document))
             ->assertSessionHasErrors([
-                'workflow.action' => 'This document cannot be released while its status is Awaiting receipt.',
+                'workflow.action' => 'This document cannot be released while its status is Pending.',
             ]);
 
         $this->assertDatabaseCount('document_movements', 0);
@@ -1309,7 +1457,7 @@ class DocumentMovementTest extends TestCase
         $this->assertDatabaseCount('document_movements', 0);
     }
 
-    public function test_document_can_return_to_the_same_office_with_independent_remarks(): void
+    public function test_document_can_be_forwarded_back_to_a_previous_office_with_independent_remarks(): void
     {
         $recordsOfficer = User::factory()->create([
             'office' => 'Records Unit',
@@ -1344,7 +1492,7 @@ class DocumentMovementTest extends TestCase
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
-                'action' => 'resubmitted',
+                'action' => 'forwarded',
                 'destination' => 'Records Unit',
                 'remarks' => 'Required supporting document attached.',
             ],
@@ -1364,13 +1512,13 @@ class DocumentMovementTest extends TestCase
         $this->assertSame('Records Unit', $document->current_office);
         $this->assertSame('Received', $document->status);
         $this->assertSame(
-            ['forwarded', 'received', 'resubmitted', 'received'],
+            ['forwarded', 'received', 'forwarded', 'received'],
             $document->movements()->reorder()->oldest()->pluck('action')->all(),
         );
         $this->assertDatabaseHas('document_movements', [
             'document_id' => $document->id,
             'to_office' => 'Records Unit',
-            'action' => 'resubmitted',
+            'action' => 'forwarded',
             'remarks' => 'Required supporting document attached.',
         ]);
         $this->assertDatabaseHas('document_movements', [
@@ -1388,9 +1536,9 @@ class DocumentMovementTest extends TestCase
             ->assertDontSee('Where:')
             ->assertDontSee('When:')
             ->assertSeeInOrder([
-                'Receipt acknowledged',
+                'Document received',
                 'Records received the resubmitted packet.',
-                'Resubmitted to Records Unit',
+                'Forwarded to Records Unit',
                 'Required supporting document attached.',
                 'Forwarded to Administrative Unit',
                 'Send to admin for supporting documents.',

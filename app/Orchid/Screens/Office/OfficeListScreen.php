@@ -33,7 +33,7 @@ class OfficeListScreen extends Screen
 
     public function name(): ?string
     {
-        return 'Office Management';
+        return 'Office management';
     }
 
     public function description(): ?string
@@ -91,7 +91,7 @@ class OfficeListScreen extends Screen
 
         $office->delete();
 
-        Toast::info(__(':office was removed.', ['office' => $office->name]));
+        Toast::success(__(':office was removed.', ['office' => $office->name]));
     }
 
     public function bulkRemove(Request $request): void
@@ -116,7 +116,7 @@ class OfficeListScreen extends Screen
             }
         });
 
-        Toast::info($offices->count().' offices were removed.');
+        Toast::success($offices->count().' offices were removed.');
     }
 
     private function perPage(): int

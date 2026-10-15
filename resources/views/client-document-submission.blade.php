@@ -5,7 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Send a Document | DocuTrack</title>
+    <title>Send a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
     @vite('resources/css/app.css')
@@ -22,7 +22,7 @@
             <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 text-slate-900 no-underline">
                 <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-12 shrink-0 rounded-xl sm:size-14">
                 <span class="min-w-0">
-                    <strong class="block text-2xl font-bold leading-none tracking-tight text-[#26332B] sm:text-3xl">Docu<span class="text-[#86562D]">Track</span></strong>
+                    <strong class="block text-2xl font-bold leading-none tracking-tight text-[#26332B] sm:text-3xl">Docu<span class="text-[#86562D]">TrackS</span></strong>
                     <span class="block text-xs font-semibold leading-tight text-slate-600 sm:text-sm">SDO – Nueva Vizcaya</span>
                     <span class="block text-xs leading-tight text-slate-600 sm:text-sm">Document Tracking System</span>
                 </span>
@@ -101,40 +101,33 @@
 
             <div class="sm:col-span-2">
                 <label for="document-title" class="block text-sm font-semibold text-slate-800">Document title <span class="text-red-700">*</span></label>
-                <input id="document-title" name="title" value="{{ old('title') }}" required maxlength="255" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
+                <input id="document-title" name="title" value="{{ old('title') }}" required maxlength="255" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
             </div>
 
-            <fieldset class="sm:col-span-2">
-                <legend class="text-sm font-semibold text-slate-800">Destination offices <span class="text-red-700">*</span></legend>
-                <p class="mt-1 text-sm text-slate-600">Choose up to five offices.</p>
-                <div class="mt-4 grid gap-4" data-route-list>
-                    @foreach (is_array(old('destinations')) && old('destinations') !== [] ? old('destinations') : [''] as $destination)
-                        <div class="grid gap-3 rounded-sm border border-slate-200 p-4 sm:grid-cols-[1fr_auto]" data-route>
-                            <div class="grid gap-3">
-                                <div>
-                                    <label for="destination-{{ $loop->index }}" class="block text-sm font-medium" data-office-label>Destination office {{ $loop->iteration }}</label>
-                                    <div class="relative" data-combo>
-                                        <input id="destination-{{ $loop->index }}" name="destinations[]" data-office data-searchable data-options="destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="destination-{{ $loop->index }}-choices" value="{{ $destination }}" required placeholder="Search offices" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
-                                        <div id="destination-{{ $loop->index }}-choices" data-suggestions role="listbox" tabindex="-1" hidden class="focus:outline-none absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-sm border border-slate-300 bg-white py-1 shadow-lg"></div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label for="route-remarks-{{ $loop->index }}" class="block text-sm font-medium" data-remarks-label>Remarks for destination {{ $loop->iteration }} <span class="font-normal text-slate-500">(optional)</span></label>
-                                    <textarea id="route-remarks-{{ $loop->index }}" name="route_remarks[{{ $loop->index }}]" rows="2" maxlength="2000" placeholder="Instructions for this office" data-remarks class="mt-2 w-full rounded-sm border border-slate-300 px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">{{ old('route_remarks.'.$loop->index) }}</textarea>
-                                </div>
-                            </div>
-                            <button type="button" data-remove-route aria-label="Remove destination {{ $loop->iteration }}" title="Remove destination {{ $loop->iteration }}" class="grid size-11 place-items-center self-start rounded-sm border border-slate-300 text-slate-600 hover:border-red-300 hover:bg-red-50 hover:text-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.x-lg" class="size-4" /></button>
-                        </div>
+            {{-- How the paper copy reaches the Records Unit; Records sees it when they look up the submission. --}}
+            <fieldset class="sm:col-span-2" @error('delivery_method') aria-describedby="delivery-method-error" @enderror>
+                <legend class="block text-sm font-semibold text-slate-800">How will the paper copy reach the Records Unit? <span class="text-red-700">*</span></legend>
+                <div class="mt-2 grid gap-3 sm:grid-cols-2">
+                    @foreach ([
+                        'Hand carry' => 'You or someone you send brings it to the Records Unit.',
+                        'Official channel' => 'It comes through official mail or your school or office messenger.',
+                    ] as $deliveryMethod => $deliveryHint)
+                        @continue(! in_array($deliveryMethod, \App\Models\Document::DELIVERY_METHODS, true))
+                        <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border border-slate-300 bg-white p-3 has-[:checked]:border-[#216E39] has-[:checked]:bg-[#216E39]/5">
+                            <input type="radio" name="delivery_method" value="{{ $deliveryMethod }}" required @checked(old('delivery_method') === $deliveryMethod) class="mt-0.5 size-5 shrink-0 accent-[#216E39]">
+                            <span><span class="block font-semibold text-slate-900">{{ $deliveryMethod }}</span><span class="block text-sm text-slate-600">{{ $deliveryHint }}</span></span>
+                        </label>
                     @endforeach
                 </div>
-                <datalist id="destination-offices">
-                    @foreach ($officeOptions as $officeOption)
-                        <option value="{{ $officeOption }}"></option>
-                    @endforeach
-                </datalist>
-                <button type="button" data-add-route class="mt-4 inline-flex disabled:cursor-not-allowed disabled:opacity-50 min-h-11 items-center gap-2 rounded-sm border border-[#216E39] px-4 py-2 text-sm font-semibold text-[#216E39] hover:bg-[#216E39]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.plus-lg" class="size-4" /> Add another office</button>
-                <p class="mt-2 text-sm text-slate-600" data-route-limit hidden>Five offices is the most one submission can go to.</p>
+                @error('delivery_method')<p id="delivery-method-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
             </fieldset>
+
+            <div class="sm:col-span-2">
+                <label for="client-remarks" class="block text-sm font-semibold text-slate-800">Instructions for Records <span class="font-normal text-slate-500">(optional)</span></label>
+                <p id="client-remarks-hint" class="mt-1 text-sm text-slate-600">For example, which offices it should go to or who to call.</p>
+                <textarea id="client-remarks" name="client_remarks" rows="3" maxlength="1000" autocomplete="off" aria-describedby="client-remarks-hint @error('client_remarks') client-remarks-error @enderror" class="mt-2 w-full rounded-sm border border-slate-300 px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">{{ old('client_remarks') }}</textarea>
+                @error('client_remarks')<p id="client-remarks-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
+            </div>
 
             @if (config('app.document_uploads_enabled'))
             <div class="sm:col-span-2">
@@ -146,7 +139,7 @@
             {{-- Privacy notice and consent (Data Privacy Act of 2012). --}}
             <div class="sm:col-span-2 rounded-sm border border-slate-200 bg-slate-50 p-4">
                 <h2 class="text-sm font-semibold text-slate-800">Privacy notice</h2>
-                <p class="mt-2 text-sm text-slate-700">We collect your name and office only to record, route and track this document, and to let you follow its status with the tracking number. Only Schools Division Office staff handling the document can see these details. They are kept with the document record for as long as the Division's records rules require. You may ask the Division's Data Protection Officer to see or correct them.</p>
+                <p class="mt-2 text-sm text-slate-700">We use your name and office only to process and track this document. Only SDO staff handling it can see them, and they are kept as long as records rules require. To see or correct them, contact the Division's Data Protection Officer.</p>
                 <label class="mt-3 flex items-start gap-3 text-sm font-medium text-slate-800">
                     <input type="checkbox" name="privacy_consent" value="1" required @checked(old('privacy_consent')) aria-describedby="privacy-consent-error" class="size-6 shrink-0 accent-[#216E39]">
                     <span>I have read the privacy notice and agree to the collection and use of my information for this document. <span class="text-red-700">*</span></span>
@@ -165,7 +158,6 @@
     </dialog>
 @endif
     <script nonce="{{ Vite::cspNonce() }}">
-        const routeList = document.querySelector('[data-route-list]');
         const closeSuggestions = (combo) => {
             if (!combo) return;
             combo.querySelector('[data-suggestions]').hidden = true;
@@ -252,52 +244,6 @@
             const combo = event.target.closest('[data-combo]');
             if (combo && !combo.contains(event.relatedTarget)) closeSuggestions(combo);
         });
-        const maxRoutes = 5;
-        const addRoute = document.querySelector('[data-add-route]');
-        const syncRoutes = () => {
-            const rows = [...routeList.querySelectorAll('[data-route]')];
-            addRoute.disabled = rows.length >= maxRoutes;
-            document.querySelector('[data-route-limit]').hidden = rows.length < maxRoutes;
-            rows.forEach((row, index) => {
-                const office = row.querySelector('[data-office]');
-                const remarks = row.querySelector('[data-remarks]');
-                office.id = `destination-${index}`;
-                const choices = row.querySelector('[data-suggestions]');
-                choices.id = `${office.id}-choices`;
-                office.setAttribute('aria-controls', choices.id);
-                row.querySelector('[data-office-label]').htmlFor = office.id;
-                row.querySelector('[data-office-label]').textContent = `Destination office ${index + 1}`;
-                remarks.id = `route-remarks-${index}`;
-                remarks.name = `route_remarks[${index}]`;
-                row.querySelector('[data-remarks-label]').htmlFor = remarks.id;
-                row.querySelector('[data-remarks-label]').innerHTML = `Remarks for destination ${index + 1} <span class="font-normal text-slate-500">(optional)</span>`;
-                const remove = row.querySelector('[data-remove-route]');
-                remove.setAttribute('aria-label', `Remove destination ${index + 1}`);
-                remove.title = `Remove destination ${index + 1}`;
-                remove.hidden = rows.length === 1;
-            });
-        };
-
-        addRoute.addEventListener('click', () => {
-            if (routeList.children.length >= maxRoutes) return;
-            const row = routeList.firstElementChild.cloneNode(true);
-            row.querySelector('[data-office]').value = '';
-            row.querySelector('[data-suggestions]').replaceChildren();
-            closeSuggestions(row.querySelector('[data-combo]'));
-            row.querySelector('[data-remarks]').value = '';
-            routeList.append(row);
-            syncRoutes();
-            row.querySelector('[data-office]').focus();
-        });
-
-        routeList.addEventListener('click', (event) => {
-            if (event.target.closest('[data-remove-route]') && routeList.children.length > 1) {
-                event.target.closest('[data-route]').remove();
-                syncRoutes();
-            }
-        });
-
-        syncRoutes();
 
         @if ($embedded)
             const submissionDialog = document.getElementById('submission-dialog');

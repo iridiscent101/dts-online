@@ -386,21 +386,19 @@ class DocumentNotificationTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_dashboard_shows_the_assigned_office_queue_and_unread_notifications(): void
+    public function test_dashboard_shows_the_office_queue_and_leaves_notifications_to_the_bell(): void
     {
         $user = User::factory()->create([
             'office' => 'Records Unit',
             'permissions' => ['platform.index' => true],
         ]);
-        $overdueDocument = Document::factory()->received()->create([
-            'tracking_number' => 'DTS-OFFICE-OVERDUE',
+        $receivedDocument = Document::factory()->received()->create([
+            'tracking_number' => 'DTS-OFFICE-RECEIVED',
             'current_office' => 'Records Unit',
-            'due_at' => today()->subDay(),
         ]);
         Document::factory()->outgoing()->create([
             'tracking_number' => 'DTS-OFFICE-FORWARDED',
             'current_office' => 'Records Unit',
-            'due_at' => today()->addDay(),
         ]);
         Document::factory()->incoming()->create([
             'tracking_number' => 'DTS-OTHER-OFFICE',
@@ -410,7 +408,7 @@ class DocumentNotificationTest extends TestCase
             'tracking_number' => 'DTS-OFFICE-ARCHIVED',
             'current_office' => 'Records Unit',
         ]);
-        $user->notify(new DocumentAssignedNotification($overdueDocument, 'forward', 'Administrative Officer'));
+        $user->notify(new DocumentAssignedNotification($receivedDocument, 'forward', 'Administrative Officer'));
 
         $response = $this->actingAs($user)->get(route('platform.main'));
 
@@ -418,13 +416,13 @@ class DocumentNotificationTest extends TestCase
             ->assertSee('My office queue')
             ->assertSee('Records Unit')
             ->assertSee('2 actions')
-            ->assertSeeInOrder(['<span>Overdue</span>', '<strong>1</strong>'], false)
-            ->assertSee('DTS-OFFICE-OVERDUE')
+            ->assertSee('DTS-OFFICE-RECEIVED')
             ->assertSee('DTS-OFFICE-FORWARDED')
-            ->assertSee('1 unread')
-            ->assertSee('Mark all notifications as read')
-            ->assertSee(route('platform.notifications.read-all'), false)
-            ->assertSee('DTS-OFFICE-OVERDUE was forwarded to your office by Administrative Officer.');
+            ->assertSee('data-dts-notification-count="1"', false)
+            ->assertSee('Recent activity')
+            // Notifications are in the top-bar bell, not repeated on the dashboard.
+            ->assertDontSee('Mark all notifications as read')
+            ->assertDontSee('DTS-OFFICE-RECEIVED was forwarded to your office by Administrative Officer.');
     }
 
     public function test_opening_a_notification_requires_sign_in(): void

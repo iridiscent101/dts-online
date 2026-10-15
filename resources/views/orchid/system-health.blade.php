@@ -12,7 +12,7 @@
         <div class="dts-section-heading tw:flex tw:flex-wrap tw:items-end tw:justify-between tw:gap-3">
             <div>
                 <h3 id="health-checks-title">Service checks</h3>
-                <p class="dts-section-caption">Checked {{ \Carbon\CarbonImmutable::parse($health['checked_at'])->timezone('Asia/Manila')->format('M d, Y · h:i A') }}</p>
+                <p class="dts-section-caption">Checked {{ \Carbon\CarbonImmutable::parse($health['checked_at'])->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</p>
             </div>
             <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
                 <span class="dts-count">{{ count($health['checks']) }} checks</span>

@@ -17,10 +17,13 @@ class DocumentLabelController extends Controller
         abort_unless($user instanceof User && $user->hasAccess('platform.index'), 403);
         abort_unless($document->isVisibleTo($user), 404);
 
+        $document->loadMissing(['latestMovement.actor', 'registeredBy']);
+
         return view('orchid.document-label', [
             'labels' => collect([[
                 'document' => $document,
                 'qrCodeDataUri' => $trackingLabel->dataUri($document),
+                'labelDetails' => $trackingLabel->details($document),
             ]]),
             'backUrl' => route('platform.documents.view', $document),
         ]);

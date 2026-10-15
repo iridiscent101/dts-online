@@ -8,11 +8,6 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('documents:notify-due')
-    ->dailyAt('07:00')
-    ->timezone('Asia/Manila')
-    ->withoutOverlapping();
-
 Schedule::command('notifications:prune-read')
     ->dailyAt('02:00')
     ->timezone('Asia/Manila')

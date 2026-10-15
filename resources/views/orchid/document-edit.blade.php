@@ -6,7 +6,7 @@
 
     <div class="dts-masthead tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
         <h2>Edit document</h2>
-        <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}">{{ $document->status }}</span>
+        <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($document->status) }}>{{ \App\Support\StatusLabel::for($document->status) }}</span>
     </div>
 
     @php
@@ -57,18 +57,6 @@
                     </datalist>
                 </div>
                 <div class="dts-field">
-                    <label for="document-priority">Priority <span aria-hidden="true">*</span></label>
-                    <dts-searchable>
-                        <input id="document-priority" name="document[priority]" data-searchable data-options="document-priorities" role="combobox" aria-autocomplete="list" aria-expanded="false" value="{{ old('document.priority', $document->priority) }}" @readonly($fieldsLocked) autocomplete="off" required>
-                        <div data-suggestions role="listbox" hidden></div>
-                    </dts-searchable>
-                    <datalist id="document-priorities">
-                        @foreach (\App\Models\Document::PRIORITIES as $priority => $workingDays)
-                            <option value="{{ $priority }}">{{ $workingDays }} working days</option>
-                        @endforeach
-                    </datalist>
-                </div>
-                <div class="dts-field">
                     <label for="document-origin">Originating office / school <span aria-hidden="true">*</span></label>
                     <dts-searchable>
                         <input id="document-origin" name="document[origin]" data-searchable data-options="origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" required maxlength="180" value="{{ old('document.origin', $document->origin) }}" @readonly($fieldsLocked) placeholder="Search or enter office or school" autocomplete="off">
@@ -90,10 +78,6 @@
                     @if ($document->received_at === null)
                         <small id="document-dates-pending" class="dts-field-hint">Not received yet. Set when the Records Unit confirms the paper copy.</small>
                     @endif
-                </div>
-                <div class="dts-field">
-                    <label for="document-due">Due date <span class="dts-optional">Optional</span></label>
-                    <input id="document-due" name="document[due]" type="date" value="{{ old('document.due', $document->due_at?->toDateString()) }}" @readonly($fieldsLocked) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="document-dates-pending" @endif>
                 </div>
             </div>
         </section>
@@ -137,7 +121,7 @@
                     @if ($routesAreEditable)
                         @include('orchid.partials.document-route-editor', ['routeDestinations' => $routeDestinations])
                     @else
-                        <p class="dts-muted">Routing is locked while the document status is {{ $document->status }}.</p>
+                        <p class="dts-muted">Routing is locked while the document status is {{ \App\Support\StatusLabel::for($document->status) }}.</p>
                         <ol class="dts-review-route-list" aria-label="Assigned offices">
                             @foreach ($assignedOffices as $assignedOffice)
                                 <li><strong>{{ $assignedOffice }}</strong></li>

@@ -34,10 +34,10 @@ class PlatformProvider extends OrchidServiceProvider
                 ->title('WORKSPACE')
                 ->route(config('platform.index')),
 
-            Menu::make('All Documents')->icon('bs.files')->route('platform.documents')->title('DOCUMENT REGISTRY'),
+            Menu::make('All documents')->icon('bs.files')->route('platform.documents')->title('DOCUMENT REGISTRY'),
             Menu::make('Incoming')->icon('bs.inbox')->route('platform.incoming'),
             Menu::make('Outgoing')->icon('bs.send')->route('platform.outgoing'),
-            Menu::make('Archived')->icon('bs.archive')->route('platform.archived')
+            Menu::make('Finished')->icon('bs.check2-circle')->route('platform.archived')
                 ->divider(),
 
             Menu::make(__('Users'))
@@ -61,7 +61,7 @@ class PlatformProvider extends OrchidServiceProvider
                 ->route('platform.systems.schools')
                 ->permission('platform.systems.schools'),
 
-            Menu::make(__('System Health'))
+            Menu::make(__('System health'))
                 ->icon('bs.activity')
                 ->route('platform.systems.health')
                 ->permission('platform.systems.health')

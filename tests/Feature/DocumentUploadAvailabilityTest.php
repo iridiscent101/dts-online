@@ -51,6 +51,7 @@ class DocumentUploadAvailabilityTest extends TestCase
             'name' => 'Alex Rivera',
             'privacy_consent' => '1',
             'office' => 'School Office',
+            'delivery_method' => 'Hand carry',
             'title' => 'Paper request',
             'type' => 'Request',
             'destinations' => ['Records Unit'],
@@ -117,31 +118,26 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->assertSame(0, $document->activities()->where('description', 'Attachment downloaded')->count());
     }
 
-    public function test_client_submission_without_upload_waits_for_paper_at_records_and_keeps_requested_route(): void
+    public function test_client_submission_without_upload_waits_for_paper_at_records_without_routes(): void
     {
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
             'privacy_consent' => '1',
             'office' => 'School Office',
+            'delivery_method' => 'Hand carry',
             'title' => 'Paper request',
             'type' => 'Request',
-            'destinations' => ['Administrative Unit'],
-            'route_remarks' => ['Review this request.'],
         ])->assertRedirect();
 
         $document = Document::query()->sole();
         $this->assertSame('SDO-Records Unit', $document->current_office);
         $this->assertSame(DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, $document->status);
-        $this->assertDatabaseHas('document_route_steps', [
-            'document_id' => $document->id,
-            'office' => 'Administrative Unit',
-            'remarks' => 'Review this request.',
-        ]);
+        $this->assertDatabaseCount('document_route_steps', 0);
         $this->assertDatabaseCount('attachments', 0);
     }
 
-    public function test_two_client_routes_complete_independently_after_records_receives_paper(): void
+    public function test_two_records_routes_complete_independently_after_paper_intake(): void
     {
         $recordsStaff = User::factory()->create([
             'office' => 'SDO-Records Unit',
@@ -160,21 +156,29 @@ class DocumentUploadAvailabilityTest extends TestCase
             'name' => 'Alex Rivera',
             'privacy_consent' => '1',
             'office' => 'School Office',
+            'delivery_method' => 'Hand carry',
             'title' => 'Paper request for two offices',
             'type' => 'Request',
-            'destinations' => ['Administrative Unit', 'Curriculum Implementation Division'],
-            'route_remarks' => ['Administrative review.', 'Curriculum review.'],
         ])->assertRedirect();
 
         $document = Document::query()->sole();
         $this->assertSame('SDO-Records Unit', $document->current_office);
-        $this->assertDatabaseCount('document_route_steps', 2);
+        $this->assertDatabaseCount('document_route_steps', 0);
         $this->actingAs($administrativeStaff)->get(route('platform.documents.view', $document))->assertNotFound();
         $this->actingAs($curriculumStaff)->get(route('platform.documents.view', $document))->assertNotFound();
 
         $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
         ])->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'forwarded',
+                'source_office' => 'SDO-Records Unit',
+                'destinations' => ['Administrative Unit', 'Curriculum Implementation Division'],
+                'destination_remarks' => ['Administrative review.', 'Curriculum review.'],
+            ],
+        ])->assertRedirect();
 
         $this->assertDatabaseCount('document_route_steps', 0);
         $this->assertDatabaseHas('document_office_assignments', [
@@ -191,6 +195,10 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'completed', 'source_office' => 'Administrative Unit'],
         ])->assertForbidden();
+
+        $this->actingAs($administrativeStaff)->post(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'Administrative Unit'],
+        ])->assertRedirectToRoute('platform.documents.view', $document);
 
         $this->actingAs($administrativeStaff)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'completed', 'source_office' => 'Administrative Unit'],
@@ -213,17 +221,21 @@ class DocumentUploadAvailabilityTest extends TestCase
         ])->assertForbidden();
 
         $this->actingAs($curriculumStaff)->post(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'Curriculum Implementation Division'],
+        ])->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->actingAs($curriculumStaff)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'completed', 'source_office' => 'Curriculum Implementation Division'],
         ])->assertRedirectToRoute('platform.documents.view', $document);
 
-        $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
-        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->fresh()->status);
-        $this->assertDatabaseCount('document_office_assignments', 3);
+        $this->assertSame('Curriculum Implementation Division', $document->fresh()->current_office);
+        $this->assertSame(DocumentMovement::STATUS_COMPLETED, $document->fresh()->status);
+        $this->assertDatabaseCount('document_office_assignments', 2);
         $this->assertSame(2, $document->movements()->where('action', 'completed')->count());
 
         $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'completed', 'source_office' => 'SDO-Records Unit'],
-        ])->assertRedirectToRoute('platform.documents.view', $document);
+        ])->assertForbidden();
 
         $this->assertSame(DocumentMovement::STATUS_COMPLETED, $document->fresh()->status);
     }

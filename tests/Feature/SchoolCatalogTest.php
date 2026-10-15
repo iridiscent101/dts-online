@@ -87,7 +87,7 @@ class SchoolCatalogTest extends TestCase
                 'per_page' => 25,
             ]))
             ->assertOk()
-            ->assertSee('School Management')
+            ->assertSee('School management')
             ->assertSee('<turbo-frame id="admin-schools-table"', false)
             ->assertSee('class="dts-registry-table-toolbar"', false)
             ->assertSee('data-admin-bulk-delete-kind="school"', false)

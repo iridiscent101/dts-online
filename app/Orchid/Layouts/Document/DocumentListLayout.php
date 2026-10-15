@@ -58,25 +58,20 @@ class DocumentListLayout extends Table
                 ->sort()
                 ->render(fn (Document $document): string => $document->received_at?->format('M d, Y') ?? 'Not received'),
 
-            TD::make('due_at', 'Due date')
+            TD::make('created_at', 'Date registered')
                 ->sort()
-                ->defaultHidden()
-                ->render(fn (Document $document): string => $document->due_at?->format('M d, Y') ?? 'Not set'),
+                ->render(fn (Document $document): string => $document->created_at->timezone('Asia/Manila')->format('M d, Y')),
 
-            TD::make('updated_at', 'Last updated')
-                ->sort()
-                ->render(fn (Document $document): string => $document->updated_at->format('M d, Y')),
-
-            TD::make('priority', 'Priority')
-                ->sort()
-                ->defaultHidden()
-                ->render(fn (Document $document) => view('orchid.cells.document-priority', compact('document'))),
+            // Not sortable on its own: "Date registered" already sorts by the full registration time.
+            TD::make('registered_time', 'Time registered')
+                ->render(fn (Document $document): string => $document->created_at->timezone('Asia/Manila')->format('g:i A')),
 
             TD::make(__('Actions'))
                 ->align(TD::ALIGN_CENTER)
                 ->width('112px')
                 ->cantHide()
                 ->render(fn (Document $document) => view('orchid.cells.document-row-actions', [
+                    'document' => $document,
                     'canEdit' => ($user = request()->user()) !== null && $document->canBeEditedBy($user),
                     'canDelete' => $user?->isAdministrator() ?? false,
                     'deleteAction' => Button::make(__('Delete'))
@@ -105,7 +100,7 @@ class DocumentListLayout extends Table
         return match ($this->section()) {
             'incoming' => 'bs.inbox',
             'outgoing' => 'bs.send',
-            'archived' => 'bs.archive',
+            'archived' => 'bs.check2-circle',
             default => 'bs.folder2-open',
         };
     }
@@ -119,7 +114,7 @@ class DocumentListLayout extends Table
         return match ($this->section()) {
             'incoming' => 'No incoming documents',
             'outgoing' => 'No outgoing documents',
-            'archived' => 'No archived documents',
+            'archived' => 'No finished documents',
             default => 'No documents registered yet',
         };
     }
@@ -135,7 +130,7 @@ class DocumentListLayout extends Table
         return match ($this->section()) {
             'incoming' => 'There are no documents awaiting receipt.',
             'outgoing' => 'There are no forwarded documents.',
-            'archived' => 'There are no completed records in the archive.',
+            'archived' => 'Released, completed and archived records appear here.',
             default => 'Your document registry is currently empty.',
         };
     }

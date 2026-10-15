@@ -1,7 +1,7 @@
 @forelse ($history as $event)
     @php
         $isMovement = $event instanceof \App\Models\DocumentMovement;
-        $badge = $isMovement ? $event->to_status : match ($event->description) {
+        $badge = $isMovement ? \App\Support\StatusLabel::for($event->to_status) : match ($event->description) {
             'Remark added' => 'Remark',
             'Document registered', 'Document submitted' => 'Registered',
             default => 'Update',
@@ -9,7 +9,7 @@
         $eventRemark = $isMovement ? $event->remarks : data_get($event->properties, 'remark');
     @endphp
     <article class="dts-workspace-entry dts-workspace-timeline-entry" tabindex="-1" data-workspace-history-event data-history-from="{{ $isMovement ? $event->from_office : data_get($event->properties, 'from_office', data_get($event->properties, 'office')) }}" data-history-to="{{ $isMovement ? $event->to_office : data_get($event->properties, 'to_office', data_get($event->properties, 'office')) }}">
-        <div class="dts-workspace-entry-heading"><div class="dts-workspace-event-title"><strong>{{ $isMovement ? $event->title() : $event->description }}</strong><span class="dts-record-status" data-status="{{ str($badge)->lower()->replace(' ', '-') }}">{{ $badge }}</span></div><time datetime="{{ $event->created_at?->toIso8601String() }}">{{ $event->created_at?->timezone('Asia/Manila')->format('d M Y, g:i A') }}</time></div>
+        <div class="dts-workspace-entry-heading"><div class="dts-workspace-event-title"><strong>{{ $isMovement ? $event->title() : $event->description }}</strong><span class="dts-record-status" data-status="{{ str($badge)->lower()->replace(' ', '-') }}">{{ $badge }}</span></div><time datetime="{{ $event->created_at?->toIso8601String() }}">{{ $event->created_at?->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</time></div>
         <p class="dts-muted">{{ $isMovement ? ($event->actor?->name ?? 'System').' · '.($event->from_office ?: $event->to_office) : ($event->causer?->name ?? 'System').(filled(data_get($event->properties, 'office')) ? ' · '.data_get($event->properties, 'office') : '') }}</p>
         @if (filled($eventRemark))
             <details class="dts-workspace-history-remarks"><summary>View remarks</summary><p>{{ $eventRemark }}</p></details>

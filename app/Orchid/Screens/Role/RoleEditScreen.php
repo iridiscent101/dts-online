@@ -44,7 +44,7 @@ class RoleEditScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'Edit Role';
+        return 'Edit role';
     }
 
     /**
@@ -140,7 +140,7 @@ class RoleEditScreen extends Screen
 
         $role->save();
 
-        Toast::info(__('Role was saved'));
+        Toast::success(__('Role was saved.'));
 
         return redirect()->route('platform.systems.roles');
     }
@@ -171,7 +171,7 @@ class RoleEditScreen extends Screen
 
         $role->delete();
 
-        Toast::info(__('Role was removed'));
+        Toast::success(__('Role was removed.'));
 
         return redirect()->route('platform.systems.roles');
     }

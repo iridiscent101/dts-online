@@ -1,11 +1,66 @@
 /* Shared by the admin panel (dts.css) and the public pages (app.css). Colors fall back for pages without DTS tokens. */
 
+/* A hand cursor on everything clickable (browsers and Tailwind's reset show the arrow on buttons), and a "not
+   allowed" cursor on disabled controls. :where() keeps this at zero specificity so specific rules still win. */
+:where(button, [type="button"], [type="submit"], [type="reset"], [role="button"], [role="tab"], summary, select, label[for], input[type="checkbox"], input[type="radio"], input[type="file"]):not(:disabled, [aria-disabled="true"]) {
+    cursor: pointer;
+}
+
+:where(button, input, select, textarea, [role="button"]):is(:disabled, [aria-disabled="true"]) {
+    cursor: not-allowed;
+}
+
+/* One select box design on every screen: the same border, corners, focus ring and DTS chevron (the browser's own
+   arrow differs per browser and is small). Screens set only the width; page-size and pager boxes add the compact size
+   below. Orchid's searchable selects (Tom Select) are drawn to match in dts.css. */
+select:not([multiple], [size]) {
+    appearance: none;
+    min-height: var(--dts-control-h, 44px);
+    padding: 6px 36px 6px 12px;
+    border: 1px solid var(--dts-input-border, #b3843f);
+    border-radius: var(--dts-control-radius, 5px);
+    background: #fff var(--dts-select-chevron) no-repeat right 12px center / 14px 14px;
+    color: var(--dts-charcoal, #26332b);
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1.4;
+}
+
+:root {
+    --dts-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23526174' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708'/%3E%3C/svg%3E");
+}
+
+select:not([multiple], [size]):hover:not(:disabled) {
+    border-color: var(--dts-green, #216e39);
+}
+
+select:focus-visible {
+    outline: 2px solid var(--dts-green, #216e39);
+    outline-offset: 1px;
+    border-color: var(--dts-green, #216e39);
+}
+
+select:not([multiple], [size]):disabled {
+    background-color: var(--dts-surface-2, #f3f4f6);
+    color: var(--dts-text-strong, #334155);
+}
+
+/* Compact size: the table toolbar's page-size box and the pager. */
+:is(.dts-page-size-toolbar, .dts-page-controls) select {
+    min-height: var(--dts-control-h-sm, 44px);
+    padding: 3px 30px 3px 10px;
+    background-position: right 10px center;
+    font-size: 0.875rem;
+}
+
 .dts-copy-button {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    min-height: 30px;
-    padding: 3px 10px;
+    justify-content: center;
+    width: 32px;
+    min-height: 32px;
+    padding: 0;
     border: 1px solid var(--dts-border-strong, #b3843f);
     border-radius: 4px;
     background: #fff;
@@ -56,9 +111,20 @@
     color: #a12837;
 }
 
+/* Icon only: the label stays for screen readers ("Copy", then "Copied"); the hover text says the same. */
+.dts-copy-button [data-copy-label] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 @media (pointer: coarse) {
     .dts-copy-button {
-        min-height: 40px;
+        width: 44px;
+        min-height: 44px;
     }
 }
 
@@ -269,4 +335,63 @@
 [data-kind="returned"] .dts-timeline-dot {
     background: #fcecef;
     color: #a12837;
+}
+
+/* A withdrawn route: grey, not red, because nothing went wrong with the document itself. */
+[data-kind="cancelled"] .dts-timeline-dot {
+    background: #eceff3;
+    color: #526174;
+}
+
+/* Hover text: shown on hover and on keyboard focus, above the button. */
+[data-tooltip] {
+    position: relative;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    z-index: 30;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--dts-charcoal, #26332b);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.3;
+    text-transform: none;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-50%);
+    transition: opacity 120ms ease;
+}
+
+[data-tooltip]:is(:hover, :focus-visible)::after {
+    opacity: 1;
+}
+
+/* An open menu covers the tooltip's spot; hide it there. */
+details[open] > [data-tooltip]::after {
+    display: none;
+}
+
+/* Public tracking page: the Refresh button's arrow turns while the latest status loads (resources/js/tracking-refresh.js). */
+.dts-tracking-refresh[aria-busy="true"] svg {
+    animation: dts-refresh-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dts-tracking-refresh[aria-busy="true"] svg {
+        animation: none;
+    }
+}
+
+@keyframes dts-refresh-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }

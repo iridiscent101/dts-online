@@ -44,7 +44,20 @@ class WorkflowGuidanceTest extends TestCase
             ->assertSee('Fields marked * are required.');
     }
 
-    public function test_dashboard_queue_says_why_each_document_is_waiting(): void
+    public function test_a_finished_document_offers_restore_without_asking_for_action(): void
+    {
+        $document = Document::factory()->archived()->create(['current_office' => 'Records Unit']);
+
+        $this->actingAs($this->user)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertSee('This document is finished.')
+            ->assertSee('Restore options')
+            ->assertDontSee('Your office can act on this document.')
+            ->assertDontSee('<span class="dts-tab-badge">Action needed</span>', false);
+    }
+
+    public function test_dashboard_queue_offers_the_next_action_as_an_icon(): void
     {
         Document::factory()->create([
             'tracking_number' => 'DTS-QUEUE-1',
@@ -56,7 +69,8 @@ class WorkflowGuidanceTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSee('DTS-QUEUE-1')
-            ->assertSee('Waiting to be received');
+            ->assertSee('data-receive-routes="[&quot;Records Unit&quot;]"', false)
+            ->assertDontSee('dts-queue-reason', false);
     }
 
     public function test_registry_has_a_status_guide(): void
@@ -65,7 +79,10 @@ class WorkflowGuidanceTest extends TestCase
             ->get(route('platform.documents'))
             ->assertOk()
             ->assertSee('Status guide')
-            ->assertSee('Waiting for their paper copy at the Records Unit.');
+            ->assertSee('>Pending</span>', false)
+            ->assertSeeInOrder(['Being reviewed:', 'the office is checking the document before acting on it.'])
+            ->assertSeeInOrder(['Not received yet:', 'sent to the office, which has not received it yet.'])
+            ->assertSeeInOrder(['Waiting for paper copy:', 'the paper copy is not at the Records Unit yet.']);
     }
 
     public function test_client_sees_what_to_do_next_while_the_paper_copy_is_pending(): void
@@ -82,8 +99,9 @@ class WorkflowGuidanceTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => 'DTS-PAPER-NEXT']))
             ->assertOk()
-            ->assertSee('What happens next')
-            ->assertSee('Bring the paper copy');
+            // The status card explains what to do; the separate "What happens next" steps were removed.
+            ->assertSee('Bring the paper copy to the Records Unit so processing can start.')
+            ->assertDontSee('What happens next');
 
         $this->get(route('tracking.index', ['tracking' => 'DTS-MOVING']))
             ->assertOk()

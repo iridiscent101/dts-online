@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
+use Illuminate\Support\Facades\Storage;
 
 class DocumentTrackingLabel
 {
@@ -24,6 +25,49 @@ class DocumentTrackingLabel
     private const SEAL_FILE = 'images/qr-seal.jpg';
 
     private static ?string $sealDataUri = null;
+
+    /**
+     * What the printed label shows: the status at printing time and the latest routing action (or the registration
+     * when nothing has moved yet), in Philippine time.
+     *
+     * @return array{status: string, date: string, time: string, processedBy: string, processedBySignatureDataUri: ?string}
+     */
+    public function details(Document $document): array
+    {
+        $movement = $document->latestMovement;
+        $actedAt = ($movement?->created_at ?? $document->created_at)->copy()->timezone('Asia/Manila');
+        $processedBy = $movement
+            ? ($movement->actor?->name ?? 'System')
+            : ($document->client_submission_key ? 'Client' : ($document->registeredBy?->name ?? 'System'));
+        $processedByUser = $movement?->actor ?? ($document->client_submission_key ? null : $document->registeredBy);
+
+        return [
+            'status' => $document->status,
+            'date' => $actedAt->format('M j, Y'),
+            'time' => $actedAt->format('g:i A'),
+            'processedBy' => $processedBy,
+            'processedBySignatureDataUri' => $this->signatureDataUri($processedByUser?->signature_path),
+        ];
+    }
+
+    private function signatureDataUri(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($path)) {
+            return null;
+        }
+
+        $mimeType = $disk->mimeType($path);
+        if (! in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            return null;
+        }
+
+        return 'data:'.$mimeType.';base64,'.base64_encode($disk->get($path));
+    }
 
     public function dataUri(Document $document): string
     {

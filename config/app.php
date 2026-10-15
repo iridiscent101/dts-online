@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'SDO - NV Docu TrackS'),
+    'name' => env('APP_NAME', 'DocuTrackS'),
 
     /*
     |--------------------------------------------------------------------------

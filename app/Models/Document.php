@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
-use Carbon\CarbonImmutable;
+use App\Support\StatusLabel;
 use Database\Factories\DocumentFactory;
-use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -31,13 +31,15 @@ class Document extends Model
     public const AUDIT_DISPLAY_LIMIT = 20;
 
     /** Shown for a paper submission's offices until the Records Unit confirms the paper copy. */
-    public const ROUTE_WAITING_FOR_PAPER = 'Waiting for paper';
+    public const ROUTE_WAITING_FOR_PAPER = 'Waiting for paper copy';
 
     public const PRIORITIES = [
         'Urgent' => 3,
         'Standard' => 7,
         'Extended' => 20,
     ];
+
+    public const DELIVERY_METHODS = ['Hand carry', 'Official channel'];
 
     public const AUDIT_DESCRIPTIONS = [
         'Document registered',
@@ -93,11 +95,16 @@ class Document extends Model
         return $types === [] && ! DocumentType::query()->exists() ? self::TYPES : $types;
     }
 
-    public static function targetDueDate(DateTimeInterface|string $receivedAt, string $priority): CarbonImmutable
+    public static function newTrackingNumber(): string
     {
-        return CarbonImmutable::parse($receivedAt)
-            ->startOfDay()
-            ->addWeekdays(self::PRIORITIES[$priority] ?? self::PRIORITIES['Standard']);
+        do {
+            $trackingNumber = 'SDONV';
+            for ($index = 0; $index < 11; $index++) {
+                $trackingNumber .= random_int(1, 9);
+            }
+        } while (self::withTrashed()->where('tracking_number', $trackingNumber)->exists());
+
+        return $trackingNumber;
     }
 
     public const OFFICES = [
@@ -209,11 +216,11 @@ class Document extends Model
         'external_reference',
         'description',
         'origin',
+        'delivery_method',
         'sender',
         'current_office',
         'status',
         'received_at',
-        'due_at',
         'priority',
         'remarks',
         'registered_by',
@@ -228,7 +235,6 @@ class Document extends Model
         'current_office',
         'status',
         'received_at',
-        'due_at',
         'priority',
         'updated_at',
     ];
@@ -251,6 +257,7 @@ class Document extends Model
             'archived' => [
                 DocumentMovement::STATUS_ARCHIVED,
                 DocumentMovement::STATUS_COMPLETED,
+                DocumentMovement::STATUS_RELEASED,
             ],
             default => null,
         };
@@ -367,6 +374,7 @@ class Document extends Model
         return ! $user->isReadOnlySupervisor()
             && $user->hasAccess('platform.documents.edit')
             && $this->isAssignedToUserOffice($user)
+            && ($user->isAdministrator() || $user->assignedOfficeNames()->intersect(['SDO-Records Unit', 'Records Unit'])->isNotEmpty())
             && (! $this->isClosedRecord() || $user->isAdministrator());
     }
 
@@ -381,11 +389,11 @@ class Document extends Model
     }
 
     /**
-     * A completed or archived document is a closed record: only an administrator can unlock it.
+     * A completed, released or archived document is a closed record: only an administrator can unlock it.
      */
     public function isClosedRecord(): bool
     {
-        return in_array($this->status, [DocumentMovement::STATUS_COMPLETED, DocumentMovement::STATUS_ARCHIVED], true);
+        return in_array($this->status, [DocumentMovement::STATUS_COMPLETED, DocumentMovement::STATUS_RELEASED, DocumentMovement::STATUS_ARCHIVED], true);
     }
 
     /**
@@ -418,6 +426,7 @@ class Document extends Model
         return ! in_array($this->status, [
             DocumentMovement::STATUS_ARCHIVED,
             DocumentMovement::STATUS_COMPLETED,
+            DocumentMovement::STATUS_RELEASED,
             DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
         ], true);
     }
@@ -437,6 +446,11 @@ class Document extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(DocumentMovement::class)->latest();
+    }
+
+    public function latestMovement(): HasOne
+    {
+        return $this->hasOne(DocumentMovement::class)->latestOfMany();
     }
 
     public function officeAssignments(): HasMany
@@ -462,7 +476,6 @@ class Document extends Model
             'origin',
             'sender',
             'received_at',
-            'due_at',
             'priority',
         ]), JSON_THROW_ON_ERROR));
     }
@@ -650,6 +663,10 @@ class Document extends Model
      */
     public function scopeRegistryFilters(Builder $query, array $filters): Builder
     {
+        $matchingStatuses = $filters['status'] === StatusLabel::PENDING
+            ? [DocumentMovement::STATUS_AWAITING_RECEIPT, DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT]
+            : [$filters['status']];
+
         return $query
             ->when($filters['search'], function (Builder $query, string $search): void {
                 // Staff often know only who sent it ("from Bayombong Central School"), not the tracking number.
@@ -663,25 +680,16 @@ class Document extends Model
             })
             ->when($filters['type'], fn (Builder $query, string $type): Builder => $query->where('document_type', $type))
             ->when($filters['priority'], fn (Builder $query, string $priority): Builder => $query->where('priority', $priority))
-            // Same windows as the dashboard counts; finished documents are never late.
-            ->when($filters['due'], function (Builder $query, string $due): void {
-                $today = today('Asia/Manila')->toDateString();
-                $query->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
-                    ->when($due === 'overdue', fn (Builder $query): Builder => $query->whereDate('due_at', '<', $today))
-                    ->when($due === 'soon', fn (Builder $query): Builder => $query
-                        ->whereDate('due_at', '>=', $today)
-                        ->whereDate('due_at', '<=', today('Asia/Manila')->addDays(2)->toDateString()));
-            })
-            ->when($filters['office'] !== '' || $filters['status'] !== '', function (Builder $query) use ($filters): void {
-                $query->where(function (Builder $query) use ($filters): void {
-                    $query->whereHas('officeAssignments', function (Builder $assignments) use ($filters): void {
+            ->when($filters['office'] !== '' || $filters['status'] !== '', function (Builder $query) use ($filters, $matchingStatuses): void {
+                $query->where(function (Builder $query) use ($filters, $matchingStatuses): void {
+                    $query->whereHas('officeAssignments', function (Builder $assignments) use ($filters, $matchingStatuses): void {
                         $assignments
                             ->when($filters['office'], fn (Builder $assignments, string $office): Builder => $assignments->where('office', $office))
-                            ->when($filters['status'], fn (Builder $assignments, string $status): Builder => $assignments->where('status', $status));
-                    })->orWhere(function (Builder $legacy) use ($filters): void {
+                            ->when($filters['status'], fn (Builder $assignments): Builder => $assignments->whereIn('status', $matchingStatuses));
+                    })->orWhere(function (Builder $legacy) use ($filters, $matchingStatuses): void {
                         $legacy->doesntHave('officeAssignments')
                             ->when($filters['office'], fn (Builder $legacy, string $office): Builder => $legacy->where('current_office', $office))
-                            ->when($filters['status'], fn (Builder $legacy, string $status): Builder => $legacy->where('status', $status));
+                            ->when($filters['status'], fn (Builder $legacy): Builder => $legacy->whereIn('status', $matchingStatuses));
                     });
                 });
             })

@@ -57,7 +57,7 @@ class DocumentIntakeTest extends TestCase
             ->assertOk();
 
         $this->assertSame('2026-10-14', $document->fresh()->received_at->toDateString());
-        $this->assertSame('2026-10-23', $document->fresh()->due_at->toDateString());
+        $this->assertNull($document->fresh()->due_at);
     }
 
     public function test_lookup_reports_a_received_paper_copy(): void
@@ -148,7 +148,8 @@ class DocumentIntakeTest extends TestCase
             ->assertOk()
             ->assertSee('data-paper-received="'.$document->tracking_number.'"', false)
             ->assertSee(route('platform.documents.intake'), false)
-            ->assertSee('Paper received');
+            ->assertSee('Paper received')
+            ->assertDontSee('data-paper-receive-all', false);
 
         $this->actingAs($budget)
             ->get(route('platform.main'))
@@ -163,12 +164,12 @@ class DocumentIntakeTest extends TestCase
         $document->update(['client_submission_key' => 'counter-test-key']);
         $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Records Unit'], ['status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT]);
         // The Records Unit's holding row is left out: Paper received completes its part.
-        $rows = ['SDO-Budget Unit', 'Waiting for paper', 'SDO-Legal Unit', 'Waiting for paper'];
+        $rows = ['SDO-Budget Unit', 'Waiting for paper copy', 'SDO-Legal Unit', 'Waiting for paper copy'];
         $recordsRow = 'aria-label="View SDO-Records Unit workflow, Awaiting physical document"';
 
         $this->actingAs($staff)->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('Client paper submissions list the offices the client chose')
+            ->assertSee('press Paper received, print its tracking label, then choose the offices it goes to.')
             ->assertSeeInOrder($rows)
             ->assertDontSee($recordsRow, false);
         $this->get(route('platform.documents'))->assertOk()->assertSeeInOrder($rows)->assertDontSee($recordsRow, false);
@@ -176,12 +177,12 @@ class DocumentIntakeTest extends TestCase
         $this->get(route('platform.documents.workspace', $document))->assertOk()->assertSeeInOrder($rows)
             ->assertDontSee('data-workspace-route="SDO-Records Unit"', false);
 
-        // Fast Track: one card per office, while the overall status still reads "Awaiting physical document".
+        // Fast Track: one card per office, while the overall status still reads "Pending" (awaiting the paper copy).
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertSee('Submit your document to the Records staff.')
             ->assertSee('data-route-state="waiting"', false)
-            ->assertSee('Awaiting physical document')
+            ->assertSee('>Pending</span>', false)
             ->assertDontSee('data-route-office="SDO-Records Unit"', false)
             ->assertSeeInOrder($rows)
             ->assertSee('This office receives the document after you bring the paper copy to the Records Unit.')
@@ -197,7 +198,7 @@ class DocumentIntakeTest extends TestCase
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
         ])->assertOk();
 
-        $this->get(route('platform.documents.view', $document))->assertOk()->assertDontSee('Waiting for paper');
+        $this->get(route('platform.documents.view', $document))->assertOk()->assertDontSee('data-status="waiting-for-paper-copy"', false);
     }
 
     public function test_records_follows_the_whole_history_of_documents_it_sent_on(): void

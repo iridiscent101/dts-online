@@ -30,7 +30,7 @@ class SchoolListScreen extends Screen
 
     public function name(): ?string
     {
-        return 'School Management';
+        return 'School management';
     }
 
     public function description(): ?string
@@ -86,7 +86,7 @@ class SchoolListScreen extends Screen
             'school.name' => ['required', 'string', 'max:180'],
         ])['school']);
 
-        Toast::info(__(':school was saved.', ['school' => $school->name]));
+        Toast::success(__(':school was saved.', ['school' => $school->name]));
     }
 
     public function remove(Request $request): void
@@ -96,7 +96,7 @@ class SchoolListScreen extends Screen
         $school = School::query()->findOrFail($request->integer('id'));
         $school->delete();
 
-        Toast::info(__(':school was removed.', ['school' => $school->name]));
+        Toast::success(__(':school was removed.', ['school' => $school->name]));
     }
 
     public function bulkRemove(Request $request): void
@@ -110,7 +110,7 @@ class SchoolListScreen extends Screen
 
         $removed = School::query()->whereKey($selected)->delete();
 
-        Toast::info($removed.' schools were removed.');
+        Toast::success($removed.' schools were removed.');
     }
 
     private function perPage(): int

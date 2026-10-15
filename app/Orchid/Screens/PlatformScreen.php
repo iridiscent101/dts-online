@@ -9,6 +9,7 @@ use App\Models\DocumentMovement;
 use App\Models\DocumentOfficeAssignment;
 use App\Models\User;
 use App\Orchid\Layouts\Document\DocumentListLayout;
+use App\Support\StatusLabel;
 use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -48,9 +49,7 @@ class PlatformScreen extends Screen
             $canViewAllDocuments = $isAdministrator || $user->hasAccess('platform.documents.view-all');
             $visibleDocuments = Document::query()->visibleTo($user);
             $officeQueueQuery = $this->officeQueueQuery($user, $offices, $isAdministrator);
-            $today = today('Asia/Manila')->toDateString();
-            $dueSoonExclusiveEnd = today('Asia/Manila')->addDays(3)->toDateString();
-            $officeQueueCounts = $this->officeQueueCounts($officeQueueQuery, $today, $dueSoonExclusiveEnd);
+            $officeQueueCounts = $this->officeQueueCounts($officeQueueQuery);
             $canConfirmPaperIntake = $user->canConfirmPaperIntake();
             $isReadOnlySupervisor = $user->isReadOnlySupervisor();
 
@@ -63,8 +62,6 @@ class PlatformScreen extends Screen
                 'officeQueue' => $this->officeQueueItems($officeQueueQuery),
                 'officeQueueCount' => (int) ($officeQueueCounts->total ?? 0),
                 'officeQueueDocumentCount' => (int) ($officeQueueCounts->documents ?? 0),
-                'officeOverdueCount' => (int) ($officeQueueCounts->overdue ?? 0),
-                'officeDueSoonCount' => (int) ($officeQueueCounts->due_soon ?? 0),
                 // The fourth summary card: Records counts paper waiting at the counter, other offices what they finished.
                 'paperWaitingCount' => $canConfirmPaperIntake ? (int) ($officeQueueCounts->paper_waiting ?? 0) : null,
                 'actedThisWeekCount' => $canConfirmPaperIntake || $isReadOnlySupervisor ? null : $this->actedThisWeekCount($offices),
@@ -138,12 +135,12 @@ class PlatformScreen extends Screen
      */
     public function name(): ?string
     {
-        // Becomes the browser tab title ("Incoming documents - SDO - NV Docu TrackS"), so each section names itself.
+        // Becomes the browser tab title ("Incoming documents - DocuTrackS"), so each section names itself.
         return match ($this->section()) {
             'documents' => 'All documents',
             'incoming' => 'Incoming documents',
             'outgoing' => 'Outgoing documents',
-            'archived' => 'Archived documents',
+            'archived' => 'Finished documents',
             default => 'Dashboard',
         };
     }
@@ -215,7 +212,7 @@ class PlatformScreen extends Screen
             ->whereHas('document', fn (Builder $document): Builder => $document->visibleTo($user));
     }
 
-    private function officeQueueCounts(Builder $officeQueueQuery, string $today, string $dueSoonExclusiveEnd): object
+    private function officeQueueCounts(Builder $officeQueueQuery): object
     {
         return (clone $officeQueueQuery)
             ->join('documents', 'documents.id', '=', 'document_office_assignments.document_id')
@@ -223,9 +220,6 @@ class PlatformScreen extends Screen
             ->toBase()
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('COUNT(DISTINCT document_office_assignments.document_id) as documents')
-            // Overdue, due soon and paper waiting count documents, matching the queue's one row per document.
-            ->selectRaw('COUNT(DISTINCT CASE WHEN documents.due_at < ? THEN documents.id END) as overdue', [$today])
-            ->selectRaw('COUNT(DISTINCT CASE WHEN documents.due_at >= ? AND documents.due_at < ? THEN documents.id END) as due_soon', [$today, $dueSoonExclusiveEnd])
             ->selectRaw('COUNT(DISTINCT CASE WHEN document_office_assignments.status = ? THEN documents.id END) as paper_waiting', [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT])
             ->first();
     }
@@ -262,10 +256,8 @@ class PlatformScreen extends Screen
             ->whereNull('documents.deleted_at')
             ->toBase()
             ->select('document_office_assignments.document_id')
-            ->groupBy('document_office_assignments.document_id', 'documents.due_at', 'documents.updated_at')
-            // Paper waiting at the counter has no due date yet, so it would sort last and fall out of view.
+            ->groupBy('document_office_assignments.document_id', 'documents.updated_at')
             ->orderByRaw('MAX(CASE WHEN document_office_assignments.status = ? THEN 1 ELSE 0 END) DESC', [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT])
-            ->orderByRaw('documents.due_at IS NULL, documents.due_at')
             ->orderByDesc('documents.updated_at')
             ->limit(self::OFFICE_QUEUE_LIMIT)
             ->pluck('document_id')
@@ -315,23 +307,20 @@ class PlatformScreen extends Screen
     }
 
     /**
-     * @return array{search: string, office: string, type: string, status: string, priority: string, due: string, from: string, to: string}
+     * @return array{search: string, office: string, type: string, status: string, priority: string, from: string, to: string}
      */
     private function filterValues(string $section, array $typeOptions, array $officeOptions): array
     {
         $office = request()->string('office')->trim()->toString();
         $type = request()->string('type')->trim()->toString();
         $status = request()->string('status')->trim()->toString();
-        $priority = request()->string('priority')->trim()->toString();
-        $due = request()->string('due')->trim()->toString();
 
         return [
             'search' => Str::limit(request()->string('search')->trim()->toString(), 150, ''),
             'office' => in_array($office, $officeOptions, true) ? $office : '',
             'type' => in_array($type, $typeOptions, true) ? $type : '',
-            'status' => $section === 'documents' && in_array($status, Document::STATUSES, true) ? $status : '',
-            'priority' => array_key_exists($priority, Document::PRIORITIES) ? $priority : '',
-            'due' => in_array($due, ['overdue', 'soon'], true) ? $due : '',
+            'status' => $section === 'documents' && in_array($status, [...Document::STATUSES, StatusLabel::PENDING], true) ? $status : '',
+            'priority' => '',
             'from' => $this->dateFilter('from'),
             'to' => $this->dateFilter('to'),
         ];

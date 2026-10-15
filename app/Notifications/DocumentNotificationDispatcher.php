@@ -38,31 +38,6 @@ class DocumentNotificationDispatcher
     }
 
     /**
-     * @param  list<string>  $offices
-     */
-    public function due(Document $document, string $severity, array $offices): int
-    {
-        $notification = new DocumentDueNotification($document, $severity);
-        $fingerprint = $notification->fingerprint();
-        $sent = 0;
-
-        foreach ($this->recipients($document, $offices) as $recipient) {
-            $alreadySent = $recipient->notifications()
-                ->where('data->fingerprint', $fingerprint)
-                ->exists();
-
-            if ($alreadySent) {
-                continue;
-            }
-
-            $recipient->notify($notification);
-            $sent++;
-        }
-
-        return $sent;
-    }
-
-    /**
      * @return Collection<int, User>
      */
     /**

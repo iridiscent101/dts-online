@@ -10,7 +10,6 @@ use App\Models\DocumentMovement;
 use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Orchid\Attachment\File;
 use Orchid\Attachment\Models\Attachment;
 use Orchid\Screen\Action;
@@ -38,7 +37,7 @@ class DocumentRegistrationScreen extends Screen
      */
     public function name(): ?string
     {
-        return 'New Document';
+        return 'New document';
     }
 
     /**
@@ -64,7 +63,7 @@ class DocumentRegistrationScreen extends Screen
         try {
             $document = DB::transaction(function () use ($data, $destinations, $routeRemarks, $request, $notifications, &$uploadedAttachments): Document {
                 $document = Document::create([
-                    'tracking_number' => 'DTS-'.substr($data['received'], 0, 4).'-'.Str::upper(bin2hex(random_bytes(10))),
+                    'tracking_number' => Document::newTrackingNumber(),
                     'subject' => $data['title'],
                     'document_type' => $data['type'],
                     'external_reference' => $data['reference'] ?? null,
@@ -74,8 +73,7 @@ class DocumentRegistrationScreen extends Screen
                     'current_office' => $destinations[0],
                     'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
                     'received_at' => $data['received'],
-                    'due_at' => $data['due'] ?? Document::targetDueDate($data['received'], $data['priority'])->toDateString(),
-                    'priority' => $data['priority'],
+                    'priority' => 'Standard',
                     'remarks' => filled($routeRemarks[count($destinations) - 1] ?? null)
                         ? trim($routeRemarks[count($destinations) - 1])
                         : null,

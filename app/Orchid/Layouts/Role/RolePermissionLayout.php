@@ -26,7 +26,7 @@ class RolePermissionLayout extends Rows
     private array $permissionDescriptions = [
         'platform.index' => 'Use the DTS. Staff can view documents they registered or those assigned to their office. Routing requires an assigned office.',
         'platform.documents.view-all' => 'View documents from every office, including their details, attachments, and movement history. This does not grant editing or routing.',
-        'platform.documents.edit' => 'Change document details such as title, type, sender, dates, and priority.',
+        'platform.documents.edit' => 'Change document details such as title, type, sender and dates.',
         'platform.documents.routes.manage' => 'Add or remove the offices a registered document is routed to while editing it.',
         'platform.documents.attachments.manage' => 'Add, replace, or delete document attachments.',
         'platform.systems.attachment' => 'Open the system attachment library.',

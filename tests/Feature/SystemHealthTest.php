@@ -79,7 +79,7 @@ class SystemHealthTest extends TestCase
         $this->actingAs($administrator)
             ->get(route('platform.systems.health'))
             ->assertOk()
-            ->assertSee('System Health')
+            ->assertSee('System health')
             ->assertSee('Service checks')
             ->assertSee('Database')
             ->assertSee('Scheduler')
