@@ -249,8 +249,10 @@ class DocumentRoutingService
         return $assignment?->status === DocumentMovement::STATUS_RECEIVED
             && $receipt?->action === DocumentMovement::ACTION_RECEIVED
             && ($receipt->from_status === DocumentMovement::STATUS_FORWARDED
-                || ($receipt->from_status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
-                    && $document->officeAssignments->count() === 1));
+                || (in_array($receipt->from_status, [
+                    DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+                    DocumentMovement::STATUS_AWAITING_RECEIPT,
+                ], true) && $document->officeAssignments->count() === 1));
     }
 
     /**

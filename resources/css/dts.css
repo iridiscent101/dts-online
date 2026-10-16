@@ -382,7 +382,8 @@ body::before {
     }
 
     & [data-controller="table"] {
-            overflow: hidden;
+            /* clip, not hidden: it rounds the corners the same way but lets the footer pager stay sticky. */
+            overflow: clip;
             margin-top: 16px;
             border: 1px solid var(--dts-grid);
             border-radius: 6px !important;
@@ -763,7 +764,8 @@ body::before {
 
 :is(.page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) {
     & [data-controller="table"] {
-            overflow: hidden;
+            /* clip, not hidden: it rounds the corners the same way but lets the footer pager stay sticky. */
+            overflow: clip;
             margin-top: 16px;
             border: 1px solid var(--dts-grid);
             border-radius: 6px !important;
@@ -1238,7 +1240,8 @@ body::before {
 }
 
 .dts-table-frame {
-    overflow: hidden;
+    /* clip, not hidden: rounds the corners without blocking the sticky scrollbar and pager below it. */
+    overflow: clip;
     border: 1px solid var(--dts-grid);
     border-radius: 6px;
     background: #fff;
@@ -7299,4 +7302,181 @@ body .invalid-feedback {
     .dts-metrics-bold .dts-metric > strong {
         font-size: 1.75rem;
     }
+}
+
+/* Dashboard action queue pager: the registry's pager look (same partial), with the "Showing 1–25 of N" count.
+   Sticky: while the queue is on screen the pager stays at the bottom of the window, and it settles back under the
+   table at the end of the list. bottom: -1px lets dts.js tell when it is pinned (is-stuck adds the backdrop). */
+.dts-queue-pager {
+    position: sticky;
+    bottom: -1px;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 12px;
+    padding: 10px 0 11px;
+    border-top: 1px solid transparent;
+    transition: background-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.dts-queue-pager.is-stuck {
+    margin-inline: -12px;
+    padding-inline: 12px;
+    border-top-color: var(--dts-border);
+    border-radius: 10px 10px 0 0;
+    background: rgb(255 255 255 / 92%);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -6px 18px rgb(38 51 43 / 12%);
+}
+
+.dts-queue-pager-count {
+    margin: 0;
+    color: var(--dts-text-body);
+    font-size: 0.9375rem;
+}
+
+.dts-queue-pager .pagination {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dts-queue-pager .page-link {
+    display: inline-grid;
+    place-items: center;
+    min-width: var(--dts-control-h-sm);
+    min-height: var(--dts-control-h-sm);
+    padding: 4px 10px;
+    border: 1px solid var(--dts-grid);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--dts-text-body);
+    font-size: 0.9375rem;
+    text-decoration: none;
+}
+
+.dts-queue-pager a.page-link:hover {
+    border-color: var(--dts-border-strong);
+    background: var(--dts-cream);
+    color: var(--dts-green);
+}
+
+.dts-queue-pager .page-item.active .page-link {
+    border-color: var(--dts-green);
+    background: var(--dts-green);
+    color: #fff;
+    font-weight: 700;
+}
+
+.dts-queue-pager .page-item.disabled .page-link {
+    background: var(--dts-surface);
+    color: var(--dts-text-faint);
+}
+
+/* The prominent Receive document button (before an office receives its route) is wider than the other actions;
+   phones get the full width. HANDOFF item 20. */
+.dts-button.dts-button-receive {
+    min-width: min(100%, 320px);
+}
+
+@media (max-width: 575px) {
+    .dts-button.dts-button-receive {
+        width: 100%;
+    }
+}
+
+/* Document registry (and admin) tables: the footer with "Displayed records" and the pager behaves like the dashboard
+   queue pager: it stays at the bottom of the window while the table is on screen and settles under the last row.
+   dts.js adds is-stuck while it is pinned. */
+/* Orchid marks the table box .overflow-hidden (Bootstrap: overflow hidden !important), which would stop the sticky
+   footer; clip rounds the corners the same way without making the box a scroll container. */
+[data-controller="table"].overflow-hidden {
+    overflow: clip !important;
+}
+
+[data-controller="table"] > footer {
+    position: sticky;
+    bottom: -1px;
+    z-index: 5;
+    background: #fff;
+    transition: box-shadow 120ms ease-out;
+}
+
+[data-controller="table"] > footer.is-stuck {
+    border-top: 1px solid var(--dts-border);
+    background: rgb(255 255 255 / 94%);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 -6px 18px rgb(38 51 43 / 12%);
+}
+
+.dts-queue-pager-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+}
+
+/* Queue pager row: the "Rows per page" box and the page buttons share one height and centre line (the box kept the
+   registry toolbar's -4px bottom margin, which dropped it below the buttons). */
+.dts-queue-pager .dts-page-size-toolbar {
+    margin: 0;
+    align-items: center;
+}
+
+.dts-queue-pager .dts-page-size-toolbar label {
+    margin: 0;
+    line-height: 1.2;
+}
+
+.dts-queue-pager .dts-page-size-toolbar select,
+.dts-queue-pager .page-link {
+    box-sizing: border-box;
+    height: var(--dts-control-h-sm);
+    min-height: var(--dts-control-h-sm);
+}
+
+.dts-queue-pager .page-link {
+    line-height: 1;
+}
+
+.dts-queue-pager .pagination {
+    align-items: center;
+}
+
+/* Wide tables: a slim horizontal scrollbar that stays at the bottom of the window (just above the sticky pager)
+   while the table is on screen, and docks under the table at the end (dts.js attachStickyScrollbars). The table's own
+   scrollbar is hidden so there are not two; trackpads and Shift + wheel still scroll the table directly. */
+.dts-sticky-scrollbar {
+    position: sticky;
+    bottom: var(--dts-sticky-scrollbar-offset, -1px);
+    z-index: 4;
+    height: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-top: 1px solid var(--dts-grid);
+    background: rgb(255 255 255 / 94%);
+}
+
+.dts-sticky-scrollbar > div {
+    height: 1px;
+}
+
+.dts-sticky-scrollbar[hidden] {
+    display: none;
+}
+
+.has-sticky-scrollbar {
+    scrollbar-width: none;
+}
+
+.has-sticky-scrollbar::-webkit-scrollbar {
+    height: 0;
 }

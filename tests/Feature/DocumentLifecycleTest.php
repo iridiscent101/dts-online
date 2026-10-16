@@ -69,7 +69,6 @@ class DocumentLifecycleTest extends TestCase
                     'origin' => 'Regional Office',
                     'sender' => 'Regional Records Officer',
                     'received' => '2026-09-30',
-                    'due' => '2026-10-07',
                     'destinations' => ['Records Unit'],
                     'priority' => 'Extended',
                     'remarks' => 'Process through the full workflow.',
@@ -98,7 +97,6 @@ class DocumentLifecycleTest extends TestCase
                 'origin' => 'Regional Office',
                 'sender' => 'Regional Records Officer',
                 'received' => '2026-09-30',
-                'due' => '2026-10-07',
                 'priority' => 'Urgent',
                 // Received above, so its details are locked and changing them needs a reason.
                 'correction_reason' => 'Lifecycle test correction',

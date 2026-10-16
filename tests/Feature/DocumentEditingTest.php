@@ -208,7 +208,6 @@ class DocumentEditingTest extends TestCase
             ->assertRedirectToRoute('platform.documents.view', $document);
 
         $this->assertSame('Corrected memorandum subject', $document->fresh()->subject);
-        $this->assertNull($document->fresh()->due_at);
     }
 
     public function test_administrator_can_change_routes_while_editing(): void
@@ -504,7 +503,6 @@ class DocumentEditingTest extends TestCase
             'current_office' => 'SDO-Records Unit',
             'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
             'received_at' => null,
-            'due_at' => null,
         ]);
         $data = $this->validDocumentData($document);
         unset($data['received']);
@@ -519,8 +517,6 @@ class DocumentEditingTest extends TestCase
         $this->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
             ->assertSessionHasErrors('document.received');
         $this->assertNull($document->fresh()->received_at);
-
-        $this->assertNull($document->fresh()->due_at);
     }
 
     public function test_pending_paper_submission_shows_dates_as_not_received_without_a_required_marker(): void
@@ -533,7 +529,6 @@ class DocumentEditingTest extends TestCase
             'current_office' => 'SDO-Records Unit',
             'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
             'received_at' => null,
-            'due_at' => null,
         ]);
 
         $this->actingAs($user)
@@ -808,7 +803,6 @@ class DocumentEditingTest extends TestCase
             'origin' => 'Office of the Schools Division Superintendent',
             'sender' => 'Maria Santos',
             'received' => '2026-09-27',
-            'due' => '2026-10-04',
             'priority' => 'Urgent',
         ];
     }

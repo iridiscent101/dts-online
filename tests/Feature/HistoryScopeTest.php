@@ -24,7 +24,6 @@ class HistoryScopeTest extends TestCase
             'current_office' => 'Records Unit',
             // Fixed dates, so neither can collide with the Budget receipt date checked below.
             'received_at' => '2026-09-28',
-            'due_at' => '2026-10-20',
         ]);
         $document->officeAssignments()->create(['office' => 'Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
         $document->officeAssignments()->create(['office' => 'Budget Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Document;
+use App\Models\DocumentMovement;
 use BaconQrCode\Common\ErrorCorrectionLevel;
 use BaconQrCode\Encoder\Encoder;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -46,7 +47,9 @@ class DocumentTrackingLabel
             'date' => $actedAt->format('M j, Y'),
             'time' => $actedAt->format('g:i A'),
             'processedBy' => $processedBy,
-            'processedBySignatureDataUri' => $this->signatureDataUri($processedByUser?->signature_path),
+            'processedBySignatureDataUri' => in_array($document->status, [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, DocumentMovement::STATUS_AWAITING_RECEIPT], true)
+                ? null
+                : $this->signatureDataUri($processedByUser?->signature_path),
         ];
     }
 

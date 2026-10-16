@@ -18,20 +18,20 @@ class IdleSignOutTest extends TestCase
 
     public function test_staff_pages_carry_the_idle_warning_settings(): void
     {
-        config(['session.idle_minutes' => 30]);
+        config(['session.idle_minutes' => 15]);
 
         $this->actingAs($this->staff())
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSee('<dts-idle-sign-out', false)
-            ->assertSee('data-idle-seconds="1800"', false)
+            ->assertSee('data-idle-seconds="900"', false)
             ->assertSee(route('platform.session.keep-alive'), false);
     }
 
     public function test_active_staff_stay_signed_in(): void
     {
         $this->actingAs($this->staff())
-            ->withSession([LogoutInactiveStaff::SESSION_KEY => now()->subMinutes(29)->getTimestamp()])
+            ->withSession([LogoutInactiveStaff::SESSION_KEY => now()->subMinutes(14)->getTimestamp()])
             ->get(route('platform.main'))
             ->assertOk();
 
@@ -41,7 +41,7 @@ class IdleSignOutTest extends TestCase
     public function test_idle_staff_are_signed_out_with_a_notice(): void
     {
         $this->actingAs($this->staff())
-            ->withSession([LogoutInactiveStaff::SESSION_KEY => now()->subMinutes(31)->getTimestamp()])
+            ->withSession([LogoutInactiveStaff::SESSION_KEY => now()->subMinutes(15)->getTimestamp()])
             ->get(route('platform.main'))
             ->assertRedirectToRoute('platform.login')
             ->assertSessionHas('dts_signed_out');

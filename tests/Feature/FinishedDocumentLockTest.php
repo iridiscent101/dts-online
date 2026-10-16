@@ -198,7 +198,6 @@ class FinishedDocumentLockTest extends TestCase
             'sender' => 'Original sender',
             // Plain dates, as the date columns store them, so an unchanged form doesn't count as a change.
             'received_at' => '2026-08-03',
-            'due_at' => $status === DocumentMovement::STATUS_ARCHIVED ? null : '2026-08-20',
         ]);
     }
 
@@ -211,7 +210,6 @@ class FinishedDocumentLockTest extends TestCase
             'origin' => $document->origin,
             'sender' => 'Corrected sender',
             'received' => $document->received_at->toDateString(),
-            'due' => $document->due_at?->toDateString(),
             'priority' => $document->priority,
         ];
     }

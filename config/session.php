@@ -39,7 +39,7 @@ return [
     | "Remember me" on (App\Http\Middleware\LogoutInactiveStaff).
     */
 
-    'idle_minutes' => (int) env('SESSION_IDLE_MINUTES', 30),
+    'idle_minutes' => (int) env('SESSION_IDLE_MINUTES', 15),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

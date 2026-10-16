@@ -1178,7 +1178,6 @@ class DepEdDashboardTest extends TestCase
         $paper = Document::factory()->create([
             'current_office' => 'SDO-Records Unit',
             'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
-            'due_at' => null,
         ]);
         $paper->officeAssignments()->updateOrCreate(['office' => 'SDO-Records Unit'], ['status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT]);
         $finished = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
@@ -1263,20 +1262,47 @@ class DepEdDashboardTest extends TestCase
             ->assertDontSee('My office queue');
     }
 
-    public function test_action_queue_shows_five_documents_and_reveals_the_rest_in_place(): void
+    public function test_action_queue_shows_a_whole_page_and_pages_the_rest(): void
     {
         $user = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
         Document::factory()->count(7)->incoming()->create(['current_office' => 'Records Unit'])
             ->each(fn (Document $document) => $document->officeAssignments()->updateOrCreate(['office' => 'Records Unit'], ['status' => 'Awaiting receipt']));
 
+        // One page: every row shows, with no pager and no "Show more" step.
         $response = $this->actingAs($user)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('Show 2 more')
-            ->assertDontSee('data-office-queue-all', false);
-
+            ->assertDontSee('Action queue pages')
+            ->assertDontSee('data-office-queue-more', false);
         $this->assertSame(7, substr_count($response->getContent(), 'data-office-queue-row'));
-        $this->assertSame(2, substr_count($response->getContent(), 'data-office-queue-extra hidden'));
+
+        Document::factory()->count(23)->incoming()->create(['current_office' => 'Records Unit'])
+            ->each(fn (Document $document) => $document->officeAssignments()->updateOrCreate(['office' => 'Records Unit'], ['status' => 'Awaiting receipt']));
+
+        // Thirty documents: 25 on page one, the registry's pager, and page two holds the other five.
+        $firstPage = $this->get(route('platform.main'))
+            ->assertOk()
+            ->assertSee('aria-label="Action queue pages"', false)
+            ->assertSee('Showing 1–25 of 30 documents')
+            ->assertSee('queue_page=2#office-queue-title', false);
+        $this->assertSame(25, substr_count($firstPage->getContent(), 'data-office-queue-row'));
+
+        $secondPage = $this->get(route('platform.main', ['queue_page' => 2]))
+            ->assertOk()
+            ->assertSee('Showing 26–30 of 30 documents');
+        $this->assertSame(5, substr_count($secondPage->getContent(), 'data-office-queue-row'));
+        // Rows per page: 10 a page, and the pager links keep that choice.
+        $tenRows = $this->get(route('platform.main', ['queue_per_page' => 10, 'queue_page' => 3]))
+            ->assertOk()
+            ->assertSee('Showing 21–30 of 30 documents')
+            ->assertSee('<option value="10" selected>10</option>', false)
+            ->assertSee('queue_per_page=10', false);
+        $this->assertSame(10, substr_count($tenRows->getContent(), 'data-office-queue-row'));
+
+        // An unsupported size falls back to 25.
+        $this->get(route('platform.main', ['queue_per_page' => 7]))
+            ->assertOk()
+            ->assertSee('Showing 1–25 of 30 documents');
     }
 
     public function test_dashboard_counts_each_assigned_office_action_for_multi_office_users(): void

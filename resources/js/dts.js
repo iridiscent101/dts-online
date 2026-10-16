@@ -1587,6 +1587,16 @@ class WorkflowRouting extends HTMLElement {
         this.toggleAttribute('data-receive-only', this.receiveOnly);
         if (this.actionChoices) this.actionChoices.hidden = this.receiveOnly;
 
+        let note = this.querySelector('[data-receive-first]');
+        if (this.receiveOnly && !note) {
+            note = document.createElement('p');
+            note.className = 'dts-receive-first';
+            note.dataset.receiveFirst = '';
+            note.textContent = 'Receive this document first. Forward, Complete and Release appear after your office receives it.';
+            (this.actionChoices ?? this.querySelector('[data-workflow-action]')?.closest('label, .dts-field'))?.before(note);
+        }
+        if (note) note.hidden = !this.receiveOnly;
+
         const submit = this.parentElement?.querySelector('[data-workflow-submit-label]')?.closest('button');
         if (!submit) return;
         submit.classList.toggle('dts-button-receive', this.receiveOnly);
@@ -2215,7 +2225,7 @@ class DocumentFilters extends HTMLElement {
 
     reset() {
         const url = new URL(window.location.href);
-        ['search', 'office', 'type', 'status', 'from', 'to', 'page'].forEach((parameter) => url.searchParams.delete(parameter));
+        ['search', 'office', 'type', 'status', 'from', 'to', 'needs_action', 'page'].forEach((parameter) => url.searchParams.delete(parameter));
         this.navigate(url);
     }
 
@@ -2853,11 +2863,11 @@ function markQueueOfficesForwarded(row) {
 
 function paperSentText(offices) {
     return offices.length === 0
-        ? 'Paper received. Next: choose the offices.'
+        ? 'Paper received.'
         : `Paper sent to ${offices.length} ${offices.length === 1 ? 'office' : 'offices'}`;
 }
 
-// Dashboard action queue: reveal the rows past the first five in place, then offer the full registry.
+// Dashboard action queue: reveal the rows past the first five in place, then offer the next dashboard page.
 document.addEventListener('click', (event) => {
     const button = event.target.closest('[data-office-queue-more]');
     if (!button) return;
@@ -2986,3 +2996,80 @@ document.addEventListener('click', async (event) => {
     }
     window.location.reload();
 });
+
+// Sticky pagers: the dashboard queue pager (orchid/dashboard) and the registry tables' footer stay at the bottom of
+// the window while their table is on screen. With bottom: -1px a pager is fully visible only when it sits in its own
+// place under the table, so anything less means it is pinned, which adds the solid backdrop (is-stuck) so it does not
+// blend into the rows.
+function watchStickyPagers() {
+    if (!('IntersectionObserver' in window)) return;
+    document.querySelectorAll('.dts-queue-pager, [data-controller="table"] > footer').forEach((pager) => {
+        if (pager.dataset.stickyWatched) return;
+        pager.dataset.stickyWatched = 'true';
+        new IntersectionObserver(([entry]) => {
+            pager.classList.toggle('is-stuck', entry.intersectionRatio < 1 && entry.boundingClientRect.top > 0);
+        }, { threshold: [1] }).observe(pager);
+    });
+}
+document.addEventListener('turbo:load', watchStickyPagers);
+document.addEventListener('turbo:frame-load', watchStickyPagers);
+watchStickyPagers();
+
+// Dashboard queue "Rows per page": the dashboard sits inside Orchid's screen form, so the choice changes the address
+// instead of submitting a form; it starts again from page one and lands on the queue heading.
+document.addEventListener('change', (event) => {
+    const select = event.target.closest('[data-queue-page-size]');
+    if (!select) return;
+    const url = new URL(select.dataset.queueUrl, window.location.origin);
+    if (select.value !== '25') url.searchParams.set('queue_per_page', select.value);
+    url.hash = 'office-queue-title';
+    window.location.assign(url);
+});
+
+// Wide tables (registry tables and the dashboard queue): a sticky horizontal scrollbar that mirrors the table's own
+// scroll, so moving sideways never needs a trip to the end of the table. It sits just above the table's sticky pager
+// (whose height sets the offset) and is hidden when the table fits. The two scroll positions are kept in step.
+function attachStickyScrollbars() {
+    document.querySelectorAll('[data-controller="table"] .table-responsive, .dts-table-scroll').forEach((scroller) => {
+        if (scroller.dataset.stickyScrollbar) return;
+        scroller.dataset.stickyScrollbar = 'true';
+
+        const bar = document.createElement('div');
+        bar.className = 'dts-sticky-scrollbar';
+        bar.setAttribute('aria-hidden', 'true');
+        bar.tabIndex = -1;
+        const track = document.createElement('div');
+        bar.append(track);
+        // Outside the dashboard's rounded frame, so the frame's clipping does not hold it in place.
+        (scroller.closest('.dts-table-frame') ?? scroller).after(bar);
+
+        const pager = scroller.closest('[data-controller="table"]')?.querySelector(':scope > footer')
+            ?? scroller.closest('.dts-office-queue')?.querySelector('.dts-queue-pager');
+        const size = () => {
+            const overflows = scroller.scrollWidth > scroller.clientWidth + 1;
+            bar.hidden = !overflows;
+            scroller.classList.toggle('has-sticky-scrollbar', overflows);
+            track.style.width = `${scroller.scrollWidth}px`;
+            bar.style.setProperty('--dts-sticky-scrollbar-offset', `${(pager?.offsetHeight ?? 0) - 1}px`);
+            bar.scrollLeft = scroller.scrollLeft;
+        };
+
+        // Copy only when they differ: the copy's own scroll event then finds them equal, so they never loop.
+        const follow = (from, to) => () => {
+            if (Math.abs(to.scrollLeft - from.scrollLeft) > 1) to.scrollLeft = from.scrollLeft;
+        };
+        bar.addEventListener('scroll', follow(bar, scroller), { passive: true });
+        scroller.addEventListener('scroll', follow(scroller, bar), { passive: true });
+
+        if ('ResizeObserver' in window) {
+            const observer = new ResizeObserver(size);
+            observer.observe(scroller);
+            if (scroller.firstElementChild) observer.observe(scroller.firstElementChild);
+            if (pager) observer.observe(pager);
+        }
+        size();
+    });
+}
+document.addEventListener('turbo:load', attachStickyScrollbars);
+document.addEventListener('turbo:frame-load', attachStickyScrollbars);
+attachStickyScrollbars();

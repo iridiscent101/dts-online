@@ -57,7 +57,6 @@ class DocumentIntakeTest extends TestCase
             ->assertOk();
 
         $this->assertSame('2026-10-14', $document->fresh()->received_at->toDateString());
-        $this->assertNull($document->fresh()->due_at);
     }
 
     public function test_lookup_reports_a_received_paper_copy(): void
@@ -135,9 +134,9 @@ class DocumentIntakeTest extends TestCase
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
 
-        // A full queue of dated work: before, the undated paper submission sorted last and fell outside the five rows.
-        foreach (range(1, 6) as $day) {
-            Document::factory()->incoming()->create(['due_at' => now()->addDays($day)->toDateString()])
+        // A full queue of other work must not displace a paper submission waiting at Records.
+        foreach (range(1, 6) as $item) {
+            Document::factory()->incoming()->create()
                 ->officeAssignments()->updateOrCreate(['office' => 'SDO-Records Unit'], ['status' => DocumentMovement::STATUS_AWAITING_RECEIPT]);
         }
         $document = $this->pendingDocument();
@@ -242,7 +241,6 @@ class DocumentIntakeTest extends TestCase
             'origin' => 'School Office',
             'current_office' => 'SDO-Records Unit',
             'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
-            'due_at' => null,
             'registered_by' => null,
         ]);
         DB::table('document_route_steps')->insert([

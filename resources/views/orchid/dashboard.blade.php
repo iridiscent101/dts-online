@@ -50,7 +50,6 @@
                         <span class="dts-count">{{ $officeQueueCount }} {{ Str::plural('action', $officeQueueCount) }}</span>
                     </div>
                 </div>
-                @php $queueVisibleRows = 5; @endphp
                 <div class="dts-table-frame">
                     <div class="dts-table-scroll">
                       <table class="dts-table dts-office-queue-table">
@@ -91,7 +90,7 @@
                                         $queueActions = $queueActions->sortBy(fn (string $office, string $action): int => array_search($action, $actionOrder, true) === false ? 99 : array_search($action, $actionOrder, true));
                                     }
                                 @endphp
-                                <tr data-office-queue-row @if ($loop->index >= $queueVisibleRows) data-office-queue-extra hidden @endif>
+                                <tr data-office-queue-row>
                                     <td><div class="dts-record-link"><div class="dts-record-code"><a href="{{ $queueDocumentUrl }}" data-workspace-url="{{ $queueWorkspaceUrl }}"><strong>{{ $document->tracking_number }}</strong></a>@include('orchid.partials.copy-button', ['text' => $document->tracking_number])</div><span>{{ $document->subject }}</span></div></td>
                                     <td>
                                         <div class="dts-office-status-list">
@@ -141,16 +140,32 @@
                       </table>
                     </div>
                 </div>
-                @php $queueHiddenRows = max(0, $officeQueue->count() - $queueVisibleRows); @endphp
-                @if ($queueHiddenRows > 0 || $officeQueueDocumentCount > $officeQueue->count())
-                    <div class="dts-queue-more">
-                        @if ($queueHiddenRows > 0)
-                            <button type="button" class="dts-button dts-button-secondary" data-office-queue-more><x-orchid-icon path="bs.chevron-down" /> Show {{ $queueHiddenRows }} more</button>
-                        @endif
-                        @if ($officeQueueDocumentCount > $officeQueue->count())
-                            <a href="{{ route('platform.documents') }}" data-office-queue-all @if ($queueHiddenRows > 0) hidden @endif>See all {{ $officeQueueDocumentCount }} documents in the registry <x-orchid-icon path="bs.chevron-right" /></a>
-                        @endif
-                    </div>
+                {{-- Pages of the queue, with the same pager and "Rows per page" as the document registry (PlatformScreen
+                     pages it by queue_page and queue_per_page). It stays at the bottom of the window while the queue is
+                     on screen (dts.css .dts-queue-pager). --}}
+                @if ($officeQueueDocumentCount > min($queuePageSizes))
+                    @php
+                        $queuePaginator = (new \Illuminate\Pagination\LengthAwarePaginator($officeQueue, $officeQueueDocumentCount, $queuePerPage, $queuePage, [
+                            'path' => route('platform.main'),
+                            'pageName' => 'queue_page',
+                        ]))->appends(array_filter(['queue_per_page' => $queuePerPage === 25 ? null : $queuePerPage]))->fragment('office-queue-title')->onEachSide(1);
+                        $queueFirst = ($queuePage - 1) * $queuePerPage + 1;
+                        $queueLast = min($queuePage * $queuePerPage, $officeQueueDocumentCount);
+                    @endphp
+                    <nav class="dts-queue-pager" aria-label="Action queue pages">
+                        <p class="dts-queue-pager-count" role="status">Showing {{ $queueFirst }}–{{ $queueLast }} of {{ $officeQueueDocumentCount }} documents</p>
+                        <div class="dts-queue-pager-controls">
+                            <div class="dts-page-size-toolbar">
+                                <label for="queue-page-size">Rows per page</label>
+                                <select id="queue-page-size" data-queue-page-size data-queue-url="{{ route('platform.main') }}">
+                                    @foreach ($queuePageSizes as $queuePageSize)
+                                        <option value="{{ $queuePageSize }}" @selected($queuePerPage === $queuePageSize)>{{ $queuePageSize }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            {{ $queuePaginator->links('platform::partials.pagination') }}
+                        </div>
+                    </nav>
                 @endif
             </div>
             @endunless

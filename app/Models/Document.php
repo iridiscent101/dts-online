@@ -701,7 +701,6 @@ class Document extends Model
     {
         return [
             'received_at' => 'date',
-            'due_at' => 'date',
         ];
     }
 }

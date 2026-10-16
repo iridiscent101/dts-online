@@ -93,7 +93,6 @@ class WorkflowGuidanceTest extends TestCase
             'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
             'current_office' => 'SDO-Records Unit',
             'received_at' => null,
-            'due_at' => null,
         ]);
         Document::factory()->received()->create(['tracking_number' => 'DTS-MOVING']);
 

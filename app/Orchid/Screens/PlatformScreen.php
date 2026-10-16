@@ -20,8 +20,11 @@ use Orchid\Support\Facades\Layout;
 
 class PlatformScreen extends Screen
 {
-    /** Documents the dashboard queue holds; five show at first, the rest behind "Show more". */
+    /** Documents per dashboard queue page; five show at first, the rest behind "Show more". */
     private const OFFICE_QUEUE_LIMIT = 25;
+
+    // "Rows per page" choices for the dashboard queue, as in the document registry.
+    private const OFFICE_QUEUE_PAGE_SIZES = [10, 25, 50, 100];
 
     // Sent to an office that has not received it yet ("Pending · Not received yet").
     private const NOT_RECEIVED_STATUSES = [
@@ -58,6 +61,11 @@ class PlatformScreen extends Screen
             $visibleDocuments = Document::query()->visibleTo($user);
             $officeQueueQuery = $this->officeQueueQuery($user, $offices, $isAdministrator);
             $officeQueueCounts = $this->officeQueueCounts($officeQueueQuery);
+            $officeQueueDocumentCount = (int) ($officeQueueCounts->documents ?? 0);
+            $queuePerPage = request()->integer('queue_per_page', self::OFFICE_QUEUE_LIMIT);
+            $queuePerPage = in_array($queuePerPage, self::OFFICE_QUEUE_PAGE_SIZES, true) ? $queuePerPage : self::OFFICE_QUEUE_LIMIT;
+            $queueLastPage = max(1, (int) ceil($officeQueueDocumentCount / $queuePerPage));
+            $queuePage = min(max(1, request()->integer('queue_page', 1)), $queueLastPage);
             $canConfirmPaperIntake = $user->canConfirmPaperIntake();
             $isReadOnlySupervisor = $user->isReadOnlySupervisor();
 
@@ -67,9 +75,13 @@ class PlatformScreen extends Screen
                 'workspaceOffice' => $canViewAllDocuments
                     ? 'All offices'
                     : ($offices->isNotEmpty() ? $offices->join(', ') : 'No office assigned'),
-                'officeQueue' => $this->officeQueueItems($officeQueueQuery),
+                'officeQueue' => $this->officeQueueItems($officeQueueQuery, $queuePage, $queuePerPage),
                 'officeQueueCount' => (int) ($officeQueueCounts->total ?? 0),
-                'officeQueueDocumentCount' => (int) ($officeQueueCounts->documents ?? 0),
+                'officeQueueDocumentCount' => $officeQueueDocumentCount,
+                'queuePage' => $queuePage,
+                'queueLastPage' => $queueLastPage,
+                'queuePerPage' => $queuePerPage,
+                'queuePageSizes' => self::OFFICE_QUEUE_PAGE_SIZES,
                 // Summary cards: what is waiting for the office, what it sent that is still waiting elsewhere, and what it
                 // finished this month. Records also sees paper waiting at the counter.
                 'notReceivedCount' => (int) ($officeQueueCounts->not_received ?? 0),
@@ -115,10 +127,22 @@ class PlatformScreen extends Screen
         $filterError = $filters['from'] !== '' && $filters['to'] !== '' && $filters['to'] < $filters['from']
             ? 'The end date must be on or after the start date.'
             : '';
+        $needsAction = $section === 'documents' && request()->boolean('needs_action');
 
         $documents = Document::query()
             ->with('officeAssignments')
             ->visibleTo($user)
+            ->when($needsAction, function (Builder $query) use ($user): Builder {
+                if ($user->isReadOnlySupervisor()) {
+                    return $query->whereKey(-1);
+                }
+
+                $offices = $user->assignedOfficeNames();
+
+                return $query->whereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments
+                    ->whereIn('status', self::OFFICE_ACTION_STATUSES)
+                    ->when(! $user->isAdministrator(), fn (Builder $assignments): Builder => $assignments->whereIn('office', $offices)));
+            })
             ->when(
                 ! $user->isAdministrator() && ! $user->hasAccess('platform.documents.view-all') && $section !== 'documents',
                 fn (Builder $query): Builder => $this->applyOfficeSection($query, $user, $section),
@@ -128,12 +152,15 @@ class PlatformScreen extends Screen
             ->when($filterError !== '', fn (Builder $query): Builder => $query->whereKey(-1))
             ->filters()
             ->defaultSort('received_at', 'desc')
-            ->paginate($this->perPage());
+            ->when($needsAction, fn (Builder $query): Builder => $query->orderByDesc('documents.id'))
+            ->paginate($this->perPage())
+            ->withQueryString();
 
         return [
             'section' => $section,
             'documents' => $documents,
             'documentCount' => $documents->total(),
+            'needsAction' => $needsAction,
             'filterValues' => $filters,
             'filterError' => $filterError,
             'typeOptions' => $typeOptions,
@@ -288,7 +315,7 @@ class PlatformScreen extends Screen
      *
      * @return Collection<int, array{document: Document, offices: Collection<int, array{office: string, status: string, action: string}>}>
      */
-    private function officeQueueItems(Builder $officeQueueQuery): Collection
+    private function officeQueueItems(Builder $officeQueueQuery, int $page, int $perPage = self::OFFICE_QUEUE_LIMIT): Collection
     {
         $documentIds = (clone $officeQueueQuery)
             ->join('documents', 'documents.id', '=', 'document_office_assignments.document_id')
@@ -298,7 +325,9 @@ class PlatformScreen extends Screen
             ->groupBy('document_office_assignments.document_id', 'documents.updated_at')
             ->orderByRaw('MAX(CASE WHEN document_office_assignments.status = ? THEN 1 ELSE 0 END) DESC', [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT])
             ->orderByDesc('documents.updated_at')
-            ->limit(self::OFFICE_QUEUE_LIMIT)
+            ->orderByDesc('document_office_assignments.document_id')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
             ->pluck('document_id')
             ->map(fn (int|string $documentId): int => (int) $documentId);
 

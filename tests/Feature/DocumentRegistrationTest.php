@@ -103,7 +103,7 @@ class DocumentRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_registration_does_not_create_a_due_date(): void
+    public function test_registration_ignores_removed_due_and_priority_fields(): void
     {
         $user = User::factory()->create([
             'office' => 'Records Unit',
@@ -122,7 +122,6 @@ class DocumentRegistrationTest extends TestCase
 
         // Priority is no longer chosen; a sent value is ignored and new documents are saved as "Standard".
         $this->assertSame('Standard', $document->priority);
-        $this->assertNull($document->due_at);
     }
 
     public function test_registration_rejects_unsupported_attachments(): void
@@ -520,7 +519,6 @@ class DocumentRegistrationTest extends TestCase
             'origin' => 'Regional Office',
             'sender' => 'Records Officer',
             'received' => '2026-09-23',
-            'due' => '2026-09-30',
             'destination' => 'Records Unit',
             'destinations' => ['Records Unit', 'Administrative Unit', 'Curriculum Implementation Division'],
             'priority' => 'Extended',

@@ -22,7 +22,7 @@ class LogoutInactiveStaff
 
     public static function idleSeconds(): int
     {
-        return max(1, (int) config('session.idle_minutes', 30)) * 60;
+        return max(1, (int) config('session.idle_minutes', 15)) * 60;
     }
 
     public function handle(Request $request, Closure $next): Response
@@ -33,7 +33,7 @@ class LogoutInactiveStaff
 
         $lastActivity = $request->session()->get(self::SESSION_KEY);
 
-        if ($lastActivity !== null && now()->getTimestamp() - (int) $lastActivity > self::idleSeconds()) {
+        if ($lastActivity !== null && now()->getTimestamp() - (int) $lastActivity >= self::idleSeconds()) {
             return self::signOut($request);
         }
 

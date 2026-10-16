@@ -321,7 +321,6 @@ class DocumentNotificationTest extends TestCase
                 'origin' => $document->origin,
                 'sender' => $document->sender,
                 'received' => $document->received_at->toDateString(),
-                'due' => $document->due_at?->toDateString(),
                 'priority' => $document->priority,
             ],
         ])->assertRedirectToRoute('platform.documents.view', $document);

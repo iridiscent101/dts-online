@@ -108,7 +108,7 @@ class DocumentLabelTest extends TestCase
         $latestStaff->signature_path = UploadedFile::fake()->image('latest.png')->store('staff-signatures', 'local');
         $earlierStaff->save();
         $latestStaff->save();
-        $document = Document::factory()->create();
+        $document = Document::factory()->received()->create();
         DocumentMovement::factory()->for($document)->for($earlierStaff, 'actor')->create();
         $this->travel(1)->second();
         DocumentMovement::factory()->for($document)->for($latestStaff, 'actor')->create();
@@ -120,6 +120,31 @@ class DocumentLabelTest extends TestCase
             'data:image/png;base64,'.base64_encode(Storage::disk('local')->get($latestStaff->signature_path)),
             $details['processedBySignatureDataUri'],
         );
+    }
+
+    public function test_label_hides_signature_until_the_document_is_received(): void
+    {
+        Storage::fake('local');
+        $registrar = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $registrar->signature_path = UploadedFile::fake()->image('signature.png')->store('staff-signatures', 'local');
+        $registrar->save();
+
+        foreach ([DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, DocumentMovement::STATUS_AWAITING_RECEIPT] as $status) {
+            $document = Document::factory()->create([
+                'current_office' => 'Records Unit',
+                'registered_by' => $registrar->id,
+                'status' => $status,
+            ]);
+
+            $this->actingAs($registrar)
+                ->get(route('platform.documents.label', $document))
+                ->assertOk()
+                ->assertDontSee('<dt>Sign</dt>', false)
+                ->assertDontSee('class="dts-tracking-label-signature"', false);
+        }
     }
 
     public function test_tracking_qr_code_carries_the_sdo_seal(): void

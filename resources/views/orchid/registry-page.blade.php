@@ -25,6 +25,9 @@
                 </nav>
                 <span class="dts-count">{{ $documentCount }} {{ Str::plural('record', $documentCount) }}</span>
             </div>
+            @if ($needsAction)
+                <p>{{ request()->user()?->isAdministrator() ? 'Needs action across all offices' : 'Needs action for your office' }} · <a href="{{ route('platform.documents') }}" data-turbo-frame="_top">Show all documents</a></p>
+            @endif
 
             <dts-document-filters class="dts-registry-controls" data-section="{{ $section }}">
                 {!! $controls !!}

@@ -88,6 +88,28 @@ class DocumentWorkspaceTest extends TestCase
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
     }
 
+    public function test_records_only_route_can_be_released_after_receipt_from_the_office_queue(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
+
+        $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('"released":"Release"', false);
+
+        $this->get(route('platform.main'))
+            ->assertSee('data-workspace-action="released"', false);
+
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+    }
+
     public function test_records_only_paper_receipt_can_complete_without_recording_a_release(): void
     {
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
@@ -674,7 +696,6 @@ class DocumentWorkspaceTest extends TestCase
             'origin' => 'Records Unit',
             'sender' => 'Test sender',
             'received' => '2026-10-01',
-            'due' => '2026-10-12',
             'priority' => 'Urgent',
         ];
     }

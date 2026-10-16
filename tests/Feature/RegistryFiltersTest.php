@@ -65,6 +65,44 @@ class RegistryFiltersTest extends TestCase
             ->assertDontSee('Last updated');
     }
 
+    public function test_dashboard_action_queue_pages_keep_quick_actions_for_the_users_office_only(): void
+    {
+        Document::factory()->count(27)->incoming()->create(['current_office' => 'Records Unit']);
+        $finished = $this->document('DTS-FINISHED');
+        $finished->officeAssignments()->where('office', 'Records Unit')->update(['status' => 'Completed']);
+        $this->document('DTS-OTHER-OFFICE', ['current_office' => 'Administrative Unit']);
+
+        $firstPage = $this->actingAs($this->user)->get(route('platform.main'))
+            ->assertOk()
+            ->assertSee(route('platform.main', ['queue_page' => 2]), false)
+            ->assertSee('Showing 1–25 of 27 documents')
+            ->assertSee('data-receive-routes', false)
+            ->assertDontSee('DTS-OTHER-OFFICE');
+
+        $this->assertSame(25, substr_count($firstPage->getContent(), 'data-office-queue-row'));
+
+        $secondPage = $this->actingAs($this->user)->get(route('platform.main', ['queue_page' => 2]))
+            ->assertOk()
+            ->assertSee('Showing 26–27 of 27 documents')
+            ->assertSee(route('platform.main', ['queue_page' => 1]), false)
+            ->assertSee('data-receive-routes', false)
+            ->assertDontSee('DTS-OTHER-OFFICE')
+            ->assertDontSee('DTS-FINISHED');
+
+        $this->assertSame(2, substr_count($secondPage->getContent(), 'data-office-queue-row'));
+
+        $this->registry(['needs_action' => 1, 'per_page' => 10, 'page' => 3])
+            ->assertSee('Needs action for your office')
+            ->assertSee('Displayed records: 21-27 of 27')
+            ->assertSee('needs_action=1', false)
+            ->assertDontSee('DTS-FINISHED')
+            ->assertDontSee('DTS-OTHER-OFFICE');
+
+        $this->registry(['per_page' => 50])
+            ->assertSee('DTS-FINISHED')
+            ->assertSee('DTS-OTHER-OFFICE');
+    }
+
     private function document(string $trackingNumber, array $attributes = []): Document
     {
         return Document::factory()->create([

@@ -55,9 +55,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertSame('Awaiting receipt', $document->status);
         $this->assertSame('Request', $document->document_type);
         $this->assertSame('Standard', $document->priority);
-        $this->assertNull($document->due_at);
         $this->assertSame('SDO-Records Unit', $document->current_office);
-        $this->assertNull($document->client_employee_number);
         $this->assertSame('Alex Rivera', $document->sender);
         $this->assertSame('School Office', $document->origin);
         $this->assertSame('Hand carry', $document->delivery_method);
@@ -170,7 +168,6 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertSame(DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, $document->status);
         $this->assertNull($document->received_at);
         $this->assertNull($document->registered_by);
-        $this->assertNull($document->due_at);
         $this->assertSame(0, $document->attachments()->count());
         $this->assertDatabaseCount('attachments', 0);
         $this->assertDatabaseHas('document_office_assignments', [
@@ -229,7 +226,6 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->status);
         $this->assertSame($recordsStaff->id, $document->registered_by);
         $this->assertSame('2026-10-15', $document->received_at->toDateString());
-        $this->assertNull($document->due_at);
         $this->assertDatabaseCount('document_route_steps', 0);
         $this->assertDatabaseCount('document_movements', 2);
         $this->assertDatabaseCount('document_office_assignments', 1);

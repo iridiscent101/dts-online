@@ -101,7 +101,7 @@ class RoutingControlsUiTest extends TestCase
         $user = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
         $user->signature_path = UploadedFile::fake()->image('signature.png', 300, 100)->store('staff-signatures', 'local');
         $user->save();
-        $document = Document::factory()->create(['current_office' => 'Records Unit']);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
         DocumentMovement::factory()->for($document)->for($user, 'actor')->create();
 
         $this->actingAs($user)
