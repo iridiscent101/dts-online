@@ -25,7 +25,8 @@ class DocumentRemarkController extends Controller
         ]);
         $office = trim($data['office']);
         $remark = trim($data['remark']);
-        abort_unless($user->isAssignedToOffice($office), 403);
+        // Same rule as routing (DocumentRoutingService::workflowStates): administrators act for any office on the document.
+        abort_unless($user->isAdministrator() || $user->isAssignedToOffice($office), 403);
         abort_if($remark === '', 422, 'Enter a remark.');
 
         DB::transaction(function () use ($document, $user, $office, $remark): void {

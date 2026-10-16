@@ -1587,16 +1587,6 @@ class WorkflowRouting extends HTMLElement {
         this.toggleAttribute('data-receive-only', this.receiveOnly);
         if (this.actionChoices) this.actionChoices.hidden = this.receiveOnly;
 
-        let note = this.querySelector('[data-receive-first]');
-        if (this.receiveOnly && !note) {
-            note = document.createElement('p');
-            note.className = 'dts-receive-first';
-            note.dataset.receiveFirst = '';
-            note.textContent = 'Receive this document first. Forward, Complete and Release appear after your office receives it.';
-            (this.actionChoices ?? this.querySelector('[data-workflow-action]')?.closest('label, .dts-field'))?.before(note);
-        }
-        if (note) note.hidden = !this.receiveOnly;
-
         const submit = this.parentElement?.querySelector('[data-workflow-submit-label]')?.closest('button');
         if (!submit) return;
         submit.classList.toggle('dts-button-receive', this.receiveOnly);
@@ -1918,35 +1908,90 @@ document.addEventListener('click', async (event) => {
     window.location.reload();
 });
 
-// Profile: signature picture for QR labels (orchid/profile-account). Checked here first, then UserSignatureController
-// validates it again; the preview shows the chosen picture before it is saved.
-document.addEventListener('change', (event) => {
+// Profile: signature picture for QR labels (orchid/profile-signature). A picture over the server's limits
+// (UserSignatureController: 1200 x 600 pixels, 256 KB) is shrunk here to fit, keeping its shape, so staff do not have to
+// resize a phone photo themselves; the preview shows exactly what will be saved.
+const SIGNATURE_MAX = { width: 1200, height: 600, bytes: 256 * 1024 };
+
+function loadSignatureImage(file) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        const url = URL.createObjectURL(file);
+        image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
+        image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('unreadable')); };
+        image.src = url;
+    });
+}
+
+async function fitSignature(file) {
+    const image = await loadSignatureImage(file);
+    const scale = Math.min(1, SIGNATURE_MAX.width / image.naturalWidth, SIGNATURE_MAX.height / image.naturalHeight);
+    if (scale === 1 && file.size <= SIGNATURE_MAX.bytes) return { file, resized: false };
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const encode = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+    // PNG keeps a clear background; a large photo becomes JPEG on white, which stays under the size limit.
+    let blob = await encode('image/png');
+    if (!blob || blob.size > SIGNATURE_MAX.bytes) {
+        context.globalCompositeOperation = 'destination-over';
+        context.fillStyle = '#fff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        for (const quality of [0.9, 0.8, 0.7, 0.6]) {
+            blob = await encode('image/jpeg', quality);
+            if (blob && blob.size <= SIGNATURE_MAX.bytes) break;
+        }
+    }
+    if (!blob || blob.size > SIGNATURE_MAX.bytes) throw new Error('too-large');
+    const name = file.name.replace(/\.[^.]+$/, '') + (blob.type === 'image/png' ? '.png' : '.jpg');
+
+    return { file: new File([blob], name, { type: blob.type }), resized: true, width: canvas.width, height: canvas.height };
+}
+
+document.addEventListener('change', async (event) => {
     const input = event.target.closest('[data-profile-signature-file]');
     if (!input) return;
     const section = input.closest('[data-profile-signature]');
     const errors = section.querySelector('[data-profile-signature-errors]');
+    const status = section.querySelector('[data-profile-signature-status]');
     const save = section.querySelector('[data-profile-signature-save]');
     const file = input.files[0];
-    section.querySelector('[data-profile-signature-status]').textContent = '';
+    section.signatureFile = null;
+    status.textContent = '';
     errors.hidden = true;
     save.disabled = true;
     if (!file) return;
 
-    const problem = !['image/png', 'image/jpeg', 'image/webp'].includes(file.type) ? 'Choose a PNG, JPG or WebP picture.'
-        : file.size > 256 * 1024 ? 'This picture is larger than 256 KB. Choose a smaller one.'
-            : null;
-    if (problem) {
-        errors.textContent = problem;
+    const showProblem = (message) => {
+        errors.textContent = message;
         errors.hidden = false;
+    };
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+        showProblem('Choose a PNG, JPG or WebP picture.');
         return;
     }
 
+    let fitted;
+    try {
+        fitted = await fitSignature(file);
+    } catch (error) {
+        showProblem(error.message === 'too-large'
+            ? 'This picture is too detailed to make small enough. Crop it closer to the signature and try again.'
+            : 'This picture could not be opened. Choose another one.');
+        return;
+    }
+
+    section.signatureFile = fitted.file;
     const preview = section.querySelector('[data-profile-signature-preview]');
     const image = document.createElement('img');
     image.alt = 'Chosen signature, not saved yet';
     image.dataset.profileSignatureImage = '';
-    image.src = URL.createObjectURL(file);
+    image.src = URL.createObjectURL(fitted.file);
     preview.replaceChildren(image);
+    if (fitted.resized) status.textContent = `Resized to ${fitted.width} × ${fitted.height} pixels to fit. Press Save signature to keep it.`;
     save.disabled = false;
 });
 
@@ -1955,10 +2000,11 @@ document.addEventListener('click', async (event) => {
     if (!save) return;
     const section = save.closest('[data-profile-signature]');
     const input = section.querySelector('[data-profile-signature-file]');
-    if (!input.files[0]) return;
+    const signature = section.signatureFile ?? input.files[0];
+    if (!signature) return;
 
     const data = new FormData();
-    data.append('signature', input.files[0]);
+    data.append('signature', signature);
     const result = await postWorkspace(section.dataset.uploadUrl, data, section.querySelector('[data-profile-signature-errors]'), save);
     if (!result) return;
 
@@ -1968,6 +2014,7 @@ document.addEventListener('click', async (event) => {
         image.alt = 'Your saved signature';
     }
     input.value = '';
+    section.signatureFile = null;
     save.disabled = true;
     section.querySelector('[data-profile-signature-status]').textContent = 'Signature saved. New labels will show it.';
 });

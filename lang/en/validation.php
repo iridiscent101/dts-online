@@ -3,6 +3,16 @@
 // Field names in validation messages, so staff read "The office name field is required." instead of "office.name".
 // Laravel's own messages are kept; only these names are added.
 return [
+    // The signature picture: plain limits instead of Laravel's "invalid image dimensions".
+    'custom' => [
+        'signature' => [
+            'dimensions' => 'The signature picture can be at most 1200 × 600 pixels. Choose a smaller picture.',
+            'max' => 'The signature picture can be at most 256 KB. Choose a smaller picture.',
+            'image' => 'The signature must be a picture (PNG, JPG or WebP).',
+            'mimes' => 'The signature must be a PNG, JPG or WebP picture.',
+        ],
+    ],
+
     'attributes' => [
         'office.name' => 'office name',
         'office.sort_order' => 'display order',
