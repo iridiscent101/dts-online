@@ -7150,11 +7150,10 @@ body .invalid-feedback {
     overflow: hidden;
     border-radius: 16px;
     background:
-        radial-gradient(circle at 8% 20%, rgb(33 110 57 / 55%), transparent 42%),
-        radial-gradient(circle at 55% 0%, rgb(242 194 48 / 55%), transparent 40%),
-        radial-gradient(circle at 95% 85%, rgb(31 95 139 / 45%), transparent 45%),
-        radial-gradient(circle at 35% 110%, rgb(134 86 45 / 35%), transparent 40%),
-        linear-gradient(135deg, #eef4ec, #f8f1dc);
+        radial-gradient(circle at 10% 30%, rgb(33 110 57 / 22%), transparent 45%),
+        radial-gradient(circle at 50% 0%, rgb(242 194 48 / 25%), transparent 45%),
+        radial-gradient(circle at 92% 80%, rgb(31 95 139 / 20%), transparent 45%),
+        linear-gradient(135deg, #f4f8f2, #fbf6e8);
     list-style: none;
 }
 
@@ -7165,14 +7164,17 @@ body .invalid-feedback {
 
 .dts-metrics-bold .dts-metric {
     --dts-metric-tone: var(--dts-green);
+    --dts-metric-tint: 232 241 230;
     display: flex;
     flex: 1;
     flex-direction: column;
     min-height: 0;
     padding: 12px 14px;
-    border: 1px solid rgb(255 255 255 / 70%);
+    border: 1px solid rgb(255 255 255 / 75%);
+    border-top: 3px solid var(--dts-metric-tone);
     border-radius: 12px;
-    background: rgb(255 255 255 / 62%);
+    /* Each card's own light colour, as frosted glass. */
+    background: linear-gradient(145deg, rgb(var(--dts-metric-tint) / 88%), rgb(255 255 255 / 55%));
     -webkit-backdrop-filter: blur(14px) saturate(140%);
     backdrop-filter: blur(14px) saturate(140%);
     box-shadow: 0 4px 16px rgb(38 51 43 / 10%), inset 0 1px 0 rgb(255 255 255 / 80%);
@@ -7182,7 +7184,7 @@ body .invalid-feedback {
 }
 
 .dts-metrics-bold .dts-metric:hover {
-    background: rgb(255 255 255 / 78%);
+    background: linear-gradient(145deg, rgb(var(--dts-metric-tint) / 100%), rgb(255 255 255 / 70%));
     box-shadow: 0 8px 22px rgb(38 51 43 / 16%), inset 0 1px 0 rgb(255 255 255 / 90%);
     transform: translateY(-2px);
 }
@@ -7202,7 +7204,7 @@ body .invalid-feedback {
 
 /* Browsers without blur get solid near-white cards, so the text stays readable. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .dts-metrics-bold .dts-metric { background: rgb(255 255 255 / 92%); }
+    .dts-metrics-bold .dts-metric { background: rgb(var(--dts-metric-tint)); }
 }
 
 .dts-metrics-bold .dts-metric-heading > span:first-child {
@@ -7239,11 +7241,11 @@ body .invalid-feedback {
     line-height: 1.35;
 }
 
-.dts-metrics-bold .dts-metric-green { --dts-metric-tone: #216e39; }
-.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: #765709; }
-.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: #86562d; }
-.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: #1f5f8b; }
-.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: #0f6b66; }
+.dts-metrics-bold .dts-metric-green { --dts-metric-tone: #216e39; --dts-metric-tint: 220 238 222; }
+.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: #765709; --dts-metric-tint: 252 239 196; }
+.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: #86562d; --dts-metric-tint: 243 228 212; }
+.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: #1f5f8b; --dts-metric-tint: 219 233 245; }
+.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: #0f6b66; --dts-metric-tint: 213 238 235; }
 
 /* No card left alone on a row: five cards put the two most urgent on top (larger), four go two by two; wide
    screens fit them all in one row. */
@@ -7258,8 +7260,8 @@ body .invalid-feedback {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-/* One row only on very wide screens: the sidebar takes about 260px, and labels must not break into three lines. */
-@media (min-width: 1600px) {
+/* One row from laptop width up; narrower tablets use the two-row layout above. */
+@media (min-width: 992px) {
     .dts-metrics.dts-metrics-bold[data-metric-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .dts-metrics-bold[data-metric-count="5"] > li,
     .dts-metrics-bold[data-metric-count="5"] > li:nth-child(-n+2) { grid-column: auto; }
