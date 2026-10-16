@@ -7,6 +7,7 @@ use App\Models\DocumentMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -52,6 +53,22 @@ class RoutingControlsUiTest extends TestCase
         $this->get(route('platform.documents'))
             ->assertOk()
             ->assertDontSee('to another office');
+    }
+
+    public function test_outgoing_list_runs_no_distinct_query_with_an_order_by(): void
+    {
+        // MySQL (the online database) rejects DISTINCT with ORDER BY on an unselected column; SQLite allows it, so
+        // the query text is checked here instead.
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $this->forwardedDocument();
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $this->actingAs($sender)->get(route('platform.outgoing'))->assertOk();
+
+        $this->assertEmpty(array_filter($queries, fn (string $sql): bool => str_contains($sql, 'select distinct') && str_contains($sql, 'order by')));
     }
 
     public function test_finished_documents_cannot_get_another_office(): void
