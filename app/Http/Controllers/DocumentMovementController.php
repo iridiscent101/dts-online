@@ -60,9 +60,9 @@ class DocumentMovementController extends Controller
                         ]);
                     }
                     $notifications->assigned($document, $dispatch['action'], $user, $dispatch['offices']);
-                    $transition['message'] = 'Paper document received by Records Unit and sent to '.collect($dispatch['offices'])->join(', ', ' and ').'.';
+                    $transition['message'] = 'Document received by Records Unit and sent to '.collect($dispatch['offices'])->join(', ', ' and ').'.';
                 } else {
-                    $transition['message'] = 'Paper document received by Records Unit.';
+                    $transition['message'] = 'Document received by Records Unit.';
                 }
 
                 DB::table('document_route_steps')->where('document_id', $document->id)->delete();

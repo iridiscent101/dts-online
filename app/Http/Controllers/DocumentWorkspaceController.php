@@ -62,7 +62,7 @@ class DocumentWorkspaceController extends Controller
     }
 
     /**
-     * @return array{history: Collection<int, mixed>, historyHasMore: bool, historyPage: int, historyOffice: ?string, historyShown: int, historyTotal: int}
+     * @return array{document: Document, history: Collection<int, mixed>, historyHasMore: bool, historyPage: int, historyOffice: ?string, historyShown: int, historyTotal: int}
      */
     private function historyPage(Document $document, User $user, int $page, ?string $office): array
     {
@@ -75,7 +75,7 @@ class DocumentWorkspaceController extends Controller
             ->reorder();
         $activities = $document->activities()
             ->whereIn('description', Document::AUDIT_DESCRIPTIONS)
-            ->when($offices !== null, fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->where('description', '!=', 'Document routes updated')->orWhereIn('properties->office', $offices)->orWhereIn('properties->from_office', $offices)->orWhereIn('properties->to_office', $offices)))
+            ->when($offices !== null, fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->whereNotIn('description', ['Document routes updated', 'Document route corrected'])->orWhereIn('properties->office', $offices)->orWhereIn('properties->from_office', $offices)->orWhereIn('properties->to_office', $offices)))
             ->reorder();
         $remarks = $document->activities()
             ->where('description', 'Remark added')
@@ -102,6 +102,7 @@ class DocumentWorkspaceController extends Controller
             : $activityEvents->get($row->id));
 
         return [
+            'document' => $document,
             'history' => $events,
             'historyHasMore' => $rows->count() > self::HISTORY_PAGE_SIZE,
             'historyPage' => $page,

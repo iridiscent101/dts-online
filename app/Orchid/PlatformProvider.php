@@ -37,7 +37,7 @@ class PlatformProvider extends OrchidServiceProvider
             Menu::make('All documents')->icon('bs.files')->route('platform.documents')->title('DOCUMENT REGISTRY'),
             Menu::make('Incoming')->icon('bs.inbox')->route('platform.incoming'),
             Menu::make('Outgoing')->icon('bs.send')->route('platform.outgoing'),
-            Menu::make('Finished')->icon('bs.check2-circle')->route('platform.archived')
+            Menu::make('Archived')->icon('bs.check2-circle')->route('platform.archived')
                 ->divider(),
 
             Menu::make(__('Users'))

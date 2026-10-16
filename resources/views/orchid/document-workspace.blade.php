@@ -69,7 +69,7 @@
                     <div><dt>{{ $label }}</dt><dd>{{ filled($value) ? $value : '—' }}</dd></div>
                 @endforeach
                 @if (filled($document->delivery_method))
-                    <div><dt>Delivery</dt><dd>{{ $document->delivery_method }}</dd></div>
+                    <div><dt>Mode of submission</dt><dd>{{ $document->delivery_method }}</dd></div>
                 @endif
                 <div>
                     <dt>Date received</dt>
@@ -88,10 +88,11 @@
             @endif
             </div>
             @if ($document->canBeEditedBy(request()->user()))
+                @php($detailsLocked = $document->detailsRequireUnlockFor(request()->user()))
                 <div class="dts-workspace-editor" data-workspace-editor data-save-url="{{ route('platform.documents.edit', $document).'/save' }}" hidden>
                     <div class="dts-workspace-form-errors" data-workspace-form-errors role="alert" hidden></div>
                     <p class="dts-required-note dts-editor-required-note">Fields marked * are required.</p>
-                    @if ($document->detailsAreLocked())
+                    @if ($detailsLocked)
                         {{-- The detail fields below start read-only; "Unlock details" (dts.js) asks for the reason and frees them. --}}
                         <div class="dts-details-lock" data-details-lock>
                             <button type="button" class="dts-button dts-button-secondary" data-unlock-details><x-orchid-icon path="bs.unlock" /> Unlock details</button>
@@ -103,29 +104,29 @@
                          Separate from the route fingerprint in the route editor. --}}
                     <input type="hidden" name="document[details_fingerprint]" value="{{ $document->detailsFingerprint() }}">
                     <input type="hidden" name="document[reference]" value="{{ $document->external_reference }}">
-                    <div class="dts-workspace-fields" @if ($document->detailsAreLocked()) data-locked-fields @endif>
-                        <label><span>Document title <span aria-hidden="true">*</span></span><input name="document[title]" value="{{ $document->subject }}" required maxlength="255" @readonly($document->detailsAreLocked())></label>
+                    <div class="dts-workspace-fields" @if ($detailsLocked) data-locked-fields @endif>
+                        <label><span>Document title <span aria-hidden="true">*</span></span><input name="document[title]" value="{{ $document->subject }}" required maxlength="255" @readonly($detailsLocked)></label>
                         <div class="dts-workspace-field"><label for="workspace-document-type">Document type <span aria-hidden="true">*</span></label>
                             <dts-searchable>
-                                <input id="workspace-document-type" name="document[type]" data-searchable data-options="workspace-document-types" role="combobox" aria-autocomplete="list" aria-expanded="false" value="{{ $document->document_type }}" placeholder="Search document types" autocomplete="off" required @readonly($document->detailsAreLocked())>
+                                <input id="workspace-document-type" name="document[type]" data-searchable data-options="workspace-document-types" role="combobox" aria-autocomplete="list" aria-expanded="false" value="{{ $document->document_type }}" placeholder="Search document types" autocomplete="off" required @readonly($detailsLocked)>
                                 <div data-suggestions role="listbox" hidden></div>
                             </dts-searchable>
                             <datalist id="workspace-document-types">@foreach (array_unique([...\App\Models\Document::typeOptions(), $document->document_type]) as $type)<option value="{{ $type }}"></option>@endforeach</datalist>
                         </div>
                         <div class="dts-workspace-field"><label for="workspace-document-origin">Originating office / school <span aria-hidden="true">*</span></label>
                             <dts-searchable>
-                                <input id="workspace-document-origin" name="document[origin]" data-searchable data-options="workspace-origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" value="{{ $document->origin }}" placeholder="Search or enter office or school" autocomplete="off" required maxlength="180" @readonly($document->detailsAreLocked())>
+                                <input id="workspace-document-origin" name="document[origin]" data-searchable data-options="workspace-origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" value="{{ $document->origin }}" placeholder="Search or enter office or school" autocomplete="off" required maxlength="180" @readonly($detailsLocked)>
                                 <div data-suggestions role="listbox" hidden></div>
                             </dts-searchable>
                             <datalist id="workspace-origin-units">@foreach (\App\Models\Document::originOptions() as $originOption)<option value="{{ $originOption }}"></option>@endforeach</datalist>
                         </div>
-                        <label><span>Sender <span aria-hidden="true">*</span></span><input name="document[sender]" value="{{ $document->sender }}" required maxlength="180" @readonly($document->detailsAreLocked())></label>
+                        <label><span>Sender <span aria-hidden="true">*</span></span><input name="document[sender]" value="{{ $document->sender }}" required maxlength="180" @readonly($detailsLocked)></label>
                         {{-- A paper submission has no received date until Records confirms the paper copy. --}}
-                        <label><span>Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</span><input type="date" name="document[received]" value="{{ $document->received_at?->toDateString() }}" @readonly($document->detailsAreLocked()) @required($document->received_at !== null) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
+                        <label><span>Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</span><input type="date" name="document[received]" value="{{ $document->received_at?->toDateString() }}" @readonly($detailsLocked) @required($document->received_at !== null) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
                         @if ($document->received_at === null)
-                            <p id="workspace-dates-pending" class="dts-field-hint dts-workspace-field-wide">Not received yet. The date is set when the Records Unit confirms the paper copy.</p>
+                            <p id="workspace-dates-pending" class="dts-field-hint dts-workspace-field-wide">Not received yet. The date is set when the Records Unit receives the document/s.</p>
                         @endif
-                        <label class="dts-workspace-field-wide">Description<textarea name="document[description]" rows="4" maxlength="3000" @readonly($document->detailsAreLocked())>{{ $document->description }}</textarea></label>
+                        <label class="dts-workspace-field-wide">Description<textarea name="document[description]" rows="4" maxlength="3000" @readonly($detailsLocked)>{{ $document->description }}</textarea></label>
                     </div>
                     @if ($document->canEditOfficeAssignmentsBy(request()->user()) && $document->routesAreEditable())
                         <div class="dts-workspace-fields">
@@ -163,10 +164,20 @@
                 @foreach ($waitingOffices as $waitingOffice)
                     <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $waitingOffice }}" data-workspace-route-waiting data-workspace-route-history-access="{{ $canViewAllHistory || $historyOfficeNames->contains($waitingOffice) ? 'true' : 'false' }}" aria-pressed="false">
                         <span class="dts-workspace-entry-heading"><strong>{{ $waitingOffice }}</strong><span class="dts-record-status" data-status="waiting-for-paper-copy">{{ \App\Models\Document::ROUTE_WAITING_FOR_PAPER }}</span></span>
-                        <span class="dts-muted">Receives it after the paper copy reaches the Records Unit</span>
+                        <span class="dts-muted">Receives it after the document/s reach the Records Unit</span>
                     </button>
                 @endforeach
             </div>
+            {{-- Correct route: swap an office the user's office sent this to by mistake, before it receives it (dts.js). --}}
+            @php($correctableRoutes = $document->correctableRoutesFor(request()->user()))
+            @php($routeCorrection = ['url' => route('platform.documents.routes.correct', $document), 'tracking' => $document->tracking_number, 'subject' => $document->subject, 'routes' => $correctableRoutes, 'assigned' => $document->officeAssignments->pluck('office')->values(), 'list' => 'workspace-route-correction-offices'])
+            @if ($correctableRoutes->isNotEmpty())
+                <div class="dts-workspace-route-correction">
+                    <button type="button" class="dts-button dts-button-secondary" data-route-correction='@json($routeCorrection)'><x-orchid-icon path="bs.arrow-left-right" /> Correct route</button>
+                    <span class="dts-muted">Sent to the wrong office? Change it before that office receives it.</span>
+                    <datalist id="workspace-route-correction-offices">@foreach (\App\Models\Document::officeOptions() as $officeOption)<option value="{{ $officeOption }}"></option>@endforeach</datalist>
+                </div>
+            @endif
             @if ($canRoute)
                 <div class="dts-workspace-routing" data-workspace-routing data-save-url="{{ route('platform.documents.movements.store', $document) }}">
                     <p class="tw:rounded-lg tw:border tw:border-[var(--dts-border-strong)] tw:bg-[var(--dts-cream)] tw:p-4 tw:text-sm tw:text-[var(--dts-charcoal)]" data-workspace-route-readonly role="status" hidden>You don't have permission to edit this office's routing information.</p>
@@ -189,7 +200,7 @@
                                 <div data-destination-list>
                                     <div class="dts-workspace-destination" data-destination-row>
                                         <span data-destination-number>1</span>
-                                        <label>Office<input name="workflow[destinations][]" data-destination-select list="workspace-destination-offices" autocomplete="off" placeholder="Search offices"></label>
+                                        <label>Office<dts-searchable><input name="workflow[destinations][]" data-destination-select data-searchable data-options="workspace-destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" placeholder="Search offices"><div data-suggestions role="listbox" hidden></div></dts-searchable></label>
                                         <div><label data-destination-remarks-label>Remarks</label><textarea name="workflow[destination_remarks][0]" data-destination-remarks rows="2" maxlength="1000"></textarea></div>
                                         <button type="button" class="dts-button dts-button-secondary" data-remove-destination>Remove</button>
                                     </div>
@@ -198,13 +209,14 @@
                                 <template data-destination-template>
                                     <div class="dts-workspace-destination" data-destination-row>
                                         <span data-destination-number></span>
-                                        <label>Office<input name="workflow[destinations][]" data-destination-select list="workspace-destination-offices" autocomplete="off" placeholder="Search offices"></label>
+                                        <label>Office<dts-searchable><input name="workflow[destinations][]" data-destination-select data-searchable data-options="workspace-destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" autocomplete="off" placeholder="Search offices"><div data-suggestions role="listbox" hidden></div></dts-searchable></label>
                                         <div><label data-destination-remarks-label>Remarks</label><textarea data-destination-remarks rows="2" maxlength="1000"></textarea></div>
                                         <button type="button" class="dts-button dts-button-secondary" data-remove-destination>Remove</button>
                                     </div>
                                 </template>
                             </div>
                             <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea></label>
+                            <label class="dts-workspace-shared-remarks" data-release-recipient hidden><span>Name of person receiving the document <span aria-hidden="true">*</span></span><input name="workflow[released_to]" maxlength="255" autocomplete="name" required disabled></label>
                         </dts-workflow-routing>
                         <div class="dts-workspace-actions"><button type="button" class="dts-button dts-button-primary" data-workspace-routing-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span><span data-workflow-submit-label>Save routing update</span></button></div>
                         @include('orchid.partials.office-remark', ['id' => 'workspace-office-remark'])

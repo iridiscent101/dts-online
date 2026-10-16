@@ -52,7 +52,7 @@ class StoreClientDocumentSubmissionRequest extends FormRequest
             'privacy_consent.accepted' => 'Agree to the privacy notice to send your document.',
             'name.required' => 'Enter your name.',
             'office.required' => 'Enter your office.',
-            'delivery_method.required' => 'Choose how the paper copy will reach the Records Unit.',
+            'delivery_method.required' => 'Choose how the document will reach the Records Unit.',
             'delivery_method.in' => 'Choose Hand carry or Official channel.',
             'type.required' => 'Select the document type.',
             'type.in' => 'Select a recognized document type.',

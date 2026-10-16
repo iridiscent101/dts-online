@@ -11,7 +11,7 @@
 
     @php
         // Locked details open read-only; after a refused save that already had a reason, they stay unlocked.
-        $detailsLocked = $document->detailsAreLocked();
+        $detailsLocked = $document->detailsRequireUnlockFor(request()->user());
         $correctionReason = (string) old('document.correction_reason', '');
         $fieldsLocked = $detailsLocked && $correctionReason === '';
     @endphp
@@ -76,7 +76,7 @@
                     <label for="document-received">Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</label>
                     <input id="document-received" name="document[received]" type="date" @required($document->received_at !== null) value="{{ old('document.received', $document->received_at?->toDateString()) }}" @readonly($fieldsLocked) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="document-dates-pending" @endif>
                     @if ($document->received_at === null)
-                        <small id="document-dates-pending" class="dts-field-hint">Not received yet. Set when the Records Unit confirms the paper copy.</small>
+                        <small id="document-dates-pending" class="dts-field-hint">Not received yet. Set when the Records Unit receives the document/s.</small>
                     @endif
                 </div>
             </div>

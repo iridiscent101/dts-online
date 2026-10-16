@@ -62,6 +62,20 @@ class DocumentWorkspaceTest extends TestCase
             ->assertDontSee('"completed":"Completed"', false);
     }
 
+    public function test_only_the_records_unit_is_offered_release(): void
+    {
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
+
+        // Another office can forward or complete what it received, but releasing to the client is the Records Unit's job.
+        foreach ([route('platform.documents.workspace', $document), route('platform.documents.view', $document)] as $url) {
+            $page = $this->actingAs($budget)->get($url)->assertOk();
+            preg_match("/data-action-options='([^']+)'/", $page->getContent(), $match);
+            $options = json_decode(html_entity_decode($match[1] ?? ''), true);
+            $this->assertSame(['forwarded', 'completed'], array_keys($options['SDO-Budget Unit']));
+        }
+    }
+
     public function test_records_only_paper_receipt_offers_complete_and_release_in_the_workspace(): void
     {
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
@@ -82,7 +96,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertSee('"completed":"Complete"', false);
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -104,7 +118,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertSee('data-workspace-action="released"', false);
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -155,7 +169,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertDontSee('"released":"Release"', false);
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
     }
 
@@ -445,7 +459,7 @@ class DocumentWorkspaceTest extends TestCase
         $this->assertSame('Completed in the workspace.', $document->movements()->sole()->remarks);
         $this->get(route('platform.documents.workspace', $document))
             ->assertSee('Completed in the workspace.')
-            ->assertSee('data-status="completed">Completed', false)
+            ->assertSee('<dt>Status</dt><dd><span class="dts-record-status" data-status="completed"', false)
             ->assertSee('data-history-to="Records Unit"', false);
     }
 
@@ -484,7 +498,8 @@ class DocumentWorkspaceTest extends TestCase
             ->assertSee('Load older activity');
 
         $this->get(route('platform.documents.workspace', $document).'?history_page=1')
-            ->assertSee('Forwarded to Office 25</strong>', false)
+            // The newest entry carries the Fast Track style "Latest" tag.
+            ->assertSee('Forwarded to Office 25 <span class="dts-timeline-latest">Latest</span></strong>', false)
             ->assertDontSee('Forwarded to Office 1</strong>', false)
             ->assertSee('Showing 20 of 25 entries');
 
@@ -649,7 +664,9 @@ class DocumentWorkspaceTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('platform.documents.workspace', $document).'?history_page=1')
-            ->assertSee('<details class="dts-workspace-history-remarks">', false)
+            // Remarks are shown in full, not behind a "View remarks" toggle.
+            ->assertSee('<div class="dts-workspace-history-remarks"><strong>Remarks</strong>', false)
+            ->assertDontSee('View remarks')
             ->assertSee('Activity note')
             ->assertSee('&lt;script&gt;Movement note&lt;/script&gt;', false)
             ->assertDontSee('<script>Movement note</script>', false);

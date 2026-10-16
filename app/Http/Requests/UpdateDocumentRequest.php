@@ -106,7 +106,7 @@ class UpdateDocumentRequest extends FormRequest
             'document.details_fingerprint.required' => 'This edit form is out of date. Refresh the document and try again.',
             'document.destinations.prohibited' => $canEditOfficeAssignments
                 ? ($document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
-                    ? 'Routes cannot be edited before Records receives the paper document.'
+                    ? 'Routes cannot be edited before Records receives the document.'
                     : 'Routes cannot be edited after a document is finished.')
                 : 'You are not authorized to change document routes.',
             'document.destinations.required' => 'Select at least one destination office.',

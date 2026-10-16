@@ -114,7 +114,7 @@ class DocumentListLayout extends Table
         return match ($this->section()) {
             'incoming' => 'No incoming documents',
             'outgoing' => 'No outgoing documents',
-            'archived' => 'No finished documents',
+            'archived' => 'No archived documents',
             default => 'No documents registered yet',
         };
     }

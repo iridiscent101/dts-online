@@ -21,17 +21,15 @@
         /* QR on the left, the routing details beside it, and the tracking number across the bottom. */
         .dts-tracking-label { display: grid; grid-template-columns: 18mm minmax(0, 1fr); grid-template-rows: minmax(18mm, 1fr) auto; column-gap: 1.8mm; row-gap: 0.8mm; width: 50mm; height: 30mm; padding: 1.5mm 1.8mm; overflow: hidden; border: 1px solid #9ca3af; border-radius: 3px; background: #fff; color: #111827; }
         .dts-tracking-label img { display: block; align-self: center; width: 18mm; height: 18mm; }
-        .dts-tracking-label-details { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; column-gap: 1.2mm; row-gap: 0.4mm; margin: 0; font-size: 6.5pt; line-height: 1.12; }
+        .dts-tracking-label-details { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; column-gap: 1.8mm; row-gap: 0.4mm; margin: 0; font-size: 6.5pt; line-height: 1.12; }
         .dts-tracking-label-details dt { color: #4b5563; font-size: 5pt; font-weight: 700; letter-spacing: 0.02em; line-height: 1.6; text-transform: uppercase; }
         .dts-tracking-label-details dd { display: -webkit-box; margin: 0; overflow: hidden; font-weight: 700; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
         /* Status may need three lines ("Awaiting physical document"); a long name is cut at two. */
         .dts-tracking-label-details dd:first-of-type { -webkit-line-clamp: 3; }
         .dts-tracking-label-footer { display: grid; grid-column: 1 / -1; align-content: center; gap: 0.3mm; border-top: 0.3mm solid #111827; padding-top: 0.6mm; text-align: center; }
-        .dts-tracking-label-footer strong { font-family: "Consolas", "Courier New", monospace; font-size: 7pt; letter-spacing: -0.01em; line-height: 1.1; overflow-wrap: anywhere; }
-        .dts-tracking-label-footer small { color: #4b5563; font-size: 4.5pt; }
-        /* The signature row: a short strip under "By", not the 18 mm QR size above. */
-        .dts-tracking-label .dts-tracking-label-signature { display: block; }
-        .dts-tracking-label .dts-tracking-label-signature img { width: auto; max-width: 100%; height: 3.4mm; object-fit: contain; object-position: left center; }
+        /* The tracking number is the one line staff read off the sticker, so it is the largest text on it. */
+        .dts-tracking-label-footer strong { font-family: "Consolas", "Courier New", monospace; font-size: 10pt; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; overflow-wrap: anywhere; }
+        .dts-tracking-label-status { font-weight: 800 !important; letter-spacing: 0.03em; text-transform: uppercase; }
         @media screen {
             /* Show the sticker larger on screen so it is easy to check before printing; print stays at true size. */
             .label-stack { zoom: 2; }
@@ -42,7 +40,7 @@
             .label-stack { display: block; }
             .dts-tracking-label { border-color: #111827; border-radius: 0; }
             .dts-tracking-label:not(:last-child) { break-after: page; page-break-after: always; }
-            .dts-tracking-label-details dt, .dts-tracking-label-footer small { color: #111827; }
+            .dts-tracking-label-details dt { color: #111827; }
         }
     </style>
 </head>

@@ -70,7 +70,22 @@ class WorkflowGuidanceTest extends TestCase
             ->assertOk()
             ->assertSee('DTS-QUEUE-1')
             ->assertSee('data-receive-routes="[&quot;Records Unit&quot;]"', false)
-            ->assertDontSee('dts-queue-reason', false);
+            ->assertDontSee('dts-queue-reason', false)
+            // Not received yet, so there is no label to print.
+            ->assertDontSee('Print label for DTS-QUEUE-1');
+    }
+
+    public function test_dashboard_queue_offers_the_label_once_the_document_is_received(): void
+    {
+        Document::factory()->received()->create([
+            'tracking_number' => 'DTS-QUEUE-2',
+            'current_office' => 'Records Unit',
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertSee('Print label for DTS-QUEUE-2');
     }
 
     public function test_registry_has_a_status_guide(): void
@@ -82,7 +97,7 @@ class WorkflowGuidanceTest extends TestCase
             ->assertSee('>Pending</span>', false)
             ->assertSeeInOrder(['Being reviewed:', 'the office is checking the document before acting on it.'])
             ->assertSeeInOrder(['Not received yet:', 'sent to the office, which has not received it yet.'])
-            ->assertSeeInOrder(['Waiting for paper copy:', 'the paper copy is not at the Records Unit yet.']);
+            ->assertSeeInOrder(['Waiting for document/s:', 'the document/s are not at the Records Unit yet.']);
     }
 
     public function test_client_sees_what_to_do_next_while_the_paper_copy_is_pending(): void
@@ -98,8 +113,10 @@ class WorkflowGuidanceTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => 'DTS-PAPER-NEXT']))
             ->assertOk()
-            // The status card explains what to do; the separate "What happens next" steps were removed.
-            ->assertSee('Bring the paper copy to the Records Unit so processing can start.')
+            // The status card shows the office card ("Pending · Waiting for document/s"); the separate "What happens
+            // next" steps and the per-status explanation box were removed (the status guide still explains them).
+            ->assertSee('Waiting for document/s')
+            ->assertDontSee('The Records Unit must receive the document before processing can start.')
             ->assertDontSee('What happens next');
 
         $this->get(route('tracking.index', ['tracking' => 'DTS-MOVING']))

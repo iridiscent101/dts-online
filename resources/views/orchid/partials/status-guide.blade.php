@@ -12,7 +12,7 @@
     $pendingKinds = [
         'Being reviewed' => 'the office is checking the document before acting on it.',
         'Not received yet' => 'sent to the office, which has not received it yet.',
-        'Waiting for paper copy' => 'a client submitted it online and the paper copy is not at the Records Unit yet.',
+        'Waiting for document/s' => 'a client submitted it online and the document/s are not at the Records Unit yet.',
     ];
 @endphp
 <details class="dts-status-guide">

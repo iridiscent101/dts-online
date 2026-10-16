@@ -1,7 +1,7 @@
 <div class="dts-workspace">
     <div class="dts-masthead tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
         <div>
-            <h2>{{ match ($section) { 'incoming' => 'Incoming documents', 'outgoing' => 'Outgoing documents', 'archived' => 'Finished documents', 'documents' => 'Document registry', default => 'Document overview' } }}</h2>
+            <h2>{{ match ($section) { 'incoming' => 'Incoming documents', 'outgoing' => 'Outgoing documents', 'archived' => 'Archived documents', 'documents' => 'Document registry', default => 'Document overview' } }}</h2>
         </div>
         @unless (request()->user()?->isReadOnlySupervisor())
             <a class="dts-button dts-button-primary" href="{{ route('platform.documents.create') }}"><x-orchid-icon path="bs.plus-lg" /> New document</a>
@@ -13,18 +13,14 @@
         <section class="dts-registry tw:min-w-0" aria-labelledby="{{ $isSupervisor ? 'registry-title' : 'office-queue-title' }}">
             @unless ($isSupervisor)
             {{-- Work summary: bold cards that each open the list behind their number. "Needs action" counts the queue
-                 below; "Not received yet" is the part of it the office must receive first. --}}
+                 below; the cards that open a menu page carry that page's name (Incoming, Outgoing, Archived). --}}
             @php
-                $monthName = today('Asia/Manila')->format('F');
-                $summaryCards = array_values(array_filter([
+                $summaryCards = [
                     ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' waiting for your office', 'bs.inbox', 'green', '#office-queue-title'],
-                    ['Not received yet', $notReceivedCount, 'receive these first', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
-                    $paperWaitingCount !== null
-                        ? ['Paper waiting', $paperWaitingCount, 'client copies to receive at the counter', 'bs.file-earmark-text', 'brown', '#office-queue-title']
-                        : null,
-                    ['Sent, still waiting', $sentWaitingCount, 'the next office has not received '.($sentWaitingCount === 1 ? 'it' : 'them').' yet', 'bs.send', 'blue', route('platform.outgoing')],
-                    ['Finished this month', $finishedThisMonthCount, 'completed or released in '.$monthName, 'bs.check2-circle', 'teal', route('platform.archived')],
-                ]));
+                    ['Incoming', $notReceivedCount, 'not received yet; receive these first', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
+                    ['Outgoing', $sentWaitingCount, 'sent; the next office has not received '.($sentWaitingCount === 1 ? 'it' : 'them').' yet', 'bs.send', 'blue', route('platform.outgoing')],
+                    ['Archived', $archivedCount, Str::plural('document', $archivedCount).' completed or released', 'bs.check2-circle', 'teal', route('platform.archived')],
+                ];
             @endphp
             <ul class="dts-metrics dts-metrics-bold" aria-label="Work summary" data-metric-count="{{ count($summaryCards) }}">
                 @foreach ($summaryCards as [$label, $value, $caption, $icon, $tone, $href])
@@ -40,14 +36,15 @@
             <div class="dts-office-queue" aria-labelledby="office-queue-title">
                 <div class="dts-section-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
                     <div>
-                        <h3 id="office-queue-title">{{ $workspaceOffice === 'All offices' ? 'Action queue' : 'My office queue' }}</h3>
-                        <p class="dts-section-caption">{{ $workspaceOffice }}</p>
+                        {{-- The office name is the heading, so staff see at once whose queue this is. --}}
+                        <h3 id="office-queue-title">{{ $workspaceOffice === 'All offices' ? 'Action queue' : $workspaceOffice }}</h3>
+                        <p class="dts-section-caption">{{ $workspaceOffice === 'All offices' ? 'All offices' : 'Documents waiting for your office' }}</p>
                         @if (($paperWaitingCount ?? 0) > 0)
-                            <p class="dts-section-description">When a client hands in the paper copy, press Paper received, print its tracking label, then choose the offices it goes to.</p>
+                            <p class="dts-section-description">Client document/s: receive them, print the label, then send them to the offices.</p>
                         @endif
                     </div>
                     <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
-                        <span class="dts-count">{{ $officeQueueCount }} {{ Str::plural('action', $officeQueueCount) }}</span>
+                        <span class="dts-count dts-record-count"><strong>{{ $officeQueueCount }}</strong> {{ Str::plural('action', $officeQueueCount) }}</span>
                     </div>
                 </div>
                 <div class="dts-table-frame">
@@ -116,7 +113,7 @@
                                         {{-- Icon-only buttons; each label shows as a tooltip on hover and on keyboard focus. --}}
                                         <div class="dts-queue-icons">
                                             @if (($canConfirmPaperIntake ?? false) && $awaitsPaper)
-                                                <button type="button" class="dts-queue-icon is-primary dts-paper-received" data-paper-received="{{ $document->tracking_number }}" data-lookup-url="{{ route('platform.documents.intake') }}" data-tooltip="Paper received" aria-label="Paper received for {{ $document->tracking_number }}"><x-orchid-icon path="bs.check2-circle" /></button>
+                                                <button type="button" class="dts-queue-icon is-primary dts-paper-received" data-paper-received="{{ $document->tracking_number }}" data-lookup-url="{{ route('platform.documents.intake') }}" data-tooltip="Document/s received" aria-label="Document/s received for {{ $document->tracking_number }}"><x-orchid-icon path="bs.check2-circle" /></button>
                                             @endif
                                             @foreach ($queueActions as $action => $actionOffice)
                                                 @if ($action === \App\Models\DocumentMovement::ACTION_RECEIVED)
@@ -125,7 +122,10 @@
                                                 @endif
                                                 <a @class(['dts-queue-icon', 'is-primary' => $loop->first]) href="{{ route('platform.documents.view', ['document' => $document, 'source_office' => $actionOffice]) }}" data-workspace-url="{{ $queueWorkspaceUrl }}" data-workspace-office="{{ $actionOffice }}" data-workspace-action="{{ $action }}" data-tooltip="{{ ($queueActionIcons[$action][1] ?? $action).($queueOffices->count() > 1 ? ' · '.$actionOffice : '') }}" aria-label="{{ $queueActionIcons[$action][1] ?? $action }} {{ $document->tracking_number }} for {{ $actionOffice }}"><x-orchid-icon :path="$queueActionIcons[$action][0] ?? 'bs.lightning'" /></a>
                                             @endforeach
-                                            <a class="dts-queue-icon" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener" data-turbo="false" data-tooltip="Print label" aria-label="Print label for {{ $document->tracking_number }}"><x-orchid-icon path="bs.printer" /></a>
+                                            {{-- The label is printed only once the document/s are received; Document/s received adds it to the row then. --}}
+                                            @unless ($awaitsPaper || $receiveOffices->isNotEmpty())
+                                                <a class="dts-queue-icon" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener" data-turbo="false" data-tooltip="Print label" aria-label="Print label for {{ $document->tracking_number }}"><x-orchid-icon path="bs.printer" /></a>
+                                            @endunless
                                         </div>
                                     </td>
                                 </tr>
@@ -172,7 +172,7 @@
             @if ($isSupervisor)
             <div class="dts-section-heading"><h3 id="registry-title">Recent documents</h3></div>
             <nav class="dts-tabs" aria-label="Document views">
-                @foreach (['documents' => 'All documents', 'incoming' => 'Incoming', 'outgoing' => 'Outgoing', 'archived' => 'Finished'] as $key => $label)
+                @foreach (['documents' => 'All documents', 'incoming' => 'Incoming', 'outgoing' => 'Outgoing', 'archived' => 'Archived'] as $key => $label)
                     <a href="{{ route('platform.'.$key) }}" @class(['dts-tab', 'is-active' => $section === $key || ($section === 'dashboard' && $key === 'documents')]) @if ($section === $key || ($section === 'dashboard' && $key === 'documents')) aria-current="page" @endif>{{ $label }}</a>
                 @endforeach
             </nav>

@@ -2684,52 +2684,102 @@ a.dts-record-status:hover,
     min-width: 0;
 }
 
-.dts-workspace-timeline {
-    margin-left: 8px;
-    padding-left: 18px;
-    border-left: 2px solid var(--dts-border);
-}
-
-.dts-workspace-timeline-entry {
-    position: relative;
-}
-
-.dts-workspace-history-remarks {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid var(--dts-border);
-}
-
-.dts-workspace-history-remarks summary {
-    color: var(--dts-green);
-    cursor: pointer;
+/* Activity history in the document window, laid out like the Fast Track "Document movement" timeline: day headings,
+   a colored step icon (dts-shared.css .dts-timeline-dot, by data-kind) on a line, and a two-column detail list. */
+.dts-workspace-history-day {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    margin: 0;
+    padding: 8px 0;
+    background: #fff;
+    color: var(--dts-text-muted);
     font-size: .875rem;
-    font-weight: 700;
+    font-weight: 650;
+    letter-spacing: .04em;
+    text-transform: uppercase;
 }
 
-.dts-workspace-timeline-entry::before {
+.dts-workspace-timeline .dts-workspace-timeline-entry {
+    position: relative;
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 12px;
+    margin: 0;
+    padding: 0 0 16px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+}
+
+/* The line joins each step to the next one, also across a day heading. */
+.dts-workspace-timeline .dts-workspace-timeline-entry:has(~ .dts-workspace-timeline-entry)::before {
     position: absolute;
-    top: 21px;
-    left: -27px;
-    width: 12px;
-    height: 12px;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    background: var(--dts-green);
-    box-shadow: 0 0 0 2px var(--dts-border);
+    top: 34px;
+    bottom: 2px;
+    left: 15px;
+    width: 2px;
+    background: #d8d2be;
     content: '';
 }
 
-.dts-workspace-timeline-entry:has(.dts-record-status[data-status="returned"], .dts-record-status[data-status="rejected"])::before {
-    background: var(--dts-danger-text);
+.dts-workspace-timeline-body {
+    min-width: 0;
+    padding-top: 5px;
 }
 
-.dts-workspace-timeline-entry:has(.dts-record-status[data-status="cancelled"])::before {
-    background: var(--dts-text-muted);
+.dts-workspace-timeline .dts-workspace-event-title {
+    display: block;
+    color: var(--dts-text-strong);
+    font-size: 1rem;
+    font-weight: 650;
+    line-height: 1.4;
 }
 
-.dts-workspace-timeline-entry:has(.dts-record-status[data-status="approved"], .dts-record-status[data-status="completed"])::before {
-    background: var(--dts-green);
+.dts-workspace-step-details {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 4px 12px;
+    margin: 8px 0 0;
+    font-size: .875rem;
+}
+
+.dts-workspace-step-details dt {
+    align-self: center;
+    margin: 0;
+    color: var(--dts-text-muted);
+    font-weight: 500;
+}
+
+.dts-workspace-step-details dd {
+    margin: 0;
+    color: var(--dts-text-strong);
+}
+
+.dts-step-time-separator {
+    margin: 0 8px;
+    color: var(--dts-text-subtle);
+}
+
+/* Remarks shown in full, in the same cream box as Fast Track. */
+.dts-workspace-timeline .dts-workspace-history-remarks {
+    margin-top: 8px;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: rgb(248 244 231 / 60%);
+}
+
+.dts-workspace-timeline .dts-workspace-history-remarks strong {
+    color: var(--dts-green);
+    font-size: .875rem;
+}
+
+.dts-workspace-timeline .dts-workspace-history-remarks p {
+    margin: 2px 0 0;
+    font-size: .875rem;
+    line-height: 1.6;
+    white-space: pre-line;
 }
 
 .dts-workspace-history-footer {
@@ -3934,13 +3984,14 @@ a:focus-visible {
     min-height: 156px;
 }
 
-:is(.dts-registration, .dts-workspace-editor) dts-searchable {
+/* Searchable choice lists (dts.js SearchableChoices): registration, the document window, routing and route dialogs. */
+dts-searchable {
     display: block;
     position: relative;
     min-width: 0;
 }
 
-:is(.dts-registration, .dts-workspace-editor) dts-searchable [data-suggestions] {
+dts-searchable [data-suggestions] {
     position: absolute;
     inset-inline: 0;
     top: calc(100% + 4px);
@@ -3954,7 +4005,7 @@ a:focus-visible {
     box-shadow: 0 10px 22px rgb(38 50 68 / 15%);
 }
 
-:is(.dts-registration, .dts-workspace-editor) dts-searchable [data-choice] {
+dts-searchable [data-choice] {
     display: block;
     width: 100%;
     padding: 9px 12px;
@@ -3969,11 +4020,11 @@ a:focus-visible {
     cursor: pointer;
 }
 
-:is(.dts-registration, .dts-workspace-editor) dts-searchable [data-choice]:is(:hover, :focus, [aria-selected="true"]) {
+dts-searchable [data-choice]:is(:hover, :focus, [aria-selected="true"]) {
     background: var(--dts-green-soft);
 }
 
-:is(.dts-registration, .dts-workspace-editor) dts-searchable [data-suggestions] p {
+dts-searchable [data-suggestions] p {
     margin: 0;
     padding: 9px 12px;
     color: var(--dts-text-subtle);
@@ -4527,7 +4578,7 @@ a:focus-visible {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-content: center;
-    column-gap: 8px;
+    column-gap: 10px;
     row-gap: 2px;
     margin: 0;
     font-size: 0.875rem;
@@ -4559,13 +4610,15 @@ a:focus-visible {
 
 .dts-tracking-label-footer strong {
     font-family: Consolas, "Courier New", monospace;
-    font-size: 0.875rem;
+    font-size: 1.25rem;
+    font-weight: 800;
     overflow-wrap: anywhere;
 }
 
-.dts-tracking-label-footer small {
-    color: var(--dts-text-muted);
-    font-size: 0.75rem;
+.dts-tracking-label-status {
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
 }
 
 .dts-print-label-button {
@@ -7012,57 +7065,6 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
     background: var(--dts-green-soft) !important;
 }
 
-/* Label preview on the document page: the signature strip under "By" (print sizes in orchid/document-label). */
-.dts-tracking-label .dts-tracking-label-signature {
-    display: block;
-}
-
-.dts-tracking-label .dts-tracking-label-signature img {
-    width: auto;
-    max-width: 100%;
-    height: 18px;
-    object-fit: contain;
-    object-position: left center;
-}
-
-/* Profile: signature picture for QR labels. */
-.dts-profile-signature {
-    display: grid;
-    justify-items: start;
-    gap: 8px;
-}
-
-.dts-profile-signature label {
-    font-weight: 600;
-}
-
-.dts-profile-signature-preview {
-    display: grid;
-    place-items: center;
-    width: min(100%, 320px);
-    min-height: 96px;
-    padding: 10px;
-    border: 1px dashed var(--dts-border-strong);
-    border-radius: 5px;
-    background: #fff;
-}
-
-.dts-profile-signature-preview img {
-    max-width: 100%;
-    max-height: 120px;
-    object-fit: contain;
-}
-
-.dts-profile-signature-saved:empty {
-    display: none;
-}
-
-.dts-profile-signature-saved {
-    margin: 0;
-    color: var(--dts-green);
-    font-weight: 600;
-}
-
 /* Phones: the status guide opens as a full-width sheet instead of a panel pinned to its button, which ran past the
    screen edge; each status sits above its meaning. */
 @media (max-width: 767px) {
@@ -7479,4 +7481,63 @@ body .invalid-feedback {
 
 .has-sticky-scrollbar::-webkit-scrollbar {
     height: 0;
+}
+
+/* Status badges in capitals everywhere (staff lists, queue, workspace, guides). Display only: the text stays
+   "Pending", "Received"…, so search, filters and screen readers are unchanged. */
+.dts-record-status {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+:is(.dts-record-timeline, .dts-staff-timeline) .dts-timeline-status {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Workspace history: remarks are shown in full under the entry (they used to sit behind "View remarks"). */
+.dts-workspace-history-remarks > strong {
+    display: block;
+    color: var(--dts-green);
+    font-size: 0.875rem;
+    font-weight: 700;
+}
+
+.dts-workspace-history-remarks > p {
+    margin: 2px 0 0;
+    color: var(--dts-text-body);
+    line-height: 1.5;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+/* Record counts (registry tabs row, dashboard queue): a bold green number in an outlined pill, so the total is easy to
+   spot at a glance. */
+.dts-count.dts-record-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 1px solid color-mix(in srgb, var(--dts-green) 35%, transparent);
+    border-radius: 999px;
+    background: var(--dts-green-soft);
+    color: var(--dts-text-strong);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.dts-count.dts-record-count strong {
+    color: var(--dts-green);
+    font-size: 1.375rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* Document window: "Correct route" under the office routes. */
+.dts-workspace-route-correction {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin-top: 12px;
 }

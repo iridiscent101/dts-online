@@ -41,6 +41,7 @@ class PublicDocumentTrackingController extends Controller
                         'tracking_number',
                         'subject',
                         'document_type',
+                        'delivery_method',
                         'sender',
                         'client_submission_key',
                         'current_office',
@@ -62,6 +63,7 @@ class PublicDocumentTrackingController extends Controller
                                     'from_status',
                                     'to_status',
                                     'remarks',
+                                    'released_to',
                                     'acted_by',
                                     'created_at',
                                 ])

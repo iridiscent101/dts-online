@@ -938,7 +938,7 @@ class DocumentMovementTest extends TestCase
         $url = route('platform.documents.movements.store', $document);
 
         $this->actingAs($staff)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'Administrative Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'Administrative Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->postJson($url, [
@@ -946,7 +946,7 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->postJson($url, [
@@ -954,12 +954,88 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertOk();
 
         $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
         $this->assertSame(['forwarded', 'received', 'released'], $document->movements()->reorder('id')->pluck('action')->all());
+        $this->assertSame('Juan Dela Cruz', $document->movements()->latest('id')->value('released_to'));
+
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Released to</dt><dd>Juan Dela Cruz</dd>', false);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertSee('Released to')
+            ->assertSee('Juan Dela Cruz');
+    }
+
+    public function test_an_administrator_can_release_a_received_document_from_any_office(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG, 'permissions' => ['platform.index' => true]]);
+        $admin = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $admin->replaceRoles([$adminRole->id]);
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $url = route('platform.documents.movements.store', $document);
+        $this->actingAs($admin)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destination' => 'SDO-Budget Unit'],
+        ])->assertOk();
+        $this->actingAs($budget)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertOk();
+
+        // The office's own staff cannot release; only Records and administrators can.
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+
+        $this->actingAs($admin)->get(route('platform.documents.workspace', $document))
+            ->assertSee('"released":"Release"', false);
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame('Juan Dela Cruz', $document->movements()->latest('id')->value('released_to'));
+    }
+
+    public function test_an_administrator_cannot_release_while_another_office_is_still_working(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG, 'permissions' => ['platform.index' => true]]);
+        $admin = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $admin->replaceRoles([$adminRole->id]);
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $url = route('platform.documents.movements.store', $document);
+        $this->actingAs($admin)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destinations' => ['SDO-Budget Unit', 'SDO-Legal Unit']],
+        ])->assertOk();
+        $this->actingAs($budget)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertOk();
+
+        $this->actingAs($admin)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+    }
+
+    public function test_release_requires_the_name_of_the_person_receiving_the_document(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => '   '],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('workflow.released_to');
+
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
+
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('name="workflow[released_to]"', false);
     }
 
     public function test_records_cannot_release_while_another_office_route_is_active(): void
@@ -979,14 +1055,14 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->actingAs($otherStaff)->postJson($url, [
             'workflow' => ['action' => 'completed', 'source_office' => 'Curriculum Implementation Division'],
         ])->assertOk();
         $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -1393,6 +1469,7 @@ class DocumentMovementTest extends TestCase
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
                     'action' => 'released',
+                    'released_to' => 'Juan Dela Cruz',
                     'remarks' => 'Attempted invalid transition.',
                 ],
             ])

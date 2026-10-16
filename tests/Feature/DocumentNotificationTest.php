@@ -412,9 +412,10 @@ class DocumentNotificationTest extends TestCase
         $response = $this->actingAs($user)->get(route('platform.main'));
 
         $response->assertOk()
-            ->assertSee('My office queue')
+            ->assertSee('<h3 id="office-queue-title">Records Unit</h3>', false)
+            ->assertSee('Documents waiting for your office')
             ->assertSee('Records Unit')
-            ->assertSee('2 actions')
+            ->assertSee('<strong>2</strong> actions', false)
             ->assertSee('DTS-OFFICE-RECEIVED')
             ->assertSee('DTS-OFFICE-FORWARDED')
             ->assertSee('data-dts-notification-count="1"', false)

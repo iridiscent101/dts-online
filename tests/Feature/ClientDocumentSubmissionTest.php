@@ -185,8 +185,8 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSee('Submit your document to the Records staff.')
-            ->assertSee('title="Pending: Waiting for paper copy">Pending</span>', false)
+            ->assertDontSee('Submit your document to the Records staff.')
+            ->assertSee('title="Pending: Waiting for document/s">Pending</span>', false)
             ->assertDontSee('Assigned to Administrative Unit')
             ->assertSee('Date submitted');
 
@@ -194,7 +194,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSee($document->tracking_number)
-            ->assertSee('Paper received');
+            ->assertSee('Document/s received');
 
         $this->get(route('platform.incoming'))
             ->assertOk()
@@ -206,7 +206,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertSee('Alex Rivera')
             ->assertSee('Not received')
             ->assertDontSee('Requested destinations after paper intake')
-            ->assertSee('Confirm paper received');
+            ->assertSee('Confirm document received');
 
         $this->get(route('platform.documents'))
             ->assertOk()
@@ -264,7 +264,7 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSee('Records Unit received the paper document')
+            ->assertSee('Records Unit received the document')
             ->assertDontSee('Submit your document to the Records staff.');
     }
 
@@ -446,8 +446,16 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertJsonPath('document.delivery_method', 'Hand carry')
             ->assertJsonPath('document.routes', []);
 
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Mode of submission</dt><dd>Hand carry</dd>', false);
+
+        $this->get(route('platform.documents.view', $document))
+            ->assertSee('Mode of submission: Hand carry');
+
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
+            ->assertSee('Mode of submission')
+            ->assertSee('Hand carry')
             ->assertDontSee('Please send copies to Budget and Legal for review.');
     }
 
@@ -475,7 +483,12 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->post(route('submission.store'), $payload)->assertRedirect();
 
-        $this->assertSame('Official channel', Document::query()->sole()->delivery_method);
+        $document = Document::query()->sole();
+        $this->assertSame('Official channel', $document->delivery_method);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertSee('Mode of submission')
+            ->assertSee('Official channel');
     }
 
     public function test_client_delivery_method_rejects_unrecognized_values(): void
@@ -495,7 +508,7 @@ class ClientDocumentSubmissionTest extends TestCase
         unset($payload['delivery_method'], $payload['attachment']);
 
         $this->post(route('submission.store'), $payload)
-            ->assertSessionHasErrors(['delivery_method' => 'Choose how the paper copy will reach the Records Unit.']);
+            ->assertSessionHasErrors(['delivery_method' => 'Choose how the document will reach the Records Unit.']);
 
         $this->assertDatabaseCount('documents', 0);
     }

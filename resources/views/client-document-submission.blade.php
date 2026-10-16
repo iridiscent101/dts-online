@@ -106,7 +106,7 @@
 
             {{-- How the paper copy reaches the Records Unit; Records sees it when they look up the submission. --}}
             <fieldset class="sm:col-span-2" @error('delivery_method') aria-describedby="delivery-method-error" @enderror>
-                <legend class="block text-sm font-semibold text-slate-800">How will the paper copy reach the Records Unit? <span class="text-red-700">*</span></legend>
+                <legend class="block text-sm font-semibold text-slate-800">Mode of submission <span class="text-red-700">*</span></legend>
                 <div class="mt-2 grid gap-3 sm:grid-cols-2">
                     @foreach ([
                         'Hand carry' => 'You or someone you send brings it to the Records Unit.',

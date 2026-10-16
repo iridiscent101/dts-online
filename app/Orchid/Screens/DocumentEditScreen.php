@@ -84,7 +84,7 @@ class DocumentEditScreen extends Screen
                 ]);
             }
 
-            $detailsLocked = $document->detailsAreLocked();
+            $detailsLocked = $document->detailsRequireUnlockFor($user);
 
             $before = $document->only([
                 'subject',

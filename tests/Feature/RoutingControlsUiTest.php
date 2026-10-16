@@ -6,13 +6,11 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * Screens for Receive-first routing, Add remark, Send to another office, and the label signature.
+ * Screens for Receive-first routing, Add remark, and Send to another office.
  */
 class RoutingControlsUiTest extends TestCase
 {
@@ -83,33 +81,28 @@ class RoutingControlsUiTest extends TestCase
             ->assertDontSee('to another office');
     }
 
-    public function test_profile_offers_a_signature_upload(): void
+    public function test_profile_does_not_offer_a_signature_upload(): void
     {
         $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
 
         $this->actingAs($user)
             ->get(route('platform.profile'))
             ->assertOk()
-            ->assertSee('Signature on labels')
-            ->assertSee(route('platform.profile.signature.store'), false)
-            ->assertSee('No signature yet');
+            ->assertSee('Account access')
+            ->assertDontSee('Signature on labels')
+            ->assertDontSee('data-profile-signature', false);
     }
 
-    public function test_printed_label_shows_the_processing_staff_signature(): void
+    public function test_former_signature_endpoints_are_unavailable(): void
     {
-        Storage::fake('local');
-        $user = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
-        $user->signature_path = UploadedFile::fake()->image('signature.png', 300, 100)->store('staff-signatures', 'local');
-        $user->save();
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
-        DocumentMovement::factory()->for($document)->for($user, 'actor')->create();
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
 
         $this->actingAs($user)
-            ->get(route('platform.documents.label', $document))
-            ->assertOk()
-            ->assertSee('class="dts-tracking-label-signature"', false)
-            ->assertSee('alt="Signature of '.$user->name.'"', false)
-            ->assertSee('src="data:image/png;base64,', false);
+            ->get('/admin/profile/signature')
+            ->assertNotFound();
+
+        $this->post('/admin/profile/signature', ['signature' => 'unused'])
+            ->assertNotFound();
     }
 
     private function forwardedDocument(): Document

@@ -105,7 +105,9 @@ class DocumentAuditTest extends TestCase
             ->assertDontSee($otherDocument->tracking_number);
         $this->get(route('platform.documents.view', $document))->assertOk();
         $this->get(route('platform.documents.view', $otherDocument))->assertNotFound();
-        $this->get(route('platform.documents.edit', $document))->assertForbidden();
+        // The registering Records office can still correct the details (after unlocking them with a reason), but
+        // attachments stay with the office that holds the document now.
+        $this->get(route('platform.documents.edit', $document))->assertOk()->assertSee('data-unlock-details', false);
         $this->assertFalse($document->canHaveAttachmentsManagedBy($creator));
     }
 

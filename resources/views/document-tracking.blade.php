@@ -139,7 +139,7 @@
                         : ($assignedOffices->first()['status'] ?? $document->status);
                     $statusMeanings = [
                         ...\App\Models\DocumentMovement::STATUS_MEANINGS,
-                        \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the document after you bring the paper copy to the Records Unit.',
+                        \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the document/s after you bring them to the Records Unit.',
                         // Same wording as the status guide.
                         \App\Models\DocumentMovement::STATUS_FORWARDED => 'The document was sent on to the next office. It waits there until that office receives it.',
                         \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released the document. Processing is finished.',
@@ -149,7 +149,7 @@
 
                 {{-- Wide screens: the status card sets the row height; the movement card grows with its content up to that height. --}}
                 <div class="grid gap-6 lg:grid-cols-2">
-                    <section class="min-w-0 rounded-sm border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="document-summary-heading">
+                    <section class="min-w-0 rounded-sm border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:self-start" aria-labelledby="document-summary-heading">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p class="text-sm font-semibold uppercase text-[#216E39]">Current status</p>
@@ -167,12 +167,19 @@
                             </div>
                         </div>
                         <p class="mt-2 text-sm text-slate-500">Last checked {{ now('Asia/Manila')->format('M d, Y · g:i A') }}</p>
+                        {{-- The QR code sits with the tracking number at the top, where clients look for it first. --}}
+                        @if ($qrCodeDataUri)
+                            <div class="mt-4 flex items-center gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-3">
+                                <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="112" height="112" class="size-24 shrink-0 rounded-sm bg-white p-1 sm:size-28">
+                                <div>
+                                    <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
+                                    <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot. Scan it later to open this tracking page.</p>
+                                </div>
+                            </div>
+                        @endif
 
                         <div class="grid gap-4 border-t border-slate-200 pt-4">
                             <h3 class="text-lg font-semibold leading-7 text-slate-900 [overflow-wrap:anywhere]">{{ $document->client_submission_key ? 'Client document' : $document->subject }}</h3>
-                            @if ($document->client_submission_key && $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-                                <p class="rounded-sm border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">Submit your document to the Records staff.</p>
-                            @endif
                             <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                                 @php
                                     $officeCardsFilterTimeline = $timelineOffices->count() > 1;
@@ -216,7 +223,7 @@
                                                     </span>
                                                     <span class="min-w-0 grow">
                                                         <span class="block text-base font-semibold text-slate-800">{{ $assignment['office'] }}</span>
-                                                        <span class="block text-sm text-slate-600">{{ \App\Support\StatusLabel::for($assignment['status']) }}@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-500"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
+                                                        <span class="block text-sm text-slate-600"><span class="font-semibold uppercase tracking-wide">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-500"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
                                                     </span>
                                                     @if ($routeLinks)
                                                         <span class="sr-only">, show history</span>
@@ -229,19 +236,6 @@
                                         </ul>
                                         @if ($officeCardsFilterTimeline)
                                             <p class="mt-2 text-sm text-slate-600">Select an office to see its history.</p>
-                                        @endif
-                                        @if ($routeStatuses->isNotEmpty())
-                                            <details class="mt-3 rounded-sm border border-slate-200 bg-[#F8F4E7]/60 px-3 py-2" @if ($routeOffices->count() === 1) open @endif>
-                                                <summary class="cursor-pointer py-3 text-sm font-semibold text-[#216E39]">What {{ $routeStatuses->count() === 1 ? 'does this status' : 'do these statuses' }} mean?</summary>
-                                                <dl class="mt-1 grid divide-y divide-slate-200 text-sm">
-                                                    @foreach ($routeStatuses as $status)
-                                                        <div class="grid justify-items-start gap-1 py-3">
-                                                            <dt>@include('partials.public-status-badge', ['status' => $status])</dt>
-                                                            <dd class="leading-6 text-slate-600">{{ $statusMeanings[$status] }}</dd>
-                                                        </div>
-                                                    @endforeach
-                                                </dl>
-                                            </details>
                                         @endif
                                     </dd>
                                 </div>
@@ -261,22 +255,13 @@
                                     <dd class="mt-1 text-base font-semibold text-slate-800">{{ ($document->client_submission_key ? $document->created_at : $document->received_at)?->format('M d, Y') ?? 'Not received yet' }}</dd>
                                 </div>
                             </dl>
-                            @if ($qrCodeDataUri)
-                                <div class="flex items-center gap-4 border-t border-slate-200 pt-4">
-                                    <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="112" height="112" class="size-24 shrink-0 sm:size-28">
-                                    <div>
-                                        <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
-                                        <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot. Scan it later to open this tracking page.</p>
-                                    </div>
-                                </div>
-                            @endif
                         </div>
                     </section>
 
-                    {{-- The wrapper takes the row height (set by the status card) without adding to it; the card inside is as tall as
-                         its content, up to that height, and then its list scrolls. --}}
-                    <div class="min-w-0 lg:relative lg:h-0 lg:min-h-full">
-                    <section class="flex min-w-0 flex-col rounded-sm border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:absolute lg:inset-x-0 lg:top-0 lg:max-h-full" aria-labelledby="movement-heading">
+                    {{-- The history is as tall as its content, up to nearly the window height on a computer (not just the height of
+                         the status card), so more steps can be read at once before its list scrolls. --}}
+                    <div class="min-w-0">
+                    <section class="flex min-w-0 flex-col rounded-sm border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="movement-heading">
                         <div class="border-b border-slate-300 pb-3">
                             <p class="text-sm font-semibold uppercase text-[#216E39]">Routing history</p>
                             <h2 id="movement-heading" class="mt-1 text-2xl font-semibold text-slate-900">Document movement</h2>
@@ -322,7 +307,7 @@
                             </form>
                         @endif
 
-                        <div class="mt-4 max-h-[28rem] min-h-0 overflow-y-auto overscroll-contain pr-2 lg:max-h-none" tabindex="0" aria-label="Document movement history">
+                        <div class="mt-4 max-h-[40rem] min-h-0 overflow-y-auto overscroll-contain pr-2 lg:max-h-[calc(100vh-9rem)]" tabindex="0" aria-label="Document movement history">
                             @foreach ($timelineDays as $day => $events)
                                 @php($timelineDate = \Illuminate\Support\Carbon::parse($day, 'Asia/Manila'))
                                 <section data-timeline-day @class(['hidden' => $events->doesntContain('visible', true)])>
@@ -355,7 +340,7 @@
                                                         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                                             <strong class="text-base font-semibold text-slate-900">{{ $document->client_submission_key ? 'Document submitted' : 'Document registered' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
                                                         </div>
-                                                        <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting paper at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
+                                                        <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting document/s at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                         </dl>
@@ -379,20 +364,23 @@
                                                             @if (filled($movement->to_status))
                                                                 <dt class="self-center font-medium text-slate-500">Status</dt><dd>@include('partials.public-status-badge', ['status' => $movement->to_status])</dd>
                                                             @endif
+                                                            @if ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null && filled($document->delivery_method))
+                                                                <dt class="font-medium text-slate-500">Mode of submission</dt><dd class="text-slate-800">{{ $document->delivery_method }}</dd>
+                                                            @endif
                                                             <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $movement->created_at->toIso8601String() }}">{{ $movement->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $movement->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                             @if ($movement->actor?->name)
                                                                 <dt class="font-medium text-slate-500">Processed by</dt><dd class="text-slate-800">{{ $movement->actor->name }}</dd>
                                                             @endif
+                                                            @if ($movement->released_to)
+                                                                <dt class="font-medium text-slate-500">Released to</dt><dd class="text-slate-800">{{ $movement->released_to }}</dd>
+                                                            @endif
                                                         </dl>
                                                         @if (filled($movement->remarks) && ! ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null))
-                                                            <details class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60">
-                                                                <summary class="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-sm font-semibold text-[#216E39]">
-                                                                    <x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" />
-                                                                    <span class="grow">Remarks</span>
-                                                                    <x-orchid-icon path="bs.chevron-down" class="dts-public-remarks-chevron size-4 shrink-0" />
-                                                                </summary>
-                                                                <p class="whitespace-pre-line border-t border-slate-200 px-3 py-2 text-sm leading-6 text-slate-800">{{ $movement->remarks }}</p>
-                                                            </details>
+                                                            {{-- Shown in full, not folded away: the remarks are often the instruction the reader needs. --}}
+                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2">
+                                                                <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Remarks</p>
+                                                                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $movement->remarks }}</p>
+                                                            </div>
                                                         @endif
                                                     </div>
                                                 </li>
@@ -458,7 +446,7 @@
                 });
 
                 setVisible(registrationEvent, office === '' || registrationOffices.includes(office));
-                registrationOffice.textContent = registrationOffice.textContent.replace(/(Assigned to |Awaiting paper at ).*/, '$1') + (office || filter.dataset.initialOffice);
+                registrationOffice.textContent = registrationOffice.textContent.replace(/(Assigned to |Awaiting document\/s at ).*/, '$1') + (office || filter.dataset.initialOffice);
 
                 document.querySelectorAll('[data-movement]').forEach((movement) => {
                     setVisible(movement, office === '' || movement.dataset.fromOffice === office || movement.dataset.toOffice === office);

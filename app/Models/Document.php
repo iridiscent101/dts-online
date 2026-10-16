@@ -31,7 +31,7 @@ class Document extends Model
     public const AUDIT_DISPLAY_LIMIT = 20;
 
     /** Shown for a paper submission's offices until the Records Unit confirms the paper copy. */
-    public const ROUTE_WAITING_FOR_PAPER = 'Waiting for paper copy';
+    public const ROUTE_WAITING_FOR_PAPER = 'Waiting for document/s';
 
     public const PRIORITIES = [
         'Urgent' => 3,
@@ -46,6 +46,7 @@ class Document extends Model
         'Document submitted',
         'Document details updated',
         'Document routes updated',
+        'Document route corrected',
         'Attachments added',
         'Attachment replaced',
         'Attachment removed',
@@ -308,6 +309,9 @@ class Document extends Model
             if ($offices->isNotEmpty()) {
                 $query->orWhereIn('current_office', $offices)
                     ->orWhereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments->whereIn('office', $offices))
+                    ->orWhereHas('registeredBy', fn (Builder $registrar): Builder => $registrar->where(fn (Builder $officeMatch): Builder => $officeMatch
+                        ->whereIn('office', $offices)
+                        ->orWhereHas('offices', fn (Builder $office): Builder => $office->whereIn('name', $offices))))
                     // An office keeps read access to what it sent on, so its Outgoing tab can list it.
                     ->orWhere(fn (Builder $sent): Builder => $sent->sentOnBy($offices));
             }
@@ -335,6 +339,10 @@ class Document extends Model
             ->whereIn('action', DocumentMovement::OUTGOING_ACTIONS)
             ->whereIn('from_office', $offices)
             ->exists()) {
+            return true;
+        }
+
+        if ($this->registeredBy?->assignedOfficeNames()->intersect($offices)->isNotEmpty()) {
             return true;
         }
 
@@ -373,7 +381,8 @@ class Document extends Model
     {
         return ! $user->isReadOnlySupervisor()
             && $user->hasAccess('platform.documents.edit')
-            && $this->isAssignedToUserOffice($user)
+            && ($this->isAssignedToUserOffice($user)
+                || $this->registeredBy?->assignedOfficeNames()->intersect($user->assignedOfficeNames())->isNotEmpty())
             && ($user->isAdministrator() || $user->assignedOfficeNames()->intersect(['SDO-Records Unit', 'Records Unit'])->isNotEmpty())
             && (! $this->isClosedRecord() || $user->isAdministrator());
     }
@@ -386,6 +395,11 @@ class Document extends Model
     public function detailsAreLocked(): bool
     {
         return $this->isClosedRecord() || $this->hasBeenProcessed();
+    }
+
+    public function detailsRequireUnlockFor(User $user): bool
+    {
+        return $this->detailsAreLocked() || ! $this->isAssignedToUserOffice($user);
     }
 
     /**
@@ -421,6 +435,47 @@ class Document extends Model
             && $user->isAdministrator();
     }
 
+    /**
+     * Destinations the user's offices sent this document to that have not received it yet, so they can still be
+     * corrected (DocumentRoutingService::correctPendingRoute checks the same again when saving).
+     *
+     * @return Collection<int, array{source: string, destination: string}>
+     */
+    public function correctableRoutesFor(User $user): Collection
+    {
+        if ($user->isReadOnlySupervisor() || ! $user->hasAccess('platform.index') || $this->isClosedRecord()) {
+            return collect();
+        }
+
+        $offices = $user->assignedOfficeNames();
+        if ($offices->isEmpty()) {
+            return collect();
+        }
+
+        return $this->officeAssignments
+            ->whereIn('status', [DocumentMovement::STATUS_FORWARDED, DocumentMovement::STATUS_AWAITING_RECEIPT])
+            ->map(function (DocumentOfficeAssignment $assignment) use ($offices): ?array {
+                $movement = $assignment->movement;
+                // Forwarded by one of the user's offices.
+                if ($movement !== null && $assignment->status === DocumentMovement::STATUS_FORWARDED
+                    && $offices->contains($movement->from_office)
+                    && in_array($movement->action, [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED], true)) {
+                    return ['source' => $movement->from_office, 'destination' => $assignment->office];
+                }
+                // The first send after registration, by someone in one of the user's offices.
+                if ($movement !== null && $assignment->status === DocumentMovement::STATUS_AWAITING_RECEIPT
+                    && $movement->action === DocumentMovement::ACTION_SENT && $movement->from_office === null) {
+                    $source = $this->registeredBy?->assignedOfficeNames()->intersect($offices)->first();
+
+                    return $source === null ? null : ['source' => $source, 'destination' => $assignment->office];
+                }
+
+                return null;
+            })
+            ->filter()
+            ->values();
+    }
+
     public function routesAreEditable(): bool
     {
         return ! in_array($this->status, [
@@ -451,6 +506,15 @@ class Document extends Model
     public function latestMovement(): HasOne
     {
         return $this->hasOne(DocumentMovement::class)->latestOfMany();
+    }
+
+    public function recordsReceipt(): HasOne
+    {
+        return $this->hasOne(DocumentMovement::class)
+            ->where('action', DocumentMovement::ACTION_RECEIVED)
+            ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
+            ->where('to_office', 'SDO-Records Unit')
+            ->oldestOfMany();
     }
 
     public function officeAssignments(): HasMany
@@ -621,7 +685,7 @@ class Document extends Model
     public function nextActionLabelFor(User $user): string
     {
         return match ($this->workflowStatusFor($user)) {
-            DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Confirm paper received',
+            DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Confirm document received',
             DocumentMovement::STATUS_AWAITING_RECEIPT,
             DocumentMovement::STATUS_FORWARDED,
             DocumentMovement::STATUS_RETURNED,

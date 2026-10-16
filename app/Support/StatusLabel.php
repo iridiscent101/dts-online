@@ -16,7 +16,7 @@ final class StatusLabel
 
     private const DESCRIPTIONS = [
         DocumentMovement::STATUS_AWAITING_RECEIPT => 'Not received yet',
-        DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Waiting for paper copy',
+        DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Waiting for document/s',
     ];
 
     public static function for(?string $status): string
@@ -25,7 +25,7 @@ final class StatusLabel
     }
 
     /**
-     * Which kind of "Pending" a status is ("Not received yet", "Waiting for paper copy"); null for other statuses.
+     * Which kind of "Pending" a status is ("Not received yet", "Waiting for document/s"); null for other statuses.
      */
     public static function description(?string $status): ?string
     {

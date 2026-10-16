@@ -36,7 +36,7 @@ class DepEdDashboardTest extends TestCase
             'documents' => 'No documents registered yet',
             'incoming' => 'No incoming documents',
             'outgoing' => 'No outgoing documents',
-            'archived' => 'No finished documents',
+            'archived' => 'No archived documents',
         ] as $route => $heading) {
             $this->get(route('platform.'.$route))
                 ->assertSee($heading)
@@ -856,6 +856,12 @@ class DepEdDashboardTest extends TestCase
         Document::factory()->count(3)->create([
             'current_office' => 'Records Unit',
         ]);
+        // Documents the office registered that have moved on: the row actions look up the registrar's offices.
+        $registrar = User::factory()->create(['office' => 'Records Unit']);
+        Document::factory()->count(3)->create([
+            'current_office' => 'SDO-Budget Unit',
+            'registered_by' => $registrar->id,
+        ]);
 
         DB::flushQueryLog();
         DB::enableQueryLog();
@@ -873,7 +879,8 @@ class DepEdDashboardTest extends TestCase
         // Visibility may check the routing history inside the registry query (EXISTS), but no query may read
         // the movement history itself.
         $this->assertSame(0, $queries->filter(fn (string $query): bool => (bool) preg_match('/^select (?:(?!\bfrom\b).)*\bfrom [`"]?document_movements\b/', $query))->count());
-        $this->assertLessThanOrEqual(2, $queries->filter(fn (string $query): bool => str_contains($query, 'office_user'))->count());
+        // Office lookups happen once, not per row; the registry query may still check the registrar's offices in EXISTS.
+        $this->assertLessThanOrEqual(2, $queries->filter(fn (string $query): bool => str_contains($query, 'office_user') && ! str_contains($query, 'exists (select'))->count());
     }
 
     public function test_document_registry_does_not_show_route_plan_controls(): void
@@ -1154,7 +1161,7 @@ class DepEdDashboardTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSee('<th scope="col">Offices and status</th>', false)
-            ->assertSee('1 action')
+            ->assertSee('<strong>1</strong> action', false)
             ->assertSee('DTS-PARALLEL-001')
             ->assertSee('Curriculum Implementation Division')
             ->assertSee('Forwarded')
@@ -1181,19 +1188,19 @@ class DepEdDashboardTest extends TestCase
         ]);
         $paper->officeAssignments()->updateOrCreate(['office' => 'SDO-Records Unit'], ['status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT]);
         $finished = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
-        $finished->movements()->create([
-            'action' => DocumentMovement::ACTION_COMPLETED,
-            'from_office' => 'SDO-Budget Unit',
-            'to_office' => 'SDO-Budget Unit',
-            'from_status' => DocumentMovement::STATUS_RECEIVED,
-            'to_status' => DocumentMovement::STATUS_COMPLETED,
-            'acted_by' => $budget->id,
-        ]);
+        // The Archived card counts every document on the Archived page, not just this month's.
+        $finished->officeAssignments()->updateOrCreate(['office' => 'SDO-Budget Unit'], ['status' => DocumentMovement::STATUS_COMPLETED]);
+        $this->travel(-2)->months();
+        $older = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
+        $older->officeAssignments()->updateOrCreate(['office' => 'SDO-Budget Unit'], ['status' => DocumentMovement::STATUS_RELEASED]);
+        $this->travelBack();
 
         $recordsDashboard = $this->actingAs($records)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSeeInOrder(['<span>Needs action</span>', '<strong>1</strong>', '<span>Paper waiting</span>', '<strong>1</strong>'], false)
+            ->assertSeeInOrder(['<span>Needs action</span>', '<strong>1</strong>'], false)
+            // Client document/s waiting are part of Needs action, so they have no card of their own.
+            ->assertDontSee('<span>Document/s waiting</span>', false)
             // Queue: "Quick action" column without a View icon.
             ->assertSee('<th scope="col">Quick action</th>', false)
             ->assertDontSee('data-tooltip="View"', false)
@@ -1205,7 +1212,7 @@ class DepEdDashboardTest extends TestCase
         $this->actingAs($budget)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSeeInOrder(['<span>Finished this month</span>', '<strong>1</strong>'], false)
+            ->assertSeeInOrder(['<span>Archived</span>', '<strong>2</strong>', 'documents completed or released'], false)
             ->assertDontSee('Paper waiting')
             ->assertDontSee('Recent documents');
     }
@@ -1235,13 +1242,13 @@ class DepEdDashboardTest extends TestCase
         $this->actingAs($budget)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSeeInOrder(['<span>Sent, still waiting</span>', '<strong>1</strong>'], false)
+            ->assertSeeInOrder(['<span>Outgoing</span>', '<strong>1</strong>'], false)
             ->assertSee(route('platform.outgoing'), false);
 
         $this->actingAs($legal)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSeeInOrder(['<span>Not received yet</span>', '<strong>1</strong>', '<span>Sent, still waiting</span>', '<strong>0</strong>'], false);
+            ->assertSeeInOrder(['<span>Incoming</span>', '<strong>1</strong>', '<span>Outgoing</span>', '<strong>0</strong>'], false);
 
         $this->assertEmpty(array_filter($queries, fn (string $sql): bool => str_contains($sql, 'distinct') && str_contains($sql, 'order by')));
     }
@@ -1329,7 +1336,7 @@ class DepEdDashboardTest extends TestCase
         $response = $this->actingAs($user)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('2 actions')
+            ->assertSee('<strong>2</strong> actions', false)
             ->assertSee('Records Unit')
             ->assertSee('Administrative Unit')
             ->assertDontSee('Document queues');
@@ -1368,7 +1375,7 @@ class DepEdDashboardTest extends TestCase
         $response = $this->actingAs($admin)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('2 actions')
+            ->assertSee('<strong>2</strong> actions', false)
             ->assertDontSee('Total registered records')
             ->assertDontSee('Document queues');
 
@@ -1397,7 +1404,7 @@ class DepEdDashboardTest extends TestCase
 
         $response = $this->actingAs($admin)
             ->get(route('platform.main'))
-            ->assertSee('2 actions');
+            ->assertSee('<strong>2</strong> actions', false);
 
         // One document row listing both offices that still have work to do.
         $this->assertSame(1, substr_count($response->getContent(), 'data-office-queue-row'));

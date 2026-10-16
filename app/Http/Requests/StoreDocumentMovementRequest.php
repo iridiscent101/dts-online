@@ -58,6 +58,11 @@ class StoreDocumentMovementRequest extends FormRequest
                 'string',
                 'max:1000',
             ],
+            'workflow.released_to' => [
+                Rule::requiredIf($action === DocumentMovement::ACTION_RELEASED),
+                'string',
+                'max:255',
+            ],
             'workflow.destination_remarks' => [
                 'array',
                 'list',
@@ -93,6 +98,10 @@ class StoreDocumentMovementRequest extends FormRequest
             $workflow['source_office'] = trim($workflow['source_office']);
         }
 
+        if (array_key_exists('released_to', $workflow) && is_string($workflow['released_to'])) {
+            $workflow['released_to'] = trim($workflow['released_to']);
+        }
+
         $this->merge(['workflow' => $workflow]);
     }
 
@@ -107,6 +116,7 @@ class StoreDocumentMovementRequest extends FormRequest
             'workflow.destinations.*.required' => 'Select a destination office for each route row.',
             'workflow.destinations.*.distinct' => 'Select each destination office only once.',
             'workflow.destinations.*.in' => 'Select recognized destination offices.',
+            'workflow.released_to.required' => 'Enter the name of the person receiving the released document.',
         ];
     }
 }

@@ -86,7 +86,7 @@ class DocumentMovement extends Model
      * Plain-language explanation of each status for clients on the public tracking page.
      */
     public const STATUS_MEANINGS = [
-        self::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Bring the paper copy to the Records Unit so processing can start.',
+        self::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'The Records Unit must receive the document before processing can start.',
         self::STATUS_AWAITING_RECEIPT => 'The document was sent to the office, but the office has not confirmed receiving it yet.',
         self::STATUS_RECEIVED => 'The office has the document and is working on it.',
         self::STATUS_FORWARDED => 'The document was sent on to another office.',
@@ -155,6 +155,7 @@ class DocumentMovement extends Model
         'from_status',
         'to_status',
         'remarks',
+        'released_to',
         'acted_by',
     ];
 
@@ -211,9 +212,7 @@ class DocumentMovement extends Model
         $actingOffice = $this->from_office ?: $this->to_office ?: 'The office';
 
         return match ($this->action) {
-            self::ACTION_ACKNOWLEDGE, self::ACTION_RECEIVED => $this->from_status === self::STATUS_AWAITING_PHYSICAL_DOCUMENT
-                ? "{$this->to_office} received the paper document"
-                : "{$this->to_office} received the document",
+            self::ACTION_ACKNOWLEDGE, self::ACTION_RECEIVED => "{$this->to_office} received the document",
             self::ACTION_SENT => $this->from_office ? "{$this->from_office} sent it to {$this->to_office}" : "Sent to {$this->to_office}",
             self::ACTION_FORWARD, self::ACTION_FORWARDED => "Document/s forwarded to {$this->to_office}",
             self::ACTION_RETURNED => "{$actingOffice} returned it to {$this->to_office}",

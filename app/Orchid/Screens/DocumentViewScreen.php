@@ -39,7 +39,7 @@ class DocumentViewScreen extends Screen
         $activities = $document->activities()
             ->whereIn('description', Document::AUDIT_DESCRIPTIONS)
             ->with('causer')
-            ->when($visibleOffices !== null, fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->where('description', '!=', 'Document routes updated')->orWhereIn('properties->office', $visibleOffices)->orWhereIn('properties->from_office', $visibleOffices)->orWhereIn('properties->to_office', $visibleOffices)))
+            ->when($visibleOffices !== null, fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->whereNotIn('description', ['Document routes updated', 'Document route corrected'])->orWhereIn('properties->office', $visibleOffices)->orWhereIn('properties->from_office', $visibleOffices)->orWhereIn('properties->to_office', $visibleOffices)))
             ->reorder()->latest('created_at')->latest('id')
             ->limit(Document::AUDIT_DISPLAY_LIMIT)
             ->get();

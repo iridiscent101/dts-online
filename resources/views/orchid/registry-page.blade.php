@@ -1,7 +1,7 @@
 <div class="dts-workspace dts-registry-page">
     <div class="dts-masthead tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
         <div>
-            <h2>{{ match ($section) { 'incoming' => 'Incoming documents', 'outgoing' => 'Outgoing documents', 'archived' => 'Finished documents', default => 'Document registry' } }}</h2>
+            <h2>{{ match ($section) { 'incoming' => 'Incoming documents', 'outgoing' => 'Outgoing documents', 'archived' => 'Archived documents', default => 'Document registry' } }}</h2>
         </div>
         @unless (request()->user()?->isReadOnlySupervisor())
             <a class="dts-button dts-button-primary" href="{{ route('platform.documents.create') }}"><x-orchid-icon path="bs.plus-lg" /> New document</a>
@@ -19,11 +19,11 @@
             <h3 id="registry-title" class="visually-hidden">Document results</h3>
             <div class="dts-registry-tabs-row">
                 <nav class="dts-tabs" aria-label="Document views">
-                    @foreach (['documents' => 'All documents', 'incoming' => 'Incoming', 'outgoing' => 'Outgoing', 'archived' => 'Finished'] as $key => $label)
+                    @foreach (['documents' => 'All documents', 'incoming' => 'Incoming', 'outgoing' => 'Outgoing', 'archived' => 'Archived'] as $key => $label)
                         <a href="{{ route('platform.'.$key) }}" data-turbo-frame="_top" @class(['dts-tab', 'is-active' => $section === $key]) @if ($section === $key) aria-current="page" @endif>{{ $label }}</a>
                     @endforeach
                 </nav>
-                <span class="dts-count">{{ $documentCount }} {{ Str::plural('record', $documentCount) }}</span>
+                <span class="dts-count dts-record-count"><strong>{{ $documentCount }}</strong> {{ Str::plural('record', $documentCount) }}</span>
             </div>
             @if ($needsAction)
                 <p>{{ request()->user()?->isAdministrator() ? 'Needs action across all offices' : 'Needs action for your office' }} · <a href="{{ route('platform.documents') }}" data-turbo-frame="_top">Show all documents</a></p>

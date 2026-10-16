@@ -86,6 +86,39 @@ class DocumentLabelTest extends TestCase
             ->assertSee('Maria Santos');
     }
 
+    public function test_label_keeps_the_records_receiver_name_after_later_movements(): void
+    {
+        $staff = User::factory()->create([
+            'office' => 'SDO-Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $receiver = User::factory()->create(['name' => 'Rosa Reyes']);
+        $forwarder = User::factory()->create(['name' => 'Other Staff']);
+        $document = Document::factory()->create([
+            'current_office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        DocumentMovement::factory()->for($document)->for($receiver, 'actor')->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => null,
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        DocumentMovement::factory()->for($document)->for($forwarder, 'actor')->create([
+            'action' => DocumentMovement::ACTION_FORWARD,
+            'from_office' => 'SDO-Records Unit',
+        ]);
+
+        $this->actingAs($staff)
+            ->get(route('platform.documents.label', $document))
+            ->assertSee('<dt>Received by</dt><dd>Rosa Reyes</dd>', false)
+            ->assertDontSee('Other Staff');
+
+        $this->get(route('platform.documents.labels', ['ids' => [$document->id]]))
+            ->assertSee('<dt>Received by</dt><dd>Rosa Reyes</dd>', false);
+    }
+
     public function test_label_falls_back_to_the_registration_before_any_action(): void
     {
         $this->travelTo(Carbon::parse('2026-10-05 01:15:00', 'UTC'));
@@ -99,52 +132,26 @@ class DocumentLabelTest extends TestCase
         $this->assertSame('Rosa Reyes', $details['processedBy']);
     }
 
-    public function test_label_data_uses_the_latest_processing_staff_members_signature(): void
+    public function test_label_shows_processing_staff_name_without_their_saved_signature(): void
     {
         Storage::fake('local');
-        $earlierStaff = User::factory()->create();
-        $latestStaff = User::factory()->create();
-        $earlierStaff->signature_path = UploadedFile::fake()->image('earlier.png')->store('staff-signatures', 'local');
-        $latestStaff->signature_path = UploadedFile::fake()->image('latest.png')->store('staff-signatures', 'local');
-        $earlierStaff->save();
-        $latestStaff->save();
-        $document = Document::factory()->received()->create();
-        DocumentMovement::factory()->for($document)->for($earlierStaff, 'actor')->create();
-        $this->travel(1)->second();
-        DocumentMovement::factory()->for($document)->for($latestStaff, 'actor')->create();
-
-        $details = app(DocumentTrackingLabel::class)->details($document->fresh());
-
-        $this->assertSame($latestStaff->name, $details['processedBy']);
-        $this->assertSame(
-            'data:image/png;base64,'.base64_encode(Storage::disk('local')->get($latestStaff->signature_path)),
-            $details['processedBySignatureDataUri'],
-        );
-    }
-
-    public function test_label_hides_signature_until_the_document_is_received(): void
-    {
-        Storage::fake('local');
-        $registrar = User::factory()->create([
+        $staff = User::factory()->create([
+            'name' => 'Rosa Reyes',
             'office' => 'Records Unit',
             'permissions' => ['platform.index' => true],
         ]);
-        $registrar->signature_path = UploadedFile::fake()->image('signature.png')->store('staff-signatures', 'local');
-        $registrar->save();
+        $staff->signature_path = UploadedFile::fake()->image('signature.png')->store('staff-signatures', 'local');
+        $staff->save();
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        DocumentMovement::factory()->for($document)->for($staff, 'actor')->create();
 
-        foreach ([DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, DocumentMovement::STATUS_AWAITING_RECEIPT] as $status) {
-            $document = Document::factory()->create([
-                'current_office' => 'Records Unit',
-                'registered_by' => $registrar->id,
-                'status' => $status,
-            ]);
+        $this->actingAs($staff)
+            ->get(route('platform.documents.label', $document))
+            ->assertSee('<dt>By</dt><dd>Rosa Reyes</dd>', false)
+            ->assertDontSee('<dt>Sign</dt>', false)
+            ->assertDontSee('data:image/png;base64,', false);
 
-            $this->actingAs($registrar)
-                ->get(route('platform.documents.label', $document))
-                ->assertOk()
-                ->assertDontSee('<dt>Sign</dt>', false)
-                ->assertDontSee('class="dts-tracking-label-signature"', false);
-        }
+        Storage::disk('local')->assertExists($staff->signature_path);
     }
 
     public function test_tracking_qr_code_carries_the_sdo_seal(): void

@@ -11,8 +11,8 @@ use App\Http\Controllers\DocumentLabelsController;
 use App\Http\Controllers\DocumentMovementController;
 use App\Http\Controllers\DocumentNotificationController;
 use App\Http\Controllers\DocumentRemarkController;
+use App\Http\Controllers\DocumentRouteCorrectionController;
 use App\Http\Controllers\DocumentWorkspaceController;
-use App\Http\Controllers\UserSignatureController;
 use App\Http\Middleware\LogoutInactiveStaff;
 use App\Orchid\Screens\DocumentEditScreen;
 use App\Orchid\Screens\DocumentRegistrationScreen;
@@ -101,6 +101,8 @@ Route::middleware('throttle:staff-requests')->group(function (): void {
         ->name('platform.documents.remarks.store');
     Route::post('documents/{document}/additional-routes', DocumentAdditionalRouteController::class)
         ->name('platform.documents.additional-routes.store');
+    Route::post('documents/{document}/routes/correct', DocumentRouteCorrectionController::class)
+        ->name('platform.documents.routes.correct');
     Route::post('documents/bulk-delete', [DocumentDeletionController::class, 'bulk'])
         ->name('platform.documents.bulk-destroy');
     Route::post('documents/{document}/delete', DocumentDeletionController::class)
@@ -124,12 +126,6 @@ Route::screen('profile', UserProfileScreen::class)
     ->breadcrumbs(fn (Trail $trail) => $trail
         ->parent('platform.index')
         ->push(__('Profile'), route('platform.profile')));
-
-Route::get('profile/signature', [UserSignatureController::class, 'show'])
-    ->name('platform.profile.signature.show');
-Route::post('profile/signature', [UserSignatureController::class, 'store'])
-    ->middleware('throttle:staff-requests')
-    ->name('platform.profile.signature.store');
 
 // Platform > System > Users > User
 Route::screen('users/{user}/edit', UserEditScreen::class)

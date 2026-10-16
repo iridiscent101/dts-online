@@ -89,10 +89,6 @@ class UserProfileScreen extends Screen
                 ->title(__('Account access'))
                 ->description(__('Your offices and roles decide which documents you see and what you can do. An administrator sets them.')),
 
-            Layout::block(Layout::view('orchid.profile-signature'))
-                ->title(__('Signature on labels'))
-                ->description(__('Printed under your name on the QR labels of documents you process.')),
-
             Layout::block(ProfilePasswordLayout::class)
                 ->title(__('Update Password'))
                 ->description(__('Ensure your account is using a long, random password to stay secure.'))

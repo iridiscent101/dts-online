@@ -87,7 +87,7 @@ class PlatformScreen extends Screen
                 'notReceivedCount' => (int) ($officeQueueCounts->not_received ?? 0),
                 'paperWaitingCount' => $canConfirmPaperIntake ? (int) ($officeQueueCounts->paper_waiting ?? 0) : null,
                 'sentWaitingCount' => $isReadOnlySupervisor ? 0 : $this->sentWaitingCount($offices, $isAdministrator),
-                'finishedThisMonthCount' => $isReadOnlySupervisor ? 0 : $this->finishedThisMonthCount($offices, $isAdministrator),
+                'archivedCount' => $isReadOnlySupervisor ? 0 : $this->archivedCount($user),
                 'unreadNotifications' => $user->unreadNotifications()->limit(4)->get(),
                 'unreadNotificationCount' => $user->unreadNotifications()->count(),
                 'canConfirmPaperIntake' => $canConfirmPaperIntake,
@@ -130,7 +130,8 @@ class PlatformScreen extends Screen
         $needsAction = $section === 'documents' && request()->boolean('needs_action');
 
         $documents = Document::query()
-            ->with('officeAssignments')
+            // registeredBy.offices: the row actions check whether the user's office registered the document (canBeEditedBy).
+            ->with(['officeAssignments', 'registeredBy.offices'])
             ->visibleTo($user)
             ->when($needsAction, function (Builder $query) use ($user): Builder {
                 if ($user->isReadOnlySupervisor()) {
@@ -178,7 +179,7 @@ class PlatformScreen extends Screen
             'documents' => 'All documents',
             'incoming' => 'Incoming documents',
             'outgoing' => 'Outgoing documents',
-            'archived' => 'Finished documents',
+            'archived' => 'Archived documents',
             default => 'Dashboard',
         };
     }
@@ -291,23 +292,18 @@ class PlatformScreen extends Screen
     }
 
     /**
-     * Documents the user's offices completed or released this month (Manila time). Administrators count all offices.
-     *
-     * @param  Collection<int, string>  $offices
+     * Every document on the user's Archived page, so the card and that page always show the same number.
      */
-    private function finishedThisMonthCount(Collection $offices, bool $isAdministrator): int
+    private function archivedCount(User $user): int
     {
-        if (! $isAdministrator && $offices->isEmpty()) {
-            return 0;
-        }
-
-        return DocumentMovement::query()
-            ->whereIn('action', [DocumentMovement::ACTION_COMPLETED, DocumentMovement::ACTION_RELEASED])
-            ->when(! $isAdministrator, fn (Builder $query): Builder => $query->whereIn('from_office', $offices))
-            ->where('created_at', '>=', today('Asia/Manila')->startOfMonth()->utc())
-            ->whereHas('document')
-            ->distinct()
-            ->count('document_id');
+        return Document::query()
+            ->visibleTo($user)
+            ->when(
+                ! $user->isAdministrator() && ! $user->hasAccess('platform.documents.view-all'),
+                fn (Builder $query): Builder => $this->applyOfficeSection($query, $user, 'archived'),
+                fn (Builder $query): Builder => $query->forSection('archived'),
+            )
+            ->count();
     }
 
     /**
@@ -357,7 +353,7 @@ class PlatformScreen extends Screen
     private function nextActionLabel(string $status): string
     {
         return match ($status) {
-            DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Confirm paper received',
+            DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Confirm document received',
             DocumentMovement::STATUS_AWAITING_RECEIPT,
             DocumentMovement::STATUS_FORWARDED,
             DocumentMovement::STATUS_RETURNED,

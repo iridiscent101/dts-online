@@ -24,7 +24,7 @@ class DocumentLabelsController extends Controller
         $documents = Document::query()
             ->visibleTo($user)
             ->whereKey($validated['ids'])
-            ->with(['latestMovement.actor', 'registeredBy'])
+            ->with(['latestMovement.actor', 'recordsReceipt.actor', 'registeredBy'])
             ->get()
             ->keyBy('id');
 

@@ -24,7 +24,7 @@
                     <div><dt>Originating office / school{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->origin }}</dd></div>
                     <div><dt>Sender{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->sender }}</dd></div>
                     @if (filled($document->delivery_method))
-                        <div><dt>Delivery</dt><dd>{{ $document->delivery_method }}</dd></div>
+                        <div><dt>Mode of submission</dt><dd>{{ $document->delivery_method }}</dd></div>
                     @endif
                     <div><dt>Date received</dt><dd>{{ $document->received_at?->format('M d, Y') ?? 'Not received' }}</dd></div>
                     <div><dt>Time registered</dt><dd>{{ $document->created_at?->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</dd></div>
@@ -38,7 +38,7 @@
                 </dl>
                 @if ($pendingRoutes->isNotEmpty())
                     <div class="dts-workflow-copy">
-                        <strong>Requested destinations after paper intake</strong>
+                        <strong>Requested destinations after the document/s are received</strong>
                         <ul>
                             @foreach ($pendingRoutes as $route)
                                 <li>{{ $route->office }}{{ $route->remarks ? ': '.$route->remarks : '' }}</li>
@@ -130,7 +130,7 @@
                                     <div class="dts-route-destination-row" data-destination-row>
                                         <span class="dts-route-destination-number" data-destination-number>{{ $loop->iteration }}</span>
                                         <div class="dts-route-destination-fields">
-                                            <input name="workflow[destinations][]" data-destination-select list="workflow-destination-offices" value="{{ $selectedDestination }}" placeholder="Search offices" autocomplete="off" aria-label="Destination office {{ $loop->iteration }}">
+                                            <dts-searchable><input name="workflow[destinations][]" data-destination-select data-searchable data-options="workflow-destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" value="{{ $selectedDestination }}" placeholder="Search offices" autocomplete="off" aria-label="Destination office {{ $loop->iteration }}"><div data-suggestions role="listbox" hidden></div></dts-searchable>
                                             <label for="workflow-destination-remarks-{{ $loop->index }}">Remarks for destination {{ $loop->iteration }} <span class="dts-optional">Optional</span></label>
                                             <textarea id="workflow-destination-remarks-{{ $loop->index }}" name="workflow[destination_remarks][{{ $loop->index }}]" data-destination-remarks rows="2" maxlength="1000" placeholder="Instructions for this office">{{ $selectedDestinationRemarks[$loop->index] ?? '' }}</textarea>
                                         </div>
@@ -140,7 +140,7 @@
                                     <div class="dts-route-destination-row" data-destination-row>
                                         <span class="dts-route-destination-number" data-destination-number>1</span>
                                         <div class="dts-route-destination-fields">
-                                            <input name="workflow[destinations][]" data-destination-select list="workflow-destination-offices" placeholder="Search offices" autocomplete="off" aria-label="Destination office 1">
+                                            <dts-searchable><input name="workflow[destinations][]" data-destination-select data-searchable data-options="workflow-destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off" aria-label="Destination office 1"><div data-suggestions role="listbox" hidden></div></dts-searchable>
                                             <label for="workflow-destination-remarks-0">Remarks for destination 1 <span class="dts-optional">Optional</span></label>
                                             <textarea id="workflow-destination-remarks-0" name="workflow[destination_remarks][0]" data-destination-remarks rows="2" maxlength="1000" placeholder="Instructions for this office">{{ $selectedDestinationRemarks[0] ?? '' }}</textarea>
                                         </div>
@@ -158,11 +158,15 @@
                             <label for="workflow-remarks">Remarks <span class="dts-optional">Optional</span></label>
                             <textarea id="workflow-remarks" name="workflow[remarks]" rows="3" maxlength="1000" placeholder="Remarks for this specific routing update">{{ old('workflow.remarks') }}</textarea>
                         </div>
+                        <div class="dts-field dts-field-wide" data-release-recipient hidden>
+                            <label for="workflow-released-to">Name of person receiving the document <span aria-hidden="true">*</span></label>
+                            <input id="workflow-released-to" name="workflow[released_to]" value="{{ old('workflow.released_to') }}" maxlength="255" autocomplete="name" required disabled>
+                        </div>
                         <template data-destination-template>
                             <div class="dts-route-destination-row" data-destination-row>
                                 <span class="dts-route-destination-number" data-destination-number></span>
                                 <div class="dts-route-destination-fields">
-                                    <input name="workflow[destinations][]" data-destination-select list="workflow-destination-offices" placeholder="Search offices" autocomplete="off">
+                                    <dts-searchable><input name="workflow[destinations][]" data-destination-select data-searchable data-options="workflow-destination-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off"><div data-suggestions role="listbox" hidden></div></dts-searchable>
                                     <label data-destination-remarks-label></label>
                                     <textarea data-destination-remarks rows="2" maxlength="1000" placeholder="Instructions for this office"></textarea>
                                 </div>
@@ -223,8 +227,14 @@
                                             @elseif ($movement->from_status !== $movement->to_status)
                                                 <small class="dts-timeline-status">{{ \App\Support\StatusLabel::for($movement->from_status) }} &rarr; {{ \App\Support\StatusLabel::for($movement->to_status) }}</small>
                                             @endif
+                                            @if ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null && filled($document->delivery_method))
+                                                <small>Mode of submission: {{ $document->delivery_method }}</small>
+                                            @endif
                                             @if ($movement->remarks)
                                                 <p>{{ $movement->remarks }}</p>
+                                            @endif
+                                            @if ($movement->released_to)
+                                                <small>Released to: {{ $movement->released_to }}</small>
                                             @endif
                                         </div>
                                     </li>

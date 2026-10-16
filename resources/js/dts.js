@@ -366,6 +366,7 @@ async function refreshWorkspace(dialog, preserveRouting = false) {
         source: routing.querySelector('[data-workflow-source-office]').value,
         action: routing.querySelector('[data-workflow-action]').value,
         remarks: routing.querySelector('[data-shared-remarks] textarea').value,
+        releasedTo: routing.querySelector('[data-release-recipient] input').value,
         destinations: [...routing.querySelectorAll('[data-destination-row]')].map((row) => ({
             office: row.querySelector('[data-destination-select]').value,
             remarks: row.querySelector('[data-destination-remarks]').value,
@@ -400,6 +401,7 @@ async function refreshWorkspace(dialog, preserveRouting = false) {
                 row.querySelector('[data-destination-remarks]').value = routingDraft.destinations[index]?.remarks || '';
             });
             updated.querySelector('[data-shared-remarks] textarea').value = routingDraft.remarks;
+            updated.querySelector('[data-release-recipient] input').value = routingDraft.releasedTo;
             updated.dataset.dirty = String(routingDraft.dirty);
         }
     }
@@ -463,6 +465,12 @@ async function loadWorkspaceHistory(dialog, page, append = false) {
             const keepFocus = more?.contains(document.activeElement);
             list.querySelector('[data-workspace-history-footer]')?.remove();
             list.insertAdjacentHTML('beforeend', html);
+            // An older page that starts on the same day as the last shown entry repeats that day's heading.
+            let lastDay = null;
+            list.querySelectorAll('[data-history-day]').forEach((heading) => {
+                if (heading.dataset.historyDay === lastDay) heading.remove();
+                else lastDay = heading.dataset.historyDay;
+            });
             // The button is gone, so move focus to the first newly loaded entry instead of the page top.
             if (keepFocus) list.querySelectorAll('[data-workspace-history-event]')[previousCount]?.focus();
         } else list.innerHTML = html;
@@ -646,7 +654,7 @@ document.addEventListener('click', async (event) => {
             const notice = routing.querySelector('[data-workspace-route-readonly]');
             notice.hidden = canAct;
             if (!canAct) notice.textContent = route.hasAttribute('data-workspace-route-waiting')
-                ? 'This office receives the document once the Records Unit confirms the paper copy.'
+                ? 'This office receives the document/s once the Records Unit receives them.'
                 : (isAssignedOffice
                     ? 'No routing action is available for this office.'
                     : "You don't have permission to edit this office's routing information.");
@@ -765,9 +773,8 @@ document.addEventListener('click', async (event) => {
     if (invalid) { invalid.reportValidity(); invalid.focus(); return; }
     button.dataset.confirming = 'true';
     const receiving = Boolean(routing.querySelector('dts-workflow-routing[data-receive-only]'));
-    const confirmed = receiving
-        ? await dtsDialog.confirm('Confirm that your office has received this document?', { title: 'Receive document', confirmLabel: 'Receive' })
-        : await dtsDialog.confirm('Save this routing update?', { title: 'Save routing update', confirmLabel: 'Save update' });
+    // Receiving needs no confirmation; other routing updates still ask before saving.
+    const confirmed = receiving || await dtsDialog.confirm('Save this routing update?', { title: 'Save routing update', confirmLabel: 'Save update' });
     delete button.dataset.confirming;
     if (!confirmed) return;
 
@@ -1506,7 +1513,8 @@ class WorkflowRouting extends HTMLElement {
             if (remove) this.removeDestination(remove);
         }, options);
         this.addEventListener('change', (event) => {
-            if (event.target.matches('[data-workflow-action]')) this.syncDestinationPanel();
+            // A destination picked from the searchable list arrives as a change, not an input.
+            if (event.target.matches('[data-workflow-action], [data-destination-select]')) this.syncDestinationPanel();
             if (event.target.matches('[data-workflow-source-office]')) {
                 this.syncActionOptions();
                 this.syncDestinationRows();
@@ -1577,6 +1585,13 @@ class WorkflowRouting extends HTMLElement {
         if (sharedRemarksInput) {
             sharedRemarksInput.disabled = requiresDestination || this.receiveOnly;
             sharedRemarksInput.required = false;
+        }
+        const releaseRecipient = this.querySelector('[data-release-recipient]');
+        const releaseRecipientInput = releaseRecipient?.querySelector('input');
+        if (releaseRecipient) releaseRecipient.hidden = action !== 'released';
+        if (releaseRecipientInput) {
+            releaseRecipientInput.disabled = action !== 'released';
+            releaseRecipientInput.required = action === 'released';
         }
     }
 
@@ -1840,7 +1855,10 @@ function additionalRouteDialog() {
             </div>
             <div class="dts-field">
                 <label for="dts-additional-route-office">Office to send it to <span aria-hidden="true">*</span></label>
-                <input id="dts-additional-route-office" data-additional-route-office list="additional-route-offices" placeholder="Search offices" autocomplete="off" required>
+                <dts-searchable>
+                    <input id="dts-additional-route-office" data-additional-route-office data-searchable data-options="additional-route-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off" required>
+                    <div data-suggestions role="listbox" hidden></div>
+                </dts-searchable>
             </div>
             <div class="dts-field">
                 <label for="dts-additional-route-remarks">Remarks <span class="dts-optional">Optional</span></label>
@@ -1848,7 +1866,7 @@ function additionalRouteDialog() {
             </div>
             <label class="dts-additional-route-confirm">
                 <input type="checkbox" data-additional-route-dispatched>
-                <span><strong>I have sent a separate paper copy to this office.</strong> Check this only after the extra copy has left your office.</span>
+                <span><strong>I have sent a separate copy of the document/s to this office.</strong> Check this only after the extra copy has left your office.</span>
             </label>
             <p class="dts-workspace-form-errors" data-additional-route-errors role="alert" hidden></p>
         </div>
@@ -1896,7 +1914,7 @@ document.addEventListener('click', async (event) => {
     const offices = [...document.querySelectorAll('#additional-route-offices option')].map((option) => option.value);
     const problem = !offices.includes(office.value.trim()) ? ['Choose an office from the list.', office]
         : office.value.trim() === source || dialog.details.assigned.includes(office.value.trim()) ? ['That office already has this document. Choose a different office.', office]
-            : !dispatched.checked ? ['Confirm that the extra paper copy was sent before adding the office.', dispatched]
+            : !dispatched.checked ? ['Confirm that the extra copy of the document/s was sent before adding the office.', dispatched]
                 : null;
     if (problem) {
         errors.textContent = problem[0];
@@ -1918,115 +1936,106 @@ document.addEventListener('click', async (event) => {
     window.location.reload();
 });
 
-// Profile: signature picture for QR labels (orchid/profile-signature). A picture over the server's limits
-// (UserSignatureController: 1200 x 600 pixels, 256 KB) is shrunk here to fit, keeping its shape, so staff do not have to
-// resize a phone photo themselves; the preview shows exactly what will be saved.
-const SIGNATURE_MAX = { width: 1200, height: 600, bytes: 256 * 1024 };
+// Outgoing list: "Correct route" (orchid/cells/document-row-actions). Swaps an office the user's office sent the
+// document to by mistake for the right one, before that office receives it. A reason is required and kept in history.
+function routeCorrectionDialog() {
+    let dialog = document.querySelector('#dts-route-correction-dialog');
+    if (dialog) return dialog;
 
-function loadSignatureImage(file) {
-    return new Promise((resolve, reject) => {
-        const image = new Image();
-        const url = URL.createObjectURL(file);
-        image.onload = () => { URL.revokeObjectURL(url); resolve(image); };
-        image.onerror = () => { URL.revokeObjectURL(url); reject(new Error('unreadable')); };
-        image.src = url;
+    dialog = document.createElement('dialog');
+    dialog.id = 'dts-route-correction-dialog';
+    dialog.className = 'dts-app-dialog dts-additional-route-dialog';
+    dialog.setAttribute('aria-labelledby', 'dts-route-correction-title');
+    dialog.innerHTML = `
+        <div class="dts-app-dialog-header"><h2 id="dts-route-correction-title">Correct route</h2></div>
+        <div class="dts-app-dialog-content dts-additional-route-fields">
+            <p class="dts-additional-route-document"><strong data-route-correction-tracking></strong><span data-route-correction-subject></span></p>
+            <p class="dts-field-hint">Use this when the document went to the wrong office. You can change an office only before it receives the document.</p>
+            <div class="dts-field">
+                <label for="dts-route-correction-route">Wrong office <span aria-hidden="true">*</span></label>
+                <select id="dts-route-correction-route" data-route-correction-route></select>
+            </div>
+            <div class="dts-field">
+                <label for="dts-route-correction-office">Correct office <span aria-hidden="true">*</span></label>
+                <dts-searchable>
+                    <input id="dts-route-correction-office" data-route-correction-office data-searchable data-options="additional-route-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off" required>
+                    <div data-suggestions role="listbox" hidden></div>
+                </dts-searchable>
+            </div>
+            <div class="dts-field">
+                <label for="dts-route-correction-reason">Reason <span aria-hidden="true">*</span></label>
+                <textarea id="dts-route-correction-reason" data-route-correction-reason rows="3" maxlength="500" autocomplete="off" required placeholder="Example: Chose Budget instead of Legal"></textarea>
+            </div>
+            <p class="dts-workspace-form-errors" data-route-correction-errors role="alert" hidden></p>
+        </div>
+        <div class="dts-app-dialog-actions">
+            <button type="button" class="dts-button" data-route-correction-cancel>Cancel</button>
+            <button type="button" class="dts-button dts-button-primary" data-route-correction-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Correct route</button>
+        </div>`;
+    dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-route-correction-cancel]')) dialog.close();
     });
+    document.body.append(dialog);
+
+    return dialog;
 }
-
-async function fitSignature(file) {
-    const image = await loadSignatureImage(file);
-    const scale = Math.min(1, SIGNATURE_MAX.width / image.naturalWidth, SIGNATURE_MAX.height / image.naturalHeight);
-    if (scale === 1 && file.size <= SIGNATURE_MAX.bytes) return { file, resized: false };
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    const context = canvas.getContext('2d');
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const encode = (type, quality) => new Promise((resolve) => canvas.toBlob(resolve, type, quality));
-    // PNG keeps a clear background; a large photo becomes JPEG on white, which stays under the size limit.
-    let blob = await encode('image/png');
-    if (!blob || blob.size > SIGNATURE_MAX.bytes) {
-        context.globalCompositeOperation = 'destination-over';
-        context.fillStyle = '#fff';
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        for (const quality of [0.9, 0.8, 0.7, 0.6]) {
-            blob = await encode('image/jpeg', quality);
-            if (blob && blob.size <= SIGNATURE_MAX.bytes) break;
-        }
-    }
-    if (!blob || blob.size > SIGNATURE_MAX.bytes) throw new Error('too-large');
-    const name = file.name.replace(/\.[^.]+$/, '') + (blob.type === 'image/png' ? '.png' : '.jpg');
-
-    return { file: new File([blob], name, { type: blob.type }), resized: true, width: canvas.width, height: canvas.height };
-}
-
-document.addEventListener('change', async (event) => {
-    const input = event.target.closest('[data-profile-signature-file]');
-    if (!input) return;
-    const section = input.closest('[data-profile-signature]');
-    const errors = section.querySelector('[data-profile-signature-errors]');
-    const status = section.querySelector('[data-profile-signature-status]');
-    const save = section.querySelector('[data-profile-signature-save]');
-    const file = input.files[0];
-    section.signatureFile = null;
-    status.textContent = '';
-    errors.hidden = true;
-    save.disabled = true;
-    if (!file) return;
-
-    const showProblem = (message) => {
-        errors.textContent = message;
-        errors.hidden = false;
-    };
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-        showProblem('Choose a PNG, JPG or WebP picture.');
-        return;
-    }
-
-    let fitted;
-    try {
-        fitted = await fitSignature(file);
-    } catch (error) {
-        showProblem(error.message === 'too-large'
-            ? 'This picture is too detailed to make small enough. Crop it closer to the signature and try again.'
-            : 'This picture could not be opened. Choose another one.');
-        return;
-    }
-
-    section.signatureFile = fitted.file;
-    const preview = section.querySelector('[data-profile-signature-preview]');
-    const image = document.createElement('img');
-    image.alt = 'Chosen signature, not saved yet';
-    image.dataset.profileSignatureImage = '';
-    image.src = URL.createObjectURL(fitted.file);
-    preview.replaceChildren(image);
-    if (fitted.resized) status.textContent = `Resized to ${fitted.width} × ${fitted.height} pixels to fit. Press Save signature to keep it.`;
-    save.disabled = false;
-});
 
 document.addEventListener('click', async (event) => {
-    const save = event.target.closest('[data-profile-signature-save]');
+    const trigger = event.target.closest('[data-route-correction]');
+    if (trigger) {
+        const details = JSON.parse(trigger.dataset.routeCorrection);
+        const dialog = routeCorrectionDialog();
+        dialog.details = details;
+        const multipleSources = new Set(details.routes.map((route) => route.source)).size > 1;
+        dialog.querySelector('[data-route-correction-tracking]').textContent = details.tracking;
+        dialog.querySelector('[data-route-correction-subject]').textContent = details.subject;
+        // Each choice is one destination; with several sending offices the label also names who sent it.
+        dialog.querySelector('[data-route-correction-route]').replaceChildren(...details.routes.map((route, index) => new Option(
+            multipleSources ? `${route.destination} (sent by ${route.source})` : route.destination,
+            String(index),
+        )));
+        const officeInput = dialog.querySelector('[data-route-correction-office]');
+        // The Outgoing list and the document window each carry their own office list.
+        officeInput.dataset.options = details.list || 'additional-route-offices';
+        officeInput.value = '';
+        dialog.querySelector('[data-route-correction-reason]').value = '';
+        dialog.querySelector('[data-route-correction-errors]').hidden = true;
+        dialog.showModal();
+        dialog.querySelector(details.routes.length > 1 ? '[data-route-correction-route]' : '[data-route-correction-office]').focus();
+        return;
+    }
+
+    const save = event.target.closest('[data-route-correction-save]');
     if (!save) return;
-    const section = save.closest('[data-profile-signature]');
-    const input = section.querySelector('[data-profile-signature-file]');
-    const signature = section.signatureFile ?? input.files[0];
-    if (!signature) return;
+    const dialog = save.closest('dialog');
+    const errors = dialog.querySelector('[data-route-correction-errors]');
+    const office = dialog.querySelector('[data-route-correction-office]');
+    const reason = dialog.querySelector('[data-route-correction-reason]');
+    const route = dialog.details.routes[Number(dialog.querySelector('[data-route-correction-route]').value)];
+    const chosen = office.value.trim();
+    const offices = [...document.querySelectorAll(`#${office.dataset.options} option`)].map((option) => option.value);
+    const problem = !offices.includes(chosen) ? ['Choose the correct office from the list.', office]
+        : chosen === route.source || dialog.details.assigned.includes(chosen) ? ['That office already has this document. Choose a different office.', office]
+            : reason.value.trim() === '' ? ['Give the reason for the correction.', reason]
+                : null;
+    if (problem) {
+        errors.textContent = problem[0];
+        errors.hidden = false;
+        problem[1].focus();
+        return;
+    }
 
     const data = new FormData();
-    data.append('signature', signature);
-    const result = await postWorkspace(section.dataset.uploadUrl, data, section.querySelector('[data-profile-signature-errors]'), save);
+    data.append('source_office', route.source);
+    data.append('destination_office', route.destination);
+    data.append('replacement_office', chosen);
+    data.append('correction_reason', reason.value.trim());
+    const result = await postWorkspace(dialog.details.url, data, errors, save);
     if (!result) return;
 
-    const image = section.querySelector('[data-profile-signature-image]');
-    if (image) {
-        image.src = `${result.signature_url}?v=${Date.now()}`;
-        image.alt = 'Your saved signature';
-    }
-    input.value = '';
-    section.signatureFile = null;
-    save.disabled = true;
-    section.querySelector('[data-profile-signature-status]').textContent = 'Signature saved. New labels will show it.';
+    dialog.close();
+    dtsToastAfterReload(result.message);
+    window.location.reload();
 });
 
 // "Add remark" (orchid/partials/office-remark): a note for the acting office's history, without changing its status.
@@ -2800,71 +2809,10 @@ async function confirmPaperReceipt(lookupUrl, data) {
     }
 }
 
-// After Paper received: what happened, a Print label button for the counter, and (when Records still has to
-// route it) a link to choose the offices.
-function markQueueRowReceived(button, text, labelUrl = null, routeUrl = null) {
-    const done = document.createElement('div');
-    done.className = 'dts-paper-received-done';
-    done.setAttribute('role', 'status');
-    const note = document.createElement('span');
-    note.textContent = text;
-    done.append(note);
-
-    const actions = document.createElement('div');
-    actions.className = 'dts-paper-received-actions';
-    if (labelUrl) {
-        const label = document.createElement('a');
-        label.className = 'dts-button dts-button-primary dts-icon-only';
-        label.dataset.tooltip = 'Print label';
-        label.setAttribute('aria-label', 'Print label');
-        label.href = labelUrl;
-        label.target = '_blank';
-        label.rel = 'noopener';
-        label.dataset.turbo = 'false';
-        label.innerHTML = PRINTER_ICON;
-        actions.append(label);
-    }
-    if (routeUrl) {
-        const route = document.createElement('a');
-        route.className = 'dts-table-action';
-        route.href = routeUrl;
-        route.textContent = 'Choose offices';
-        actions.append(route);
-    }
-    if (actions.childElementCount > 0) done.append(actions);
-
-    button.closest('tr')?.classList.add('is-paper-received');
-    // In the queue's icon row the note goes under the remaining icons instead of between them.
-    const icons = button.closest('.dts-queue-icons');
-    if (icons) {
-        button.remove();
-        icons.after(done);
-    } else {
-        button.replaceWith(done);
-    }
-    done.querySelector('a')?.focus();
-}
-
-// After Paper received the client's offices have the document; show that without reloading the page.
-// With no client-chosen offices (counter intake) the Records Unit's own row turns Received instead.
-function markQueueOfficesForwarded(row) {
-    const update = (office, badge, status, label) => {
-        badge.dataset.status = status;
-        badge.textContent = label;
-        office.setAttribute('aria-label', `View ${office.querySelector('.dts-office-status-name')?.textContent.trim()} workflow, ${label}`);
-    };
-    row?.querySelectorAll('[data-office-queue-office]').forEach((office) => {
-        const waiting = office.querySelector('[data-status="waiting-for-paper-copy"]');
-        const holding = office.querySelector('[data-status="awaiting-physical-document"]');
-        if (waiting) update(office, waiting, 'forwarded', 'Forwarded');
-        else if (holding) update(office, holding, 'received', 'Received');
-    });
-}
-
 function paperSentText(offices) {
     return offices.length === 0
-        ? 'Paper received.'
-        : `Paper sent to ${offices.length} ${offices.length === 1 ? 'office' : 'offices'}`;
+        ? 'Document/s received.'
+        : `Document/s sent to ${offices.length} ${offices.length === 1 ? 'office' : 'offices'}`;
 }
 
 // Dashboard action queue: reveal the rows past the first five in place, then offer the next dashboard page.
@@ -2880,7 +2828,7 @@ document.addEventListener('click', (event) => {
     extraRows[0]?.querySelector('a, button')?.focus();
 });
 
-// One button, a short confirmation that names every office, then the row shows the result.
+// One button, no confirmation: the document/s are received and the queue reloads with the row's next actions.
 document.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-paper-received]');
     if (!button || button.disabled) return;
@@ -2898,37 +2846,24 @@ document.addEventListener('click', async (event) => {
         }
 
         if (data.state !== 'awaiting') {
-            markQueueRowReceived(button, data.state === 'received' ? 'Already received' : 'No paper needed', data.document.label_url);
+            dtsToastAfterReload(data.state === 'received' ? 'Already received.' : 'Nothing to receive.');
+            window.location.reload();
             return;
         }
 
-        const { forward, keepsCopy } = intakeRoutes(data);
-        const lines = [
-            `${data.document.tracking_number}\n${data.document.subject}`
-                // How the client said the paper would arrive (online form), so Records knows what to expect.
-                + (data.document.delivery_method ? `\nDelivery: ${data.document.delivery_method}` : ''),
-            forward.length > 0
-                ? `Send to ${joinOfficeNames(forward.map((route) => route.office))}?`
-                : 'Is the paper copy here? After this, print its label and choose the offices it goes to.',
-        ];
-        if (keepsCopy && forward.length > 0) lines.push('Records Unit keeps a copy to work on.');
-        // What the client asked Records to do, typed on the online form ("Instructions for Records").
-        if (data.document.client_remarks) lines.push(`Client's instructions:\n${data.document.client_remarks}`);
-
-        if (!await dtsDialog.confirm(lines.join('\n\n'), { title: 'Paper received', confirmLabel: 'Paper received' })) return;
+        // Receiving happens straight away, with no confirmation step. The queue then reloads, so the row shows its
+        // next action buttons (send, complete, print label…) or leaves the queue once the offices have it.
+        const { forward } = intakeRoutes(data);
 
         const outcome = await confirmPaperReceipt(lookupUrl, data);
-        if (outcome.message) {
-            const row = button.closest('tr');
-            markQueueRowReceived(button, paperSentText(forward), data.document.label_url, forward.length === 0 ? data.document.view_url : null);
-            markQueueOfficesForwarded(row);
-        } else if (outcome.latest) {
-            markQueueRowReceived(button, 'Already received', data.document.label_url);
-        } else {
-            await dtsDialog.alert(outcome.error, { title: 'Paper not confirmed' });
+        if (outcome.message || outcome.latest) {
+            dtsToastAfterReload(outcome.message ? paperSentText(forward) : 'Already received.');
+            window.location.reload();
+            return;
         }
+        await dtsDialog.alert(outcome.error, { title: 'Receipt not confirmed' });
     } catch {
-        await dtsDialog.alert('Could not reach the server. Check the connection and try again.', { title: 'Paper not confirmed' });
+        await dtsDialog.alert('Could not reach the server. Check the connection and try again.', { title: 'Receipt not confirmed' });
     } finally {
         if (button.isConnected) {
             button.disabled = false;
@@ -2963,12 +2898,6 @@ document.addEventListener('click', async (event) => {
 
     const offices = JSON.parse(button.dataset.receiveRoutes || '[]');
     if (offices.length === 0) return;
-    const confirmed = await dtsDialog.confirm(
-        `Receive ${button.dataset.trackingNumber} for ${joinOfficeNames(offices)}?`,
-        { title: offices.length > 1 ? `Receive ${offices.length} routes` : 'Receive', confirmLabel: 'Receive' },
-    );
-    if (!confirmed) return;
-
     button.disabled = true;
     setSubmitBusy(button, true);
     const failed = [];

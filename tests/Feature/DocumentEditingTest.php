@@ -99,6 +99,62 @@ class DocumentEditingTest extends TestCase
         $this->assertSame('Corrected memorandum subject', data_get($activity->properties, 'after.subject'));
     }
 
+    public function test_records_colleague_can_edit_details_of_a_document_their_office_registered_elsewhere(): void
+    {
+        $registrar = User::factory()->create(['office' => 'SDO-Records Unit']);
+        $colleague = User::factory()->create([
+            'office' => 'SDO-Records Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true],
+        ]);
+        $document = Document::factory()->incoming()->create([
+            'current_office' => 'SDO-Accounting Unit',
+            'registered_by' => $registrar->id,
+            'subject' => 'Original subject',
+        ]);
+
+        $this->actingAs($colleague)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertSee('data-workspace-edit', false)
+            ->assertSee('data-unlock-details', false);
+
+        $this->postJson(route('platform.documents.edit', $document).'/save', [
+            'document' => $this->validDocumentData($document),
+        ])->assertUnprocessable()->assertJsonValidationErrors('document.correction_reason');
+
+        $this->post(route('platform.documents.edit', $document).'/save', [
+            'document' => [
+                ...$this->validDocumentData($document),
+                'correction_reason' => 'Correcting the title before the destination receives it.',
+            ],
+        ])->assertRedirectToRoute('platform.documents.view', $document);
+
+        $this->assertSame('Corrected memorandum subject', $document->fresh()->subject);
+        $this->assertDatabaseHas('activity_log', [
+            'subject_id' => $document->id,
+            'description' => 'Document details updated',
+            'causer_id' => $colleague->id,
+            'properties->correction_reason' => 'Correcting the title before the destination receives it.',
+        ]);
+    }
+
+    public function test_records_staff_cannot_edit_a_document_registered_by_another_office_without_an_assignment(): void
+    {
+        $registrar = User::factory()->create(['office' => 'Administrative Unit']);
+        $recordsStaff = User::factory()->create([
+            'office' => 'SDO-Records Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true, 'platform.documents.view-all' => true],
+        ]);
+        $document = Document::factory()->incoming()->create([
+            'current_office' => 'SDO-Accounting Unit',
+            'registered_by' => $registrar->id,
+        ]);
+
+        $this->actingAs($recordsStaff)
+            ->get(route('platform.documents.edit', $document))
+            ->assertForbidden();
+    }
+
     public function test_staff_need_edit_permission_and_current_office_access(): void
     {
         $document = Document::factory()->create(['current_office' => 'Administrative Unit']);
@@ -537,7 +593,7 @@ class DocumentEditingTest extends TestCase
             ->assertSee('Not received')
             ->assertSee('<span>Date received </span>', false)
             ->assertSee('aria-describedby="workspace-dates-pending"', false)
-            ->assertSee('The date is set when the Records Unit confirms the paper copy.')
+            ->assertSee('The date is set when the Records Unit receives the document/s.')
             ->assertDontSee('name="document[due]"', false);
 
         $this->get(route('platform.documents.edit', $document))

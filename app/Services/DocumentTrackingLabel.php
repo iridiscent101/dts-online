@@ -3,14 +3,12 @@
 namespace App\Services;
 
 use App\Models\Document;
-use App\Models\DocumentMovement;
 use BaconQrCode\Common\ErrorCorrectionLevel;
 use BaconQrCode\Encoder\Encoder;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
-use Illuminate\Support\Facades\Storage;
 
 class DocumentTrackingLabel
 {
@@ -31,7 +29,7 @@ class DocumentTrackingLabel
      * What the printed label shows: the status at printing time and the latest routing action (or the registration
      * when nothing has moved yet), in Philippine time.
      *
-     * @return array{status: string, date: string, time: string, processedBy: string, processedBySignatureDataUri: ?string}
+     * @return array{status: string, date: string, time: string, byLabel: string, processedBy: string}
      */
     public function details(Document $document): array
     {
@@ -40,36 +38,15 @@ class DocumentTrackingLabel
         $processedBy = $movement
             ? ($movement->actor?->name ?? 'System')
             : ($document->client_submission_key ? 'Client' : ($document->registeredBy?->name ?? 'System'));
-        $processedByUser = $movement?->actor ?? ($document->client_submission_key ? null : $document->registeredBy);
+        $receipt = $document->recordsReceipt;
 
         return [
             'status' => $document->status,
             'date' => $actedAt->format('M j, Y'),
             'time' => $actedAt->format('g:i A'),
-            'processedBy' => $processedBy,
-            'processedBySignatureDataUri' => in_array($document->status, [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT, DocumentMovement::STATUS_AWAITING_RECEIPT], true)
-                ? null
-                : $this->signatureDataUri($processedByUser?->signature_path),
+            'byLabel' => $receipt ? 'Received by' : 'By',
+            'processedBy' => $receipt ? ($receipt->actor?->name ?? 'Former staff member') : $processedBy,
         ];
-    }
-
-    private function signatureDataUri(?string $path): ?string
-    {
-        if (! $path) {
-            return null;
-        }
-
-        $disk = Storage::disk('local');
-        if (! $disk->exists($path)) {
-            return null;
-        }
-
-        $mimeType = $disk->mimeType($path);
-        if (! in_array($mimeType, ['image/jpeg', 'image/png', 'image/webp'], true)) {
-            return null;
-        }
-
-        return 'data:'.$mimeType.';base64,'.base64_encode($disk->get($path));
     }
 
     public function dataUri(Document $document): string

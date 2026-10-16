@@ -9,7 +9,7 @@
             $user->hasAccess('platform.documents.view-all') => 'View all documents',
             default => 'Work on documents assigned to your offices',
         },
-        $user->canConfirmPaperIntake() ? 'Confirm paper documents received by the Records Unit' : null,
+        $user->canConfirmPaperIntake() ? 'Confirm document/s received by the Records Unit' : null,
         $user->isAdministrator() ? 'Manage users, roles, offices and schools' : null,
     ]));
 @endphp
