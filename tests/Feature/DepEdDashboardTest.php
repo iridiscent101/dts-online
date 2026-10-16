@@ -1206,9 +1206,45 @@ class DepEdDashboardTest extends TestCase
         $this->actingAs($budget)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSeeInOrder(['<span>Done this week</span>', '<strong>1</strong>'], false)
+            ->assertSeeInOrder(['<span>Finished this month</span>', '<strong>1</strong>'], false)
             ->assertDontSee('Paper waiting')
             ->assertDontSee('Recent documents');
+    }
+
+    public function test_summary_cards_count_hand_offs_between_offices(): void
+    {
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $legal = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Legal Unit'], ['status' => DocumentMovement::STATUS_FORWARDED]);
+        $document->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'SDO-Budget Unit',
+            'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED,
+            'to_status' => DocumentMovement::STATUS_FORWARDED,
+            'acted_by' => $budget->id,
+        ]);
+
+        // MySQL (online) rejects DISTINCT with ORDER BY on an unselected column; SQLite does not, so check the SQL.
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        // Budget sent it and Legal has not received it: a stuck hand-off for Budget, the first job for Legal.
+        $this->actingAs($budget)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertSeeInOrder(['<span>Sent, still waiting</span>', '<strong>1</strong>'], false)
+            ->assertSee(route('platform.outgoing'), false);
+
+        $this->actingAs($legal)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertSeeInOrder(['<span>Not received yet</span>', '<strong>1</strong>', '<span>Sent, still waiting</span>', '<strong>0</strong>'], false);
+
+        $this->assertEmpty(array_filter($queries, fn (string $sql): bool => str_contains($sql, 'distinct') && str_contains($sql, 'order by')));
     }
 
     public function test_supervisors_keep_recent_documents_instead_of_summary_cards(): void

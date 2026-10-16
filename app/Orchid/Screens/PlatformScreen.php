@@ -23,6 +23,14 @@ class PlatformScreen extends Screen
     /** Documents the dashboard queue holds; five show at first, the rest behind "Show more". */
     private const OFFICE_QUEUE_LIMIT = 25;
 
+    // Sent to an office that has not received it yet ("Pending · Not received yet").
+    private const NOT_RECEIVED_STATUSES = [
+        DocumentMovement::STATUS_AWAITING_RECEIPT,
+        DocumentMovement::STATUS_FORWARDED,
+        DocumentMovement::STATUS_RETURNED,
+        DocumentMovement::STATUS_RESUBMITTED,
+    ];
+
     private const OFFICE_ACTION_STATUSES = [
         DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
         ...DocumentMovement::IN_PROGRESS_STATUSES,
@@ -62,9 +70,12 @@ class PlatformScreen extends Screen
                 'officeQueue' => $this->officeQueueItems($officeQueueQuery),
                 'officeQueueCount' => (int) ($officeQueueCounts->total ?? 0),
                 'officeQueueDocumentCount' => (int) ($officeQueueCounts->documents ?? 0),
-                // The fourth summary card: Records counts paper waiting at the counter, other offices what they finished.
+                // Summary cards: what is waiting for the office, what it sent that is still waiting elsewhere, and what it
+                // finished this month. Records also sees paper waiting at the counter.
+                'notReceivedCount' => (int) ($officeQueueCounts->not_received ?? 0),
                 'paperWaitingCount' => $canConfirmPaperIntake ? (int) ($officeQueueCounts->paper_waiting ?? 0) : null,
-                'actedThisWeekCount' => $canConfirmPaperIntake || $isReadOnlySupervisor ? null : $this->actedThisWeekCount($offices),
+                'sentWaitingCount' => $isReadOnlySupervisor ? 0 : $this->sentWaitingCount($offices, $isAdministrator),
+                'finishedThisMonthCount' => $isReadOnlySupervisor ? 0 : $this->finishedThisMonthCount($offices, $isAdministrator),
                 'unreadNotifications' => $user->unreadNotifications()->limit(4)->get(),
                 'unreadNotificationCount' => $user->unreadNotifications()->count(),
                 'canConfirmPaperIntake' => $canConfirmPaperIntake,
@@ -221,24 +232,52 @@ class PlatformScreen extends Screen
             ->selectRaw('COUNT(*) as total')
             ->selectRaw('COUNT(DISTINCT document_office_assignments.document_id) as documents')
             ->selectRaw('COUNT(DISTINCT CASE WHEN document_office_assignments.status = ? THEN documents.id END) as paper_waiting', [DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT])
+            ->selectRaw('COUNT(DISTINCT CASE WHEN document_office_assignments.status IN (?, ?, ?, ?) THEN documents.id END) as not_received', self::NOT_RECEIVED_STATUSES)
             ->first();
     }
 
     /**
-     * Documents the user's offices moved on this week (forwarded, completed, returned…), not counting receipts.
+     * Documents the user's offices sent on that the receiving office has not received yet (stuck hand-offs).
+     * Administrators see every such hand-off.
      *
      * @param  Collection<int, string>  $offices
      */
-    private function actedThisWeekCount(Collection $offices): int
+    private function sentWaitingCount(Collection $offices, bool $isAdministrator): int
     {
-        if ($offices->isEmpty()) {
+        if (! $isAdministrator && $offices->isEmpty()) {
+            return 0;
+        }
+
+        return DocumentOfficeAssignment::query()
+            ->whereIn('document_office_assignments.status', self::NOT_RECEIVED_STATUSES)
+            ->when(! $isAdministrator, fn (Builder $query): Builder => $query->whereNotIn('document_office_assignments.office', $offices))
+            ->whereHas('document')
+            ->whereExists(fn ($movements) => $movements->selectRaw('1')
+                ->from('document_movements')
+                ->whereColumn('document_movements.document_id', 'document_office_assignments.document_id')
+                ->whereColumn('document_movements.to_office', 'document_office_assignments.office')
+                ->whereNotNull('document_movements.from_office')
+                ->whereColumn('document_movements.from_office', '!=', 'document_movements.to_office')
+                ->when(! $isAdministrator, fn ($query) => $query->whereIn('document_movements.from_office', $offices)))
+            ->distinct()
+            ->count('document_office_assignments.document_id');
+    }
+
+    /**
+     * Documents the user's offices completed or released this month (Manila time). Administrators count all offices.
+     *
+     * @param  Collection<int, string>  $offices
+     */
+    private function finishedThisMonthCount(Collection $offices, bool $isAdministrator): int
+    {
+        if (! $isAdministrator && $offices->isEmpty()) {
             return 0;
         }
 
         return DocumentMovement::query()
-            ->whereIn('from_office', $offices)
-            ->whereNotIn('action', [DocumentMovement::ACTION_RECEIVED, DocumentMovement::ACTION_ACKNOWLEDGE])
-            ->where('created_at', '>=', today('Asia/Manila')->startOfWeek()->utc())
+            ->whereIn('action', [DocumentMovement::ACTION_COMPLETED, DocumentMovement::ACTION_RELEASED])
+            ->when(! $isAdministrator, fn (Builder $query): Builder => $query->whereIn('from_office', $offices))
+            ->where('created_at', '>=', today('Asia/Manila')->startOfMonth()->utc())
             ->whereHas('document')
             ->distinct()
             ->count('document_id');

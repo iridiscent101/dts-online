@@ -12,24 +12,31 @@
         @php $isSupervisor = (bool) request()->user()?->isReadOnlySupervisor(); @endphp
         <section class="dts-registry tw:min-w-0" aria-labelledby="{{ $isSupervisor ? 'registry-title' : 'office-queue-title' }}">
             @unless ($isSupervisor)
-            {{-- Work summary: every number is about documents that still need this office (or, last card, what it finished). --}}
+            {{-- Work summary: bold cards that each open the list behind their number. "Needs action" counts the queue
+                 below; "Not received yet" is the part of it the office must receive first. --}}
             @php
-                $summaryCards = [
-                    ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' waiting', 'bs.inbox', 'green'],
+                $monthName = today('Asia/Manila')->format('F');
+                $summaryCards = array_values(array_filter([
+                    ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' waiting for your office', 'bs.inbox', 'green', '#office-queue-title'],
+                    ['Not received yet', $notReceivedCount, 'receive these first', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
                     $paperWaitingCount !== null
-                        ? ['Paper waiting', $paperWaitingCount, 'client copies to receive', 'bs.file-earmark-text', $paperWaitingCount > 0 ? 'amber' : 'neutral']
-                        : ['Done this week', $actedThisWeekCount ?? 0, 'documents your office moved on', 'bs.check2-circle', 'green'],
-                ];
+                        ? ['Paper waiting', $paperWaitingCount, 'client copies to receive at the counter', 'bs.file-earmark-text', 'brown', '#office-queue-title']
+                        : null,
+                    ['Sent, still waiting', $sentWaitingCount, 'the next office has not received '.($sentWaitingCount === 1 ? 'it' : 'them').' yet', 'bs.send', 'blue', route('platform.outgoing')],
+                    ['Finished this month', $finishedThisMonthCount, 'completed or released in '.$monthName, 'bs.check2-circle', 'teal', route('platform.archived')],
+                ]));
             @endphp
-            <div class="dts-metrics" role="list" aria-label="Work summary">
-                @foreach ($summaryCards as [$label, $value, $caption, $icon, $tone])
-                    <div class="dts-metric dts-{{ $tone }}" role="listitem" data-summary-card>
-                        <div class="dts-metric-heading"><span>{{ $label }}</span><span class="dts-icon"><x-orchid-icon :path="$icon" /></span></div>
-                        <strong>{{ $value }}</strong>
-                        <small>{{ $caption }}</small>
-                    </div>
+            <ul class="dts-metrics dts-metrics-bold" aria-label="Work summary" data-metric-count="{{ count($summaryCards) }}">
+                @foreach ($summaryCards as [$label, $value, $caption, $icon, $tone, $href])
+                    <li>
+                        <a class="dts-metric dts-metric-{{ $tone }}" data-summary-card href="{{ $href }}">
+                            <span class="dts-metric-heading"><span>{{ $label }}</span><span class="dts-icon" aria-hidden="true"><x-orchid-icon :path="$icon" /></span></span>
+                            <strong>{{ $value }}</strong>
+                            <small>{{ $caption }}</small>
+                        </a>
+                    </li>
                 @endforeach
-            </div>
+            </ul>
             <div class="dts-office-queue" aria-labelledby="office-queue-title">
                 <div class="dts-section-heading tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-3">
                     <div>

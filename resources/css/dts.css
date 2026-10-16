@@ -7137,3 +7137,136 @@ body .invalid-feedback {
         width: auto;
     }
 }
+
+/* Dashboard summary: bold colour blocks that stand out from the white page, each a link to the list behind it.
+   Text contrast: white on green/brown/blue/teal and dark ink on gold are all at least 4.5:1. */
+.dts-metrics.dts-metrics-bold {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin: 0 0 24px;
+    padding: 0;
+    list-style: none;
+}
+
+.dts-metrics-bold > li {
+    display: flex;
+    min-width: 0;
+}
+
+.dts-metrics-bold .dts-metric {
+    --dts-metric-bg: var(--dts-green);
+    --dts-metric-ink: #fff;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 132px;
+    padding: 16px 18px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--dts-metric-bg);
+    box-shadow: 0 6px 18px rgb(38 51 43 / 14%);
+    color: var(--dts-metric-ink);
+    text-decoration: none;
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out, filter 120ms ease-out;
+}
+
+.dts-metrics-bold .dts-metric:hover {
+    box-shadow: 0 10px 24px rgb(38 51 43 / 20%);
+    filter: brightness(1.05);
+    transform: translateY(-2px);
+}
+
+.dts-metrics-bold .dts-metric:focus-visible {
+    outline: 3px solid var(--dts-charcoal);
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dts-metrics-bold .dts-metric,
+    .dts-metrics-bold .dts-metric:hover {
+        transform: none;
+        transition: none;
+    }
+}
+
+.dts-metrics-bold .dts-metric-heading > span:first-child {
+    color: var(--dts-metric-ink);
+    font-size: 1.0625rem;
+    font-weight: 700;
+}
+
+.dts-metrics-bold .dts-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 22%);
+    color: var(--dts-metric-ink);
+}
+
+.dts-metrics-bold .dts-icon svg {
+    width: 20px;
+    height: 20px;
+}
+
+.dts-metrics-bold .dts-metric > strong {
+    margin: 6px 0 2px;
+    color: var(--dts-metric-ink);
+    font-size: 2.75rem;
+    font-weight: 800;
+    line-height: 1.05;
+}
+
+.dts-metrics-bold .dts-metric > small {
+    color: var(--dts-metric-ink);
+    font-size: 0.9375rem;
+    line-height: 1.35;
+    opacity: 0.92;
+}
+
+.dts-metrics-bold .dts-metric-green { --dts-metric-bg: #216e39; }
+.dts-metrics-bold .dts-metric-gold { --dts-metric-bg: #f2c230; --dts-metric-ink: #26332b; }
+.dts-metrics-bold .dts-metric-gold .dts-icon { background: rgb(38 51 43 / 12%); }
+.dts-metrics-bold .dts-metric-brown { --dts-metric-bg: #86562d; }
+.dts-metrics-bold .dts-metric-blue { --dts-metric-bg: #1f5f8b; }
+.dts-metrics-bold .dts-metric-teal { --dts-metric-bg: #0f6b66; }
+
+/* No card left alone on a row: five cards put the two most urgent on top (larger), four go two by two; wide
+   screens fit them all in one row. */
+.dts-metrics.dts-metrics-bold[data-metric-count="5"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dts-metrics-bold[data-metric-count="5"] > li { grid-column: span 2; }
+.dts-metrics-bold[data-metric-count="5"] > li:nth-child(-n+2) { grid-column: span 3; }
+
+.dts-metrics.dts-metrics-bold[data-metric-count="4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* One row only on very wide screens: the sidebar takes about 260px, and labels must not break into three lines. */
+@media (min-width: 1600px) {
+    .dts-metrics.dts-metrics-bold[data-metric-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    .dts-metrics-bold[data-metric-count="5"] > li,
+    .dts-metrics-bold[data-metric-count="5"] > li:nth-child(-n+2) { grid-column: auto; }
+    .dts-metrics.dts-metrics-bold[data-metric-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (max-width: 575px) {
+    .dts-metrics.dts-metrics-bold,
+    .dts-metrics.dts-metrics-bold[data-metric-count] {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .dts-metrics-bold[data-metric-count] > li,
+    .dts-metrics-bold[data-metric-count] > li:nth-child(-n+2) {
+        grid-column: auto;
+    }
+
+    .dts-metrics-bold .dts-metric {
+        min-height: 0;
+    }
+
+    .dts-metrics-bold .dts-metric > strong {
+        font-size: 2.25rem;
+    }
+}
