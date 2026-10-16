@@ -7138,13 +7138,23 @@ body .invalid-feedback {
     }
 }
 
-/* Dashboard summary: bold colour blocks that stand out from the white page, each a link to the list behind it.
-   Text contrast: white on green/brown/blue/teal and dark ink on gold are all at least 4.5:1. */
+/* Dashboard summary: frosted-glass cards over a soft green, gold and blue backdrop, each a link to the list behind
+   it. The colour lives in the icon and the number; all text is dark on near-white glass (at least 4.5:1). */
 .dts-metrics.dts-metrics-bold {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 14px;
-    margin: 0 0 24px;
-    padding: 0;
+    position: relative;
+    isolation: isolate;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 0 0 22px;
+    padding: 14px;
+    overflow: hidden;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 8% 20%, rgb(33 110 57 / 55%), transparent 42%),
+        radial-gradient(circle at 55% 0%, rgb(242 194 48 / 55%), transparent 40%),
+        radial-gradient(circle at 95% 85%, rgb(31 95 139 / 45%), transparent 45%),
+        radial-gradient(circle at 35% 110%, rgb(134 86 45 / 35%), transparent 40%),
+        linear-gradient(135deg, #eef4ec, #f8f1dc);
     list-style: none;
 }
 
@@ -7154,31 +7164,32 @@ body .invalid-feedback {
 }
 
 .dts-metrics-bold .dts-metric {
-    --dts-metric-bg: var(--dts-green);
-    --dts-metric-ink: #fff;
+    --dts-metric-tone: var(--dts-green);
     display: flex;
     flex: 1;
     flex-direction: column;
-    min-height: 132px;
-    padding: 16px 18px;
-    border: 0;
-    border-radius: 10px;
-    background: var(--dts-metric-bg);
-    box-shadow: 0 6px 18px rgb(38 51 43 / 14%);
-    color: var(--dts-metric-ink);
+    min-height: 0;
+    padding: 12px 14px;
+    border: 1px solid rgb(255 255 255 / 70%);
+    border-radius: 12px;
+    background: rgb(255 255 255 / 62%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+    box-shadow: 0 4px 16px rgb(38 51 43 / 10%), inset 0 1px 0 rgb(255 255 255 / 80%);
+    color: var(--dts-text-strong);
     text-decoration: none;
-    transition: transform 120ms ease-out, box-shadow 120ms ease-out, filter 120ms ease-out;
+    transition: transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out;
 }
 
 .dts-metrics-bold .dts-metric:hover {
-    box-shadow: 0 10px 24px rgb(38 51 43 / 20%);
-    filter: brightness(1.05);
+    background: rgb(255 255 255 / 78%);
+    box-shadow: 0 8px 22px rgb(38 51 43 / 16%), inset 0 1px 0 rgb(255 255 255 / 90%);
     transform: translateY(-2px);
 }
 
 .dts-metrics-bold .dts-metric:focus-visible {
     outline: 3px solid var(--dts-charcoal);
-    outline-offset: 3px;
+    outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7189,46 +7200,50 @@ body .invalid-feedback {
     }
 }
 
+/* Browsers without blur get solid near-white cards, so the text stays readable. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .dts-metrics-bold .dts-metric { background: rgb(255 255 255 / 92%); }
+}
+
 .dts-metrics-bold .dts-metric-heading > span:first-child {
-    color: var(--dts-metric-ink);
-    font-size: 1.0625rem;
+    color: var(--dts-text-strong);
+    font-size: 0.9375rem;
     font-weight: 700;
 }
 
 .dts-metrics-bold .dts-icon {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: rgb(255 255 255 / 22%);
-    color: var(--dts-metric-ink);
+    background: var(--dts-metric-tone);
+    color: #fff;
+    box-shadow: 0 2px 6px rgb(38 51 43 / 18%);
 }
 
 .dts-metrics-bold .dts-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
 }
 
 .dts-metrics-bold .dts-metric > strong {
-    margin: 6px 0 2px;
-    color: var(--dts-metric-ink);
-    font-size: 2.75rem;
+    margin: 2px 0 0;
+    color: var(--dts-metric-tone);
+    font-size: 2rem;
     font-weight: 800;
-    line-height: 1.05;
+    line-height: 1.1;
 }
 
 .dts-metrics-bold .dts-metric > small {
-    color: var(--dts-metric-ink);
-    font-size: 0.9375rem;
+    color: var(--dts-text-body);
+    font-size: 0.875rem;
     line-height: 1.35;
-    opacity: 0.92;
 }
 
-.dts-metrics-bold .dts-metric-green { --dts-metric-bg: #216e39; }
-.dts-metrics-bold .dts-metric-gold { --dts-metric-bg: #f2c230; --dts-metric-ink: #26332b; }
-.dts-metrics-bold .dts-metric-gold .dts-icon { background: rgb(38 51 43 / 12%); }
-.dts-metrics-bold .dts-metric-brown { --dts-metric-bg: #86562d; }
-.dts-metrics-bold .dts-metric-blue { --dts-metric-bg: #1f5f8b; }
-.dts-metrics-bold .dts-metric-teal { --dts-metric-bg: #0f6b66; }
+.dts-metrics-bold .dts-metric-green { --dts-metric-tone: #216e39; }
+.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: #765709; }
+.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: #86562d; }
+.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: #1f5f8b; }
+.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: #0f6b66; }
 
 /* No card left alone on a row: five cards put the two most urgent on top (larger), four go two by two; wide
    screens fit them all in one row. */
@@ -7252,9 +7267,12 @@ body .invalid-feedback {
 }
 
 @media (max-width: 575px) {
+    /* Phones: two columns, "Needs action" across the top when the count is odd (1 + 2 + 2). */
     .dts-metrics.dts-metrics-bold,
     .dts-metrics.dts-metrics-bold[data-metric-count] {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        padding: 10px;
     }
 
     .dts-metrics-bold[data-metric-count] > li,
@@ -7262,11 +7280,21 @@ body .invalid-feedback {
         grid-column: auto;
     }
 
+    .dts-metrics-bold[data-metric-count="5"] > li:first-child,
+    .dts-metrics-bold[data-metric-count="3"] > li:first-child {
+        grid-column: 1 / -1;
+    }
+
     .dts-metrics-bold .dts-metric {
-        min-height: 0;
+        padding: 10px 12px;
+    }
+
+    .dts-metrics-bold .dts-metric-heading > span:first-child {
+        font-size: 0.875rem;
+        line-height: 1.25;
     }
 
     .dts-metrics-bold .dts-metric > strong {
-        font-size: 2.25rem;
+        font-size: 1.75rem;
     }
 }
