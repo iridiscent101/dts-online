@@ -283,18 +283,28 @@
                         </div>
                         @include('partials.public-status-guide', ['class' => 'mt-4'])
                         @php
-                            $timelineEvents = $document->movements->reverse()->values()
+                            // Movements and office remarks, newest first; the registration step stays last.
+                            $timelineEvents = $document->movements
                                 ->map(fn (\App\Models\DocumentMovement $movement): array => [
                                     'movement' => $movement,
                                     'at' => $movement->created_at,
                                     'visible' => $selectedOffice === '' || $movement->from_office === $selectedOffice || $movement->to_office === $selectedOffice,
                                 ])
+                                ->concat($publicRemarks->map(fn (array $remark): array => [
+                                    'movement' => null,
+                                    'remark' => $remark,
+                                    'at' => $remark['at'],
+                                    'visible' => $selectedOffice === '' || $remark['office'] === $selectedOffice,
+                                ]))
+                                ->sortBy(fn (array $event): int => $event['at']->getTimestamp())
+                                ->reverse()
+                                ->values()
                                 ->push(['movement' => null, 'at' => $document->created_at, 'visible' => $showRegistrationEvent])
                                 ->map(fn (array $event, int $index): array => [...$event, 'index' => $index]);
                             $latestEventIndex = $timelineEvents->first(fn (array $event): bool => $event['visible'])['index'] ?? null;
                             $timelineDays = $timelineEvents->groupBy(fn (array $event): string => $event['at']->copy()->timezone('Asia/Manila')->toDateString());
                             $timelineToday = now('Asia/Manila');
-                            $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.dot'];
+                            $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.dot', 'remark' => 'bs.chat-left-text'];
                         @endphp
                         @if ($timelineOffices->count() > 1)
                             <form id="timeline-filter" method="GET" action="{{ route('tracking.index') }}#movement-heading" class="mt-4 flex flex-wrap items-end gap-3" data-registration-offices='@json($registrationOffices?->values()->all() ?? [])' data-initial-office="{{ $initialOffice }}">
@@ -320,7 +330,25 @@
                                     <ol class="dts-step-timeline">
                                         @foreach ($events as $event)
                                             @php($movement = $event['movement'])
-                                            @if ($movement === null)
+                                            @if (isset($event['remark']))
+                                                @php($remark = $event['remark'])
+                                                {{-- A remark an office added (staff "Add remark"); filtered with that office's steps. --}}
+                                                <li style="--i: {{ $event['index'] }}" data-kind="remark" data-movement data-from-office="{{ $remark['office'] }}" data-to-office="{{ $remark['office'] }}" class="dts-public-timeline-item {{ $event['visible'] ? 'grid' : 'hidden' }} grid-cols-[32px_minmax(0,1fr)] gap-3 pb-4">
+                                                    <span class="dts-timeline-dot" aria-hidden="true"><x-orchid-icon :path="$timelineIcons['remark']" /></span>
+                                                    <div class="min-w-0 pt-1">
+                                                        <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                                                            <strong class="text-base font-semibold text-slate-900">{{ $remark['office'] ?: 'The office' }} added a remark <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
+                                                        </div>
+                                                        <p class="mt-2 whitespace-pre-line rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $remark['remark'] }}</p>
+                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                                                            <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $remark['at']->toIso8601String() }}">{{ $remark['at']->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $remark['at']->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
+                                                            @if (filled($remark['by']))
+                                                                <dt class="font-medium text-slate-500">Added by</dt><dd class="text-slate-800">{{ $remark['by'] }}</dd>
+                                                            @endif
+                                                        </dl>
+                                                    </div>
+                                                </li>
+                                            @elseif ($movement === null)
                                                 <li id="registration-event" class="dts-public-timeline-item {{ $event['visible'] ? 'grid' : 'hidden' }} grid-cols-[32px_minmax(0,1fr)] gap-3 pb-4" style="--i: {{ $event['index'] }}" data-kind="registered">
                                                     <span class="dts-timeline-dot" aria-hidden="true"><x-orchid-icon path="bs.file-earmark-check" /></span>
                                                     <div class="min-w-0 pt-1">

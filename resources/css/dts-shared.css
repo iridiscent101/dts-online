@@ -338,6 +338,12 @@ select:not([multiple], [size]):disabled {
 }
 
 /* A withdrawn route: grey, not red, because nothing went wrong with the document itself. */
+/* A remark an office added: gold, so it reads as a note rather than a move. */
+[data-kind="remark"] .dts-timeline-dot {
+    background: #fdf3d2;
+    color: #765709;
+}
+
 [data-kind="cancelled"] .dts-timeline-dot {
     background: #eceff3;
     color: #526174;

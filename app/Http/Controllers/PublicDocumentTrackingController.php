@@ -86,6 +86,25 @@ class PublicDocumentTrackingController extends Controller
         if ($registrationOffices?->isEmpty()) {
             $registrationOffices = collect([$initialOffice])->filter();
         }
+        // Remarks staff add for an office ("Add remark") are activity entries, not movements; the public history shows them
+        // as their own steps. Only the office, text, staff name and time leave the server.
+        $publicRemarks = $document
+            ? $document->activities()
+                ->reorder()
+                ->where('description', 'Remark added')
+                ->with('causer:id,name')
+                ->oldest('created_at')
+                ->oldest('id')
+                ->get()
+                ->map(fn ($activity): array => [
+                    'office' => (string) data_get($activity->properties, 'office', ''),
+                    'remark' => (string) data_get($activity->properties, 'remark', ''),
+                    'by' => $activity->causer?->name,
+                    'at' => $activity->created_at,
+                ])
+                ->filter(fn (array $remark): bool => $remark['remark'] !== '')
+                ->values()
+            : collect();
         $assignedOffices = $document?->assignedOfficeStatuses() ?? collect();
         // The office cards also list a paper submission's offices that are still waiting for the paper copy.
         $routeOffices = $document?->officeRouteStatuses() ?? collect();
@@ -102,7 +121,7 @@ class PublicDocumentTrackingController extends Controller
         $showRegistrationEvent = $selectedOffice === '' || $registrationOffices?->contains($selectedOffice);
         $showEmptyTimeline = $document && ! $showRegistrationEvent && ! $document->movements->contains(
             fn (DocumentMovement $movement): bool => $movement->from_office === $selectedOffice || $movement->to_office === $selectedOffice,
-        );
+        ) && ! $publicRemarks->contains('office', $selectedOffice);
         $qrCodeDataUri = $document ? $trackingLabel->dataUri($document) : null;
         $submissionKey = (string) Str::uuid();
         $documentTypes = Document::typeOptions();
@@ -115,6 +134,7 @@ class PublicDocumentTrackingController extends Controller
             'initialOffice',
             'assignedOffices',
             'routeOffices',
+            'publicRemarks',
             'timelineOffices',
             'selectedOffice',
             'showRegistrationEvent',

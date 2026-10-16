@@ -290,6 +290,40 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee("if (event.target.id === 'timeline-office') showOfficeTimeline(event.target.value);", false);
     }
 
+    public function test_office_remarks_appear_in_the_public_history(): void
+    {
+        $staff = User::factory()->create(['name' => 'Remark Author']);
+        $document = Document::factory()->create([
+            'tracking_number' => 'DTS-2026-000131',
+            'current_office' => 'Records Unit',
+            'status' => 'Received',
+            'created_at' => '2026-09-25 01:00:00',
+        ]);
+        $document->movements()->create([
+            'action' => 'forward',
+            'from_office' => 'Records Unit',
+            'to_office' => 'Administrative Unit',
+            'from_status' => 'Received',
+            'to_status' => 'Forwarded',
+            'created_at' => '2026-09-25 03:00:00',
+            'updated_at' => '2026-09-25 03:00:00',
+        ]);
+        // Movements take the current time when created, so the remark is added a minute later.
+        $this->travel(1)->minute();
+        $document->recordActivity('Remark added', $staff, ['office' => 'Administrative Unit', 'remark' => 'Waiting for the signed annex.']);
+
+        // Newest first: the remark comes before the forward and the registration.
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertSee('data-kind="remark"', false)
+            ->assertSeeInOrder(['Administrative Unit added a remark', 'Waiting for the signed annex.', 'Added by', 'Remark Author', 'Document/s forwarded to Administrative Unit', 'Document registered']);
+
+        // The office filter treats it as one of that office's steps.
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number, 'office' => 'Records Unit']))
+            ->assertOk()
+            ->assertSee('data-kind="remark" data-movement data-from-office="Administrative Unit" data-to-office="Administrative Unit" class="dts-public-timeline-item hidden', false);
+    }
+
     public function test_office_without_recorded_movements_has_a_clear_empty_timeline(): void
     {
         $document = Document::factory()->create([
