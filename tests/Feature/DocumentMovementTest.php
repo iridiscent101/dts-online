@@ -959,7 +959,7 @@ class DocumentMovementTest extends TestCase
 
         $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
-        $this->assertSame(['forwarded', 'received', 'released'], $document->movements()->oldest('id')->pluck('action')->all());
+        $this->assertSame(['forwarded', 'received', 'released'], $document->movements()->reorder('id')->pluck('action')->all());
     }
 
     public function test_records_cannot_release_while_another_office_route_is_active(): void
