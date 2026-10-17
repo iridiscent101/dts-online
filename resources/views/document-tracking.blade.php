@@ -215,7 +215,8 @@
                                 <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="176" height="176" class="size-36 shrink-0 rounded-sm bg-white p-1.5 sm:size-44">
                                 <div>
                                     <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
-                                    <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot. Scan it later to open this tracking page.</p>
+                                    <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot, or print a receipt. Scan it later to open this tracking page.</p>
+                                    <a href="{{ route('tracking.receipt', $document->tracking_number) }}" class="mt-3 inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.printer" class="size-4" /> Print receipt</a>
                                 </div>
                             </div>
                         @endif

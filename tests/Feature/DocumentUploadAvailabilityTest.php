@@ -49,7 +49,6 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
-            'designation' => 'Teacher I',
             'privacy_consent' => '1',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',
@@ -124,7 +123,6 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
-            'designation' => 'Teacher I',
             'privacy_consent' => '1',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',
@@ -156,7 +154,6 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
-            'designation' => 'Teacher I',
             'privacy_consent' => '1',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',

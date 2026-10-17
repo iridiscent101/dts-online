@@ -73,10 +73,6 @@
                     <input id="document-sender" name="document[sender]" required maxlength="180" value="{{ old('document.sender', $document->sender) }}" @readonly($fieldsLocked) autocomplete="off">
                 </div>
                 <div class="dts-field">
-                    <label for="document-designation">Sender's designation <span class="dts-optional">Optional</span></label>
-                    <input id="document-designation" name="document[designation]" maxlength="120" value="{{ old('document.designation', $document->sender_designation) }}" @readonly($fieldsLocked) placeholder="Example: Teacher I, School Head" autocomplete="off">
-                </div>
-                <div class="dts-field">
                     <label for="document-received">Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</label>
                     <input id="document-received" name="document[received]" type="date" @required($document->received_at !== null) value="{{ old('document.received', $document->received_at?->toDateString()) }}" @readonly($fieldsLocked) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="document-dates-pending" @endif>
                     @if ($document->received_at === null)

@@ -93,7 +93,6 @@ class DocumentEditScreen extends Screen
                 'description',
                 'origin',
                 'sender',
-                'sender_designation',
                 'received_at',
             ]);
 
@@ -104,7 +103,6 @@ class DocumentEditScreen extends Screen
                 'description' => $data['description'] ?? null,
                 'origin' => $data['origin'],
                 'sender' => $data['sender'],
-                'sender_designation' => filled($data['designation'] ?? null) ? trim($data['designation']) : null,
                 'received_at' => $data['received'] ?? $document->received_at,
             ]);
 

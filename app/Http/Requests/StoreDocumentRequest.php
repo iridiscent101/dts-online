@@ -34,7 +34,6 @@ class StoreDocumentRequest extends FormRequest
             'document.description' => ['nullable', 'string', 'max:3000'],
             'document.origin' => ['required', 'string', 'max:180'],
             'document.sender' => ['required', 'string', 'max:180'],
-            'document.designation' => ['nullable', 'string', 'max:120'],
             'document.received' => ['required', 'date', 'before_or_equal:'.today('Asia/Manila')->toDateString()],
             'document.due' => ['exclude'],
             'document.destination' => ['nullable', 'string', 'max:180', Rule::in($officeOptions)],

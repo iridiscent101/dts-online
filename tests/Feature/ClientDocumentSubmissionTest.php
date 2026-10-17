@@ -608,29 +608,24 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertDatabaseCount('notifications', 2);
     }
 
-    public function test_client_gives_a_designation_that_staff_see_with_the_sender(): void
+    public function test_client_gives_only_a_name_and_staff_see_who_received_it(): void
     {
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $payload = $this->payload();
         unset($payload['attachment']);
 
-        $this->get(route('submission.create'))->assertSee('name="designation"', false);
-        $this->post(route('submission.store'), [...$payload, 'designation' => ''])
-            ->assertSessionHasErrors(['designation' => 'Enter your designation, for example Teacher I or School Head.']);
-
-        $this->post(route('submission.store'), [...$payload, 'designation' => '  School Head '])->assertRedirect();
+        // A name is enough: the form asks for no designation.
+        $this->get(route('submission.create'))->assertDontSee('designation');
+        $this->post(route('submission.store'), $payload)->assertRedirect();
         $document = Document::query()->sole();
-        $this->assertSame('School Head', $document->sender_designation);
 
         // Public page: a single office is labelled the receiving unit.
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))->assertSee('Receiving unit');
 
         // Nobody has received the document/s yet, so "Received by" says so.
         $this->actingAs($records)->get(route('platform.documents.workspace', $document))
-            ->assertSee('<dt>Designation</dt><dd>School Head</dd>', false)
-            ->assertSee('<dt>Received by</dt><dd>Not received yet</dd>', false);
-        $this->get(route('platform.documents.view', $document))
-            ->assertSee('<dt>Designation</dt><dd>School Head</dd>', false);
+            ->assertSee('<dt>Received by</dt><dd>Not received yet</dd>', false)
+            ->assertDontSee('Designation');
     }
 
     public function test_a_filled_in_honeypot_turns_the_submission_away(): void
@@ -669,7 +664,6 @@ class ClientDocumentSubmissionTest extends TestCase
         return [
             'submission_key' => $key ?? (string) Str::uuid(),
             'name' => 'Alex Rivera',
-            'designation' => 'Teacher I',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',
             'title' => 'Travel request',

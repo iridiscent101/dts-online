@@ -144,3 +144,19 @@
         width: 28rem;
     }
 }
+
+/* Printable receipt (document-receipt.blade.php): only the receipt card prints, without the page background. */
+@media print {
+    .dts-receipt-page {
+        background: #fff;
+    }
+
+    .dts-receipt-actions {
+        display: none;
+    }
+
+    .dts-receipt {
+        margin: 0 auto;
+        border-color: #26332b;
+    }
+}

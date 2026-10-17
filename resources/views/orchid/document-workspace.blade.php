@@ -65,7 +65,6 @@
                     'Document type' => $document->document_type,
                     'Originating office' => $document->origin,
                     'Sender' => $document->sender,
-                    'Designation' => $document->sender_designation,
                 ] as $label => $value)
                     <div><dt>{{ $label }}</dt><dd>{{ filled($value) ? $value : '—' }}</dd></div>
                 @endforeach
@@ -123,7 +122,6 @@
                             <datalist id="workspace-origin-units">@foreach (\App\Models\Document::originOptions() as $originOption)<option value="{{ $originOption }}"></option>@endforeach</datalist>
                         </div>
                         <label><span>Sender <span aria-hidden="true">*</span></span><input name="document[sender]" value="{{ $document->sender }}" required maxlength="180" @readonly($detailsLocked)></label>
-                        <label><span>Sender's designation <span class="dts-optional">Optional</span></span><input name="document[designation]" value="{{ $document->sender_designation }}" maxlength="120" placeholder="Example: Teacher I, School Head" @readonly($detailsLocked)></label>
                         {{-- A paper submission has no received date until Records confirms the paper copy. --}}
                         <label><span>Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</span><input type="date" name="document[received]" value="{{ $document->received_at?->toDateString() }}" @readonly($detailsLocked) @required($document->received_at !== null) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
                         @if ($document->received_at === null)

@@ -48,7 +48,6 @@ class ClientDocumentSubmissionController extends Controller
                     'subject' => $data['title'],
                     'document_type' => $data['type'],
                     'sender' => $data['name'],
-                    'sender_designation' => trim($data['designation']),
                     'origin' => $data['office'],
                     'delivery_method' => $data['delivery_method'],
                     'current_office' => self::RECORDS_OFFICE,

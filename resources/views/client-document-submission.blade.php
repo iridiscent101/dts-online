@@ -74,10 +74,6 @@
                 <input id="client-name" name="name" value="{{ old('name') }}" required maxlength="180" autocomplete="name" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
             </div>
             <div>
-                <label for="client-designation" class="block text-sm font-semibold text-slate-800">Your designation <span class="text-red-700">*</span></label>
-                <input id="client-designation" name="designation" value="{{ old('designation') }}" required maxlength="120" autocomplete="organization-title" placeholder="Example: Teacher I, School Head" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
-            </div>
-            <div>
                 <label for="client-office" class="block text-sm font-semibold text-slate-800">Your school or office <span class="text-red-700">*</span></label>
                 <div class="relative" data-combo>
                     <input id="client-office" name="office" data-searchable data-options="origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="client-office-choices" value="{{ old('office') }}" required maxlength="180" placeholder="Search or enter your school or office" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-slate-300 bg-white px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">

@@ -70,7 +70,6 @@ class DocumentRegistrationScreen extends Screen
                     'description' => $data['description'] ?? null,
                     'origin' => $data['origin'],
                     'sender' => $data['sender'],
-                    'sender_designation' => filled($data['designation'] ?? null) ? trim($data['designation']) : null,
                     'current_office' => $destinations[0],
                     'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
                     'received_at' => $data['received'],

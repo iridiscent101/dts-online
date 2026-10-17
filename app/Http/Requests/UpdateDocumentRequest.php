@@ -48,7 +48,6 @@ class UpdateDocumentRequest extends FormRequest
             'document.description' => ['nullable', 'string', 'max:3000'],
             'document.origin' => ['required', 'string', 'max:180'],
             'document.sender' => ['required', 'string', 'max:180'],
-            'document.designation' => ['nullable', 'string', 'max:120'],
             'document.received' => $document instanceof Document && $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                 ? ['nullable', Rule::prohibitedIf(true)]
                 : ['required', 'date', 'before_or_equal:'.today('Asia/Manila')->toDateString()],

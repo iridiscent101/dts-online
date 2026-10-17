@@ -219,7 +219,6 @@ class Document extends Model
         'origin',
         'delivery_method',
         'sender',
-        'sender_designation',
         'current_office',
         'status',
         'received_at',
@@ -549,7 +548,6 @@ class Document extends Model
             'description',
             'origin',
             'sender',
-            'sender_designation',
             'received_at',
             'priority',
         ]), JSON_THROW_ON_ERROR));

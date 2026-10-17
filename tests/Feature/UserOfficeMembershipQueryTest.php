@@ -29,7 +29,6 @@ class UserOfficeMembershipQueryTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Juan Dela Cruz',
-            'designation' => 'School Head',
             'office' => 'Bayombong Central School',
             'delivery_method' => 'Hand carry',
             'title' => 'Request for certificate',
