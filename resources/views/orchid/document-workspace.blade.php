@@ -80,6 +80,10 @@
                     'Status' => $document->status,
                     // Who took the document in: the registering staff member, or the Records receiver of an online submission.
                     'Received by' => $document->client_submission_key ? ($document->recordsReceipt?->actor?->name ?? 'Not received yet') : $document->registeredBy?->name,
+                    // Who the document was released to: the name Records typed, or the one the client typed when signing.
+                    ...($document->status === \App\Models\DocumentMovement::STATUS_RELEASED && $document->latestMovement?->action === \App\Models\DocumentMovement::ACTION_RELEASED
+                        ? ['Released to' => $document->latestMovement->released_to ?? 'Not given yet. The client types it when signing on the Fast Track page.']
+                        : []),
                 ] as $label => $value)
                     <div><dt>{{ $label }}</dt><dd>{{ filled($value) ? $value : '—' }}</dd></div>
                 @endforeach
@@ -153,7 +157,7 @@
                         <span class="dts-workspace-entry-heading"><strong>{{ $assignment->office }}</strong><span class="dts-record-status" data-status="{{ str($assignment->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($assignment->status) }}>{{ \App\Support\StatusLabel::for($assignment->status) }}</span></span>
                         @if ($canViewRouteHistory)
                             <span class="dts-muted">Sent {{ ($sentDates->get($assignment->office) ?? $assignment->created_at)?->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</span>
-                            @if ($receivedDates->has($assignment->office))<span class="dts-muted">Received {{ $receivedDates->get($assignment->office)->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</span>@endif
+                            @if ($receivedDates->has($assignment->office))<span class="dts-muted">Received {{ $receivedDates->get($assignment->office)->timezone('Asia/Manila')->format('M d, Y · g:i A') }}@if (filled($receivedBy[$assignment->office] ?? null)) by {{ $receivedBy[$assignment->office] }}@endif</span>@endif
                         @endif
                     </button>
                 @empty
@@ -217,7 +221,7 @@
                                 </template>
                             </div>
                             <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea></label>
-                            <label class="dts-workspace-shared-remarks" data-release-recipient hidden><span>Name of person receiving the document <span aria-hidden="true">*</span></span><input name="workflow[released_to]" maxlength="255" autocomplete="name" required disabled></label>
+                            <label class="dts-workspace-shared-remarks" data-release-recipient hidden><span>Name of person receiving the document <span class="dts-optional">Optional</span></span><input name="workflow[released_to]" maxlength="255" autocomplete="name" disabled><small class="dts-field-hint">If left blank, the client types their name when they sign on the Fast Track page.</small></label>
                         </dts-workflow-routing>
                         <div class="dts-workspace-actions"><button type="button" class="dts-button dts-button-primary" data-workspace-routing-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span><span data-workflow-submit-label>Save routing update</span></button></div>
                         @include('orchid.partials.office-remark', ['id' => 'workspace-office-remark'])

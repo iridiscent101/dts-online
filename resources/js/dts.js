@@ -1642,7 +1642,8 @@ class WorkflowRouting extends HTMLElement {
         if (releaseRecipient) releaseRecipient.hidden = action !== 'released';
         if (releaseRecipientInput) {
             releaseRecipientInput.disabled = action !== 'released';
-            releaseRecipientInput.required = action === 'released';
+            // Optional: the client can type it when signing on the Fast Track page.
+            releaseRecipientInput.required = false;
         }
     }
 

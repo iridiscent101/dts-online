@@ -238,7 +238,14 @@
                                 @csrf
                                 <div>
                                     <h3 id="release-signature-heading" class="text-base font-semibold text-slate-900">Sign to confirm you received the document/s</h3>
-                                    <p class="mt-1 text-sm text-slate-700">{{ filled($releasedTo) ? 'Released to '.$releasedTo.'. ' : '' }}The Records Unit released your document/s. Please sign inside the box to confirm you received them. You can sign only once.</p>
+                                    <p class="mt-1 text-sm text-slate-700">The Records Unit released your document/s. Type your full name and sign inside the box to confirm you received them. You can sign only once.</p>
+                                </div>
+                                <div>
+                                    <label for="release-recipient-name" class="block text-sm font-semibold text-slate-800">Your full name <span aria-hidden="true">*</span></label>
+                                    <input id="release-recipient-name" name="recipient_name" value="{{ old('recipient_name', $releasedTo) }}" maxlength="255" autocomplete="name" required class="mt-2 block min-h-11 w-full rounded-sm border border-[#B3843F] bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">
+                                    @error('recipient_name', 'releaseSignature')
+                                        <p class="mt-1 text-sm font-semibold text-red-700" role="alert">{{ $message }}</p>
+                                    @enderror
                                 </div>
                                 <dts-signature-pad data-required-message="Sign inside the box before saving.">
                                     <div class="dts-signature-box">

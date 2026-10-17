@@ -159,8 +159,9 @@
                             <textarea id="workflow-remarks" name="workflow[remarks]" rows="3" maxlength="1000" placeholder="Remarks for this specific routing update">{{ old('workflow.remarks') }}</textarea>
                         </div>
                         <div class="dts-field dts-field-wide" data-release-recipient hidden>
-                            <label for="workflow-released-to">Name of person receiving the document <span aria-hidden="true">*</span></label>
-                            <input id="workflow-released-to" name="workflow[released_to]" value="{{ old('workflow.released_to') }}" maxlength="255" autocomplete="name" required disabled>
+                            <label for="workflow-released-to">Name of person receiving the document <span class="dts-optional">Optional</span></label>
+                            <input id="workflow-released-to" name="workflow[released_to]" value="{{ old('workflow.released_to') }}" maxlength="255" autocomplete="name" disabled aria-describedby="workflow-released-to-help">
+                            <small id="workflow-released-to-help" class="dts-field-hint">If left blank, the client types their name when they sign on the Fast Track page.</small>
                         </div>
                         <template data-destination-template>
                             <div class="dts-route-destination-row" data-destination-row>
@@ -293,6 +294,9 @@
                     {{-- Who took the document in: the staff member who registered it at the counter, or for an online submission the
                          Records staff member who received the document/s. --}}
                     <dt>Received by</dt><dd>{{ $document->client_submission_key ? ($document->recordsReceipt?->actor?->name ?? 'Not received yet') : ($document->registeredBy?->name ?? 'System') }}</dd>
+                    @if ($document->status === \App\Models\DocumentMovement::STATUS_RELEASED && $document->latestMovement?->action === \App\Models\DocumentMovement::ACTION_RELEASED)
+                        <dt>Released to</dt><dd>{{ $document->latestMovement->released_to ?? 'Not given yet. The client types it when signing on the Fast Track page.' }}</dd>
+                    @endif
                     <dt>Registered on</dt><dd>{{ $document->created_at->format('M d, Y · g:i A') }}</dd>
                     <dt>Last changed by</dt><dd>{{ $lastChangedBy }}</dd>
                     <dt>Last changed on</dt><dd>{{ $lastChangedAt->format('M d, Y · g:i A') }}</dd>

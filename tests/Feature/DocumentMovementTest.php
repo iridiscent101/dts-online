@@ -1053,28 +1053,32 @@ class DocumentMovementTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
     }
 
-    public function test_release_requires_the_name_of_the_person_receiving_the_document(): void
+    public function test_records_can_release_without_the_receivers_name(): void
     {
+        // The client types it when signing on the Fast Track page (PublicReleaseSignatureTest).
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
-        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
         $url = route('platform.documents.movements.store', $document);
-
-        $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => '   '],
-        ])->assertUnprocessable()
-            ->assertJsonValidationErrors('workflow.released_to');
-
-        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
-        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
+        $this->actingAs($records)->postJson($url, ['workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit']])->assertOk();
 
         $this->get(route('platform.documents.workspace', $document))
             ->assertSee('name="workflow[released_to]"', false)
+            ->assertDontSee('name="workflow[released_to]" maxlength="255" autocomplete="name" required', false)
             // Clients sign on the Fast Track page, not in the staff Release form.
             ->assertDontSee('<dts-signature-pad', false)
             ->assertDontSee('name="workflow[recipient_signature]"', false);
-
         $this->get(route('platform.documents.view', $document))
             ->assertDontSee('<dts-signature-pad', false);
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => '   '],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertNull($document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->value('released_to'));
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Released to</dt><dd>Name not given yet</dd>', false)
+            ->assertSee('Not given yet. The client types it when signing on the Fast Track page.');
     }
 
     public function test_release_stores_a_valid_recipient_signature_encrypted(): void

@@ -83,6 +83,31 @@ class RoutingControlsUiTest extends TestCase
             ->assertDontSee('Send '.$document->tracking_number.' to another office');
     }
 
+    public function test_each_office_route_card_names_who_received_it(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => null]);
+        $admin->replaceRoles([$adminRole->id]);
+        $laura = User::factory()->create(['name' => 'Laura C. Bergonia', 'office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $ramon = User::factory()->create(['name' => 'Ramon Dizon', 'office' => 'SDO-Accounting Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create(['status' => DocumentMovement::STATUS_RECEIVED, 'current_office' => 'SDO-Budget Unit']);
+        foreach ([[$laura, 'SDO-Budget Unit'], [$ramon, 'SDO-Accounting Unit']] as [$receiver, $office]) {
+            $document->officeAssignments()->updateOrCreate(['office' => $office], ['status' => DocumentMovement::STATUS_RECEIVED]);
+            $document->movements()->create([
+                'action' => DocumentMovement::ACTION_RECEIVED,
+                'from_office' => $office,
+                'to_office' => $office,
+                'from_status' => DocumentMovement::STATUS_FORWARDED,
+                'to_status' => DocumentMovement::STATUS_RECEIVED,
+                'acted_by' => $receiver->id,
+            ]);
+        }
+
+        $page = $this->actingAs($admin)->get(route('platform.documents.workspace', $document))->assertOk();
+        $this->assertMatchesRegularExpression('/Received [^<]+ by Laura C\. Bergonia</', $page->getContent());
+        $this->assertMatchesRegularExpression('/Received [^<]+ by Ramon Dizon</', $page->getContent());
+    }
+
     public function test_administrator_sends_to_another_office_from_the_office_that_forwarded_it(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);

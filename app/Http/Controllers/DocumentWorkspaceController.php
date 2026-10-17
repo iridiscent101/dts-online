@@ -38,10 +38,14 @@ class DocumentWorkspaceController extends Controller
             ->when($historyOffices !== null, fn (Builder $query): Builder => $query->whereIn('to_office', $historyOffices))
             ->reorder()->select('to_office')->selectRaw('MIN(created_at) as sent_at')->groupBy('to_office')->get()
             ->mapWithKeys(fn (DocumentMovement $movement): array => [$movement->to_office => Carbon::parse($movement->sent_at, 'UTC')]);
-        $receivedDates = $document->movements()->where('action', DocumentMovement::ACTION_RECEIVED)
+        // Each office's latest receipt, with who received it, for the route cards ("Received … by …").
+        $receipts = $document->movements()->where('action', DocumentMovement::ACTION_RECEIVED)
             ->when($historyOffices !== null, fn (Builder $query): Builder => $query->whereIn('to_office', $historyOffices))
-            ->reorder()->select('to_office')->selectRaw('MAX(created_at) as received_at')->groupBy('to_office')->get()
-            ->mapWithKeys(fn (DocumentMovement $movement): array => [$movement->to_office => Carbon::parse($movement->received_at, 'UTC')]);
+            ->reorder()->with('actor:id,name')->get(['id', 'document_id', 'to_office', 'acted_by', 'created_at'])
+            ->groupBy('to_office')
+            ->map(fn ($receiptsForOffice): DocumentMovement => $receiptsForOffice->sortBy([['created_at', 'desc'], ['id', 'desc']])->first());
+        $receivedDates = $receipts->map(fn (DocumentMovement $movement): Carbon => $movement->created_at);
+        $receivedBy = $receipts->map(fn (DocumentMovement $movement): ?string => $movement->actor?->name);
         $workflowStates = $routing->workflowStates($user, $document);
         $workflowActionOptions = $workflowStates->mapWithKeys(fn (array $state): array => [
             $state['office'] => $routing->availableActionOptions($user, $document, $state),
@@ -52,6 +56,7 @@ class DocumentWorkspaceController extends Controller
             ...$this->historyPage($document, $user, 1, null),
             'sentDates' => $sentDates,
             'receivedDates' => $receivedDates,
+            'receivedBy' => $receivedBy,
             'historyOfficeNames' => $historyOffices ?? $user->assignedOfficeNames(),
             'canViewAllHistory' => $user->canViewFullDocumentHistory(),
             'workflowStates' => $workflowStates,

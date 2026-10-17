@@ -626,6 +626,19 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->actingAs($records)->get(route('platform.documents.workspace', $document))
             ->assertSee('<dt>Received by</dt><dd>Not received yet</dd>', false)
             ->assertDontSee('Designation');
+
+        // Once Records receives the paper (after the client's "sent" step), Details names who received it.
+        $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+            'acted_by' => $records->id,
+        ]);
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Received by</dt><dd>'.e($records->name).'</dd>', false)
+            ->assertDontSee('Not received yet');
     }
 
     public function test_a_filled_in_honeypot_turns_the_submission_away(): void

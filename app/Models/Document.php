@@ -521,11 +521,12 @@ class Document extends Model
 
     public function recordsReceipt(): HasOne
     {
-        return $this->hasOne(DocumentMovement::class)
+        // The conditions go inside ofMany: as outer wheres they only filtered the document's oldest movement (always the
+        // client's "sent" step), so a received document still showed "Not received yet".
+        return $this->hasOne(DocumentMovement::class)->ofMany(['id' => 'min'], fn ($query) => $query
             ->where('action', DocumentMovement::ACTION_RECEIVED)
             ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-            ->where('to_office', 'SDO-Records Unit')
-            ->oldestOfMany();
+            ->where('to_office', 'SDO-Records Unit'));
     }
 
     public function officeAssignments(): HasMany

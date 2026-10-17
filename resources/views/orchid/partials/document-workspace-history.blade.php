@@ -51,6 +51,8 @@
                 @endif
                 @if ($isMovement && $event->released_to)
                     <dt>Released to</dt><dd>{{ $event->released_to }}</dd>
+                @elseif ($isMovement && $event->action === \App\Models\DocumentMovement::ACTION_RELEASED)
+                    <dt>Released to</dt><dd>Name not given yet</dd>
                 @endif
                 @if ($isMovement && $event->action === \App\Models\DocumentMovement::ACTION_RELEASED && filled($event->recipient_signature))
                     <dt>Signature</dt><dd><img class="dts-history-signature" src="{{ $event->recipient_signature }}" alt="Signature of {{ $event->released_to }}" loading="lazy"></dd>

@@ -45,7 +45,7 @@ class PublicReleaseSignatureTest extends TestCase
     {
         [$document, $release] = $this->releasedWithoutSignature();
 
-        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_signature' => self::SIGNATURE])
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => 'Rowena D. Pascua', 'recipient_signature' => self::SIGNATURE])
             ->assertRedirect(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertSessionHas('release_signature_saved');
 
@@ -55,7 +55,7 @@ class PublicReleaseSignatureTest extends TestCase
             ->assertDontSee(self::SIGNATURE, false);
 
         $other = 'data:image/png;base64,'.base64_encode(base64_decode(substr(self::SIGNATURE, 22)));
-        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_signature' => $other])
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => 'Rowena D. Pascua', 'recipient_signature' => $other])
             ->assertSessionHasErrors('recipient_signature', null, 'releaseSignature');
         $this->assertSame(self::SIGNATURE, $release->fresh()->recipient_signature);
     }
@@ -64,7 +64,7 @@ class PublicReleaseSignatureTest extends TestCase
     {
         [$document] = $this->releasedWithoutSignature();
 
-        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_signature' => self::SIGNATURE])
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => 'Rowena D. Pascua', 'recipient_signature' => self::SIGNATURE])
             ->assertRedirect();
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
@@ -80,12 +80,40 @@ class PublicReleaseSignatureTest extends TestCase
             ->assertSee('<dt>Signed on</dt><dd>Fast Track page</dd>', false);
     }
 
+    public function test_the_name_the_client_types_becomes_the_released_to_name(): void
+    {
+        [$document, $release] = $this->releasedWithoutSignature();
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertSee('name="recipient_name" value="Rowena D. Pascua"', false);
+
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => '  Rowena Dela Cruz Pascua ', 'recipient_signature' => self::SIGNATURE])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Rowena Dela Cruz Pascua', $release->fresh()->released_to);
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertSee('Rowena Dela Cruz Pascua signed for the document/s');
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $this->actingAs($records)->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Released to</dt><dd>Rowena Dela Cruz Pascua</dd>', false);
+    }
+
+    public function test_signing_needs_the_clients_name(): void
+    {
+        [$document, $release] = $this->releasedWithoutSignature();
+
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => '   ', 'recipient_signature' => self::SIGNATURE])
+            ->assertSessionHasErrors('recipient_name', null, 'releaseSignature');
+        $this->assertNull($release->fresh()->recipient_signature);
+        $this->assertSame('Rowena D. Pascua', $release->fresh()->released_to);
+    }
+
     public function test_a_document_that_is_not_released_cannot_be_signed(): void
     {
         $document = Document::factory()->received()->create();
         DocumentMovement::factory()->for($document)->create(['action' => DocumentMovement::ACTION_RELEASED]);
 
-        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_signature' => self::SIGNATURE])
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => 'Rowena D. Pascua', 'recipient_signature' => self::SIGNATURE])
             ->assertSessionHasErrors('recipient_signature', null, 'releaseSignature');
         $this->assertNull($document->movements()->first()->recipient_signature);
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
@@ -97,7 +125,7 @@ class PublicReleaseSignatureTest extends TestCase
         [$document, $release] = $this->releasedWithoutSignature();
         DocumentMovement::factory()->for($document)->create(['action' => DocumentMovement::ACTION_RESTORED]);
 
-        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_signature' => self::SIGNATURE])
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => 'Rowena D. Pascua', 'recipient_signature' => self::SIGNATURE])
             ->assertSessionHasErrors('recipient_signature', null, 'releaseSignature');
         $this->assertNull($release->fresh()->recipient_signature);
     }
@@ -106,7 +134,7 @@ class PublicReleaseSignatureTest extends TestCase
     {
         [$document, $release] = $this->releasedWithoutSignature();
 
-        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_signature' => 'data:image/gif;base64,R0lGODlhAQABAAAAACw='])
+        $this->post(route('tracking.signature', $document->tracking_number), ['recipient_name' => 'Rowena D. Pascua', 'recipient_signature' => 'data:image/gif;base64,R0lGODlhAQABAAAAACw='])
             ->assertSessionHasErrors('recipient_signature', null, 'releaseSignature');
         $this->post(route('tracking.signature', $document->tracking_number), [])
             ->assertSessionHasErrors('recipient_signature', null, 'releaseSignature');

@@ -7633,3 +7633,9 @@ body .invalid-feedback {
     border-radius: var(--dts-radius-sm);
     background: #fff;
 }
+
+/* Help under a field inside a bold label (the optional receiver's name at Release) reads as plain text. */
+.dts-workspace-shared-remarks .dts-field-hint {
+    margin-top: 0;
+    font-weight: 400;
+}
