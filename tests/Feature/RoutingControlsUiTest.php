@@ -54,6 +54,35 @@ class RoutingControlsUiTest extends TestCase
             ->assertDontSee('to another office');
     }
 
+    public function test_dashboard_queue_offers_the_same_fixes_for_a_forwarded_document(): void
+    {
+        // An administrator's queue lists every office's routes, so the forwarded Budget route shows with its fixes.
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => null]);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = $this->forwardedDocument();
+        // Link the Budget route to the forward that created it, as the routing service does.
+        $document->officeAssignments()->updateOrCreate(
+            ['office' => 'SDO-Budget Unit'],
+            ['status' => DocumentMovement::STATUS_FORWARDED, 'movement_id' => $document->movements()->value('id')],
+        );
+
+        $this->actingAs($admin)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertSee('Send '.$document->tracking_number.' to another office')
+            ->assertSee('Correct the route of '.$document->tracking_number)
+            ->assertSee('id="additional-route-offices"', false);
+
+        // Receiving offices see no fixes for documents sent to them.
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $this->actingAs($budget)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertDontSee('Correct the route of '.$document->tracking_number)
+            ->assertDontSee('Send '.$document->tracking_number.' to another office');
+    }
+
     public function test_administrator_sends_to_another_office_from_the_office_that_forwarded_it(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);

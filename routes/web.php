@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClientDocumentSubmissionController;
 use App\Http\Controllers\DocumentReceiptController;
 use App\Http\Controllers\PublicDocumentTrackingController;
+use App\Http\Controllers\PublicReleaseSignatureController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', PublicDocumentTrackingController::class)
@@ -13,6 +14,11 @@ Route::get('/', PublicDocumentTrackingController::class)
 Route::get('/receipt/{tracking}', DocumentReceiptController::class)
     ->middleware('throttle:30,1')
     ->name('tracking.receipt');
+
+// The client signs for a released document that Records released without a signature at the counter.
+Route::post('/tracking/{tracking}/signature', PublicReleaseSignatureController::class)
+    ->middleware('throttle:10,1')
+    ->name('tracking.signature');
 
 Route::get('/submit', [ClientDocumentSubmissionController::class, 'create'])
     ->name('submission.create');

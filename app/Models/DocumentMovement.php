@@ -156,8 +156,20 @@ class DocumentMovement extends Model
         'to_status',
         'remarks',
         'released_to',
+        'recipient_signature',
         'acted_by',
     ];
+
+    protected $hidden = [
+        'recipient_signature',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'recipient_signature' => 'encrypted',
+        ];
+    }
 
     public function document(): BelongsTo
     {

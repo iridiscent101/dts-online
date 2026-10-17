@@ -514,10 +514,10 @@ body::before {
             white-space: nowrap;
     }
 
+    /* As wide as its widest row (up to four buttons), so no button spills past the column into empty space. */
     & [data-column="actions"] {
-            width: 84px;
+            width: 1%;
             min-width: 84px !important;
-            max-width: 84px;
             padding-right: 8px;
             padding-left: 8px;
             overflow: visible;
@@ -578,10 +578,11 @@ body::before {
 }
 
 :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) {
+    /* Right-aligned so Edit and Delete sit in the same place on every row, however many buttons come before them. */
     & .dts-row-actions {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-end;
             gap: 6px;
             max-width: 100%;
             white-space: nowrap;
@@ -2191,6 +2192,11 @@ a.dts-record-status:hover,
     color: var(--dts-charcoal);
     background: #fff;
     box-shadow: 0 18px 55px rgb(29 42 58 / 25%);
+}
+
+/* Orchid sets "label { white-space: nowrap }"; a checkbox label in a dialog has to wrap to the dialog width. */
+.dts-app-dialog label {
+    white-space: normal;
 }
 
 .dts-app-dialog::backdrop {
@@ -6822,9 +6828,9 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
     opacity: 1;
 }
 
-/* "View reason and changes" on a details update: the correction reason, then each field's old and new value. */
+/* A details update in the history: the correction reason, then each field's old and new value, always shown. */
 .dts-change-details .dts-change-reason {
-    margin: 8px 0 0;
+    margin: 0;
     padding: 8px 10px;
     border-left: 4px solid var(--dts-gold);
     border-radius: 4px;
@@ -7025,6 +7031,8 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 /* "Send to another office" dialog (Outgoing list). */
 .dts-additional-route-fields {
     display: grid;
+    /* One column no wider than the dialog: an auto column grew past it and pushed the fields out of view. */
+    grid-template-columns: minmax(0, 1fr);
     gap: 14px;
 }
 
@@ -7578,4 +7586,50 @@ body .invalid-feedback {
     border-radius: 6px;
     background: #fff;
     font-weight: 600;
+}
+
+/* Signature block, as on paper: the signature centred on a short line, its caption centred under the line. */
+.dts-tracking-label-footer.has-signature {
+    grid-template-columns: minmax(0, 1fr) 116px;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+}
+
+.dts-tracking-label-signature {
+    display: grid;
+    min-width: 0;
+    margin: 0;
+    text-align: center;
+}
+
+.dts-tracking-label-signature img {
+    width: 100% !important;
+    height: 34px !important;
+    object-fit: contain;
+    object-position: center bottom;
+}
+
+.dts-tracking-label-signature figcaption {
+    padding-top: 2px;
+    border-top: 1px solid var(--dts-charcoal);
+    color: var(--dts-text-muted);
+    font-size: 0.5625rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* The recipient's signature on a release step (staff views only). */
+.dts-history-signature {
+    display: block;
+    width: auto;
+    max-width: min(100%, 280px);
+    height: auto;
+    max-height: 90px;
+    padding: 6px 10px;
+    border: 1px solid var(--dts-grid);
+    border-radius: var(--dts-radius-sm);
+    background: #fff;
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Document;
+use App\Models\DocumentMovement;
 use BaconQrCode\Common\ErrorCorrectionLevel;
 use BaconQrCode\Encoder\Encoder;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -29,7 +30,7 @@ class DocumentTrackingLabel
      * What the printed label shows: the status at printing time and the latest routing action (or the registration
      * when nothing has moved yet), in Philippine time.
      *
-     * @return array{status: string, date: string, time: string, byLabel: string, processedBy: string}
+     * @return array{status: string, date: string, time: string, byLabel: string, processedBy: string, recipientSignatureDataUri: string|null}
      */
     public function details(Document $document): array
     {
@@ -46,6 +47,9 @@ class DocumentTrackingLabel
             'time' => $actedAt->format('g:i A'),
             'byLabel' => $receipt ? 'Received by' : 'By',
             'processedBy' => $receipt ? ($receipt->actor?->name ?? 'Former staff member') : $processedBy,
+            'recipientSignatureDataUri' => $movement?->action === DocumentMovement::ACTION_RELEASED
+                ? $movement->recipient_signature
+                : null,
         ];
     }
 

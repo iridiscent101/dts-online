@@ -1068,7 +1068,64 @@ class DocumentMovementTest extends TestCase
         $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
 
         $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('name="workflow[released_to]"', false);
+            ->assertSee('name="workflow[released_to]"', false)
+            // Clients sign on the Fast Track page, not in the staff Release form.
+            ->assertDontSee('<dts-signature-pad', false)
+            ->assertDontSee('name="workflow[recipient_signature]"', false);
+
+        $this->get(route('platform.documents.view', $document))
+            ->assertDontSee('<dts-signature-pad', false);
+    }
+
+    public function test_release_stores_a_valid_recipient_signature_encrypted(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
+
+        $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'released',
+                'source_office' => 'SDO-Records Unit',
+                'released_to' => 'Juan Dela Cruz',
+                'recipient_signature' => $signature,
+            ],
+        ])->assertOk();
+
+        $movement = $document->movements()->latest('id')->firstOrFail();
+        $this->assertSame($signature, $movement->recipient_signature);
+        $this->assertNotSame($signature, $movement->getRawOriginal('recipient_signature'));
+        $this->assertArrayNotHasKey('recipient_signature', $movement->toArray());
+
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Signature</dt>', false)
+            ->assertSee('src="'.$signature.'"', false);
+        $this->get(route('platform.documents.view', $document))
+            ->assertSee('class="dts-history-signature" src="'.$signature.'"', false);
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertDontSee($signature, false);
+    }
+
+    public function test_release_rejects_a_non_png_signature_without_changing_the_document(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+
+        $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'released',
+                'source_office' => 'SDO-Records Unit',
+                'released_to' => 'Juan Dela Cruz',
+                'recipient_signature' => 'data:image/svg+xml;base64,'.base64_encode('<svg onload="alert(1)"/>'),
+            ],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.recipient_signature');
+
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
     }
 
     public function test_records_cannot_release_while_another_office_route_is_active(): void

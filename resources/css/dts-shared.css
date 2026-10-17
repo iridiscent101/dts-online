@@ -322,7 +322,8 @@ select:not([multiple], [size]):disabled {
     color: var(--dts-brown, #86562d);
 }
 
-[data-kind="done"] .dts-timeline-dot {
+[data-kind="done"] .dts-timeline-dot,
+[data-kind="signed"] .dts-timeline-dot {
     background: var(--dts-green, #216e39);
     color: #fff;
 }
@@ -438,3 +439,97 @@ details[open] > [data-tooltip]::after {
         to { box-shadow: 0 0 0 10px rgb(33 110 57 / 0%); }
     }
 }
+
+/* Signature pad (signature-pad.js) on the Fast Track page, for signing a released document.
+   Colours fall back to the DTS palette because the public page does not load the staff tokens. */
+dts-signature-pad {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    /* Signing strokes that start just outside the box must not select the text around it. */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.dts-signature-box {
+    position: relative;
+    min-width: 0;
+    border: 2px dashed var(--dts-input-border, #b3843f);
+    border-radius: var(--dts-radius, 6px);
+    background: #fff;
+}
+
+dts-signature-pad.is-signed .dts-signature-box {
+    border-style: solid;
+    border-color: var(--dts-green, #216e39);
+}
+
+dts-signature-pad.is-invalid .dts-signature-box {
+    border-style: solid;
+    border-color: var(--dts-danger, #b52e3d);
+    background: var(--dts-danger-soft, #fcecef);
+}
+
+.dts-signature-box canvas {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 190px;
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.dts-signature-box:focus-within {
+    outline: 3px solid var(--dts-gold, #f2c230);
+    outline-offset: 2px;
+}
+
+/* The sign-here line sits under the canvas, which is transparent, so it never ends up in the saved PNG. */
+.dts-signature-line {
+    position: absolute;
+    right: 24px;
+    bottom: 36px;
+    left: 24px;
+    padding-top: 4px;
+    border-top: 1px solid var(--dts-grid, #c4bb9f);
+    color: var(--dts-text-subtle, #64748b);
+    font-size: var(--dts-text-xs, 0.875rem);
+    text-align: center;
+    pointer-events: none;
+}
+
+/* Present for form validation and FormData only; the canvas is what people see and use. */
+.dts-signature-value {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dts-signature-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+}
+
+.dts-signature-hint {
+    flex: 1 1 260px;
+    min-width: 0;
+    margin: 0;
+    color: var(--dts-text-muted, #526174);
+    font-size: var(--dts-text-sm, 0.9375rem);
+}
+
+dts-signature-pad.is-invalid .dts-signature-hint {
+    color: var(--dts-danger-text, #a12837);
+    font-weight: 600;
+}
+

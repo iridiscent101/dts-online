@@ -73,6 +73,7 @@ class DocumentTypeSeeder extends Seeder
             'Conversion to Technical Vocational School',
             'Delivery Receipts',
             'DepEd Order',
+            'Designation',
             'Designation Orders',
             'Division Bulletin',
             'Division Memorandum',

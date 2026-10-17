@@ -122,6 +122,21 @@
                                                 @endif
                                                 <a @class(['dts-queue-icon', 'is-primary' => $loop->first]) href="{{ route('platform.documents.view', ['document' => $document, 'source_office' => $actionOffice]) }}" data-workspace-url="{{ $queueWorkspaceUrl }}" data-workspace-office="{{ $actionOffice }}" data-workspace-action="{{ $action }}" data-tooltip="{{ ($queueActionIcons[$action][1] ?? $action).($queueOffices->count() > 1 ? ' · '.$actionOffice : '') }}" aria-label="{{ $queueActionIcons[$action][1] ?? $action }} {{ $document->tracking_number }} for {{ $actionOffice }}"><x-orchid-icon :path="$queueActionIcons[$action][0] ?? 'bs.lightning'" /></a>
                                             @endforeach
+                                            {{-- Fixes for a document this office already sent (App\Support\RouteFixActions), as on the Outgoing list. --}}
+                                            @php
+                                                ['correction' => $routeCorrection, 'additional' => $additionalRoute] = $isSupervisor
+                                                    ? ['correction' => null, 'additional' => null]
+                                                    : \App\Support\RouteFixActions::for($document, request()->user());
+                                            @endphp
+                                            @if ($routeCorrection || $additionalRoute)
+                                                @include('orchid.partials.route-fix-offices')
+                                            @endif
+                                            @if ($routeCorrection)
+                                                <button type="button" class="dts-queue-icon" data-route-correction='@json($routeCorrection)' data-tooltip="Correct route" aria-label="Correct the route of {{ $document->tracking_number }}"><x-orchid-icon path="bs.arrow-left-right" /></button>
+                                            @endif
+                                            @if ($additionalRoute)
+                                                <button type="button" class="dts-queue-icon" data-additional-route='@json($additionalRoute)' data-tooltip="Send to another office" aria-label="Send {{ $document->tracking_number }} to another office"><x-orchid-icon path="bs.send-plus" /></button>
+                                            @endif
                                             {{-- The label is printed only once the document/s are received; Document/s received adds it to the row then. --}}
                                             @unless ($awaitsPaper || $receiveOffices->isNotEmpty())
                                                 <a class="dts-queue-icon" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener" data-turbo="false" data-tooltip="Print label" aria-label="Print label for {{ $document->tracking_number }}"><x-orchid-icon path="bs.printer" /></a>

@@ -130,6 +130,23 @@ class DocumentLabelTest extends TestCase
         $this->assertSame('Rosa Reyes', $details['processedBy']);
     }
 
+    public function test_label_details_include_the_recipient_signature_only_for_the_latest_release(): void
+    {
+        $document = Document::factory()->received()->create();
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
+        DocumentMovement::factory()->for($document)->create([
+            'action' => DocumentMovement::ACTION_RELEASED,
+            'recipient_signature' => $signature,
+        ]);
+
+        $this->assertSame($signature, app(DocumentTrackingLabel::class)->details($document)['recipientSignatureDataUri']);
+
+        DocumentMovement::factory()->for($document)->create(['action' => DocumentMovement::ACTION_RESTORED]);
+        $document->unsetRelation('latestMovement');
+
+        $this->assertNull(app(DocumentTrackingLabel::class)->details($document)['recipientSignatureDataUri']);
+    }
+
     public function test_label_shows_processing_staff_name_without_a_signature(): void
     {
         $staff = User::factory()->create([
@@ -146,6 +163,28 @@ class DocumentLabelTest extends TestCase
             ->assertDontSee('<dt>Sign</dt>', false)
             ->assertDontSee('data:image/png;base64,', false);
 
+    }
+
+    public function test_label_prints_the_recipient_signature_after_a_release(): void
+    {
+        $staff = User::factory()->create([
+            'name' => 'Rosa Reyes',
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true],
+        ]);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
+        DocumentMovement::factory()->for($document)->for($staff, 'actor')->create([
+            'action' => DocumentMovement::ACTION_RELEASED,
+            'recipient_signature' => $signature,
+        ]);
+
+        $this->actingAs($staff)
+            ->get(route('platform.documents.label', $document))
+            ->assertOk()
+            ->assertSee('dts-tracking-label-footer has-signature', false)
+            ->assertSee('src="'.$signature.'"', false)
+            ->assertSee("Recipient's signature", false);
     }
 
     public function test_tracking_qr_code_carries_the_sdo_seal(): void

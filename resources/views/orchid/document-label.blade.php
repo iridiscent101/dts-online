@@ -27,11 +27,17 @@
         /* Status may need three lines ("Awaiting physical document"); a long name is cut at two. */
         .dts-tracking-label-details dd:first-of-type { -webkit-line-clamp: 3; }
         .dts-tracking-label-footer { display: grid; grid-column: 1 / -1; align-content: center; gap: 0.3mm; border-top: 0.3mm solid #111827; padding-top: 0.6mm; text-align: center; }
-        /* The tracking number is the one line staff read off the sticker, so it is the largest text on it. */
+        /* The tracking number is the one line staff read off the label, so it is the largest text on it. */
         .dts-tracking-label-footer strong { font-family: "Consolas", "Courier New", monospace; font-size: 10pt; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; overflow-wrap: anywhere; }
+        /* Signature block, as on paper: the signature centred on a short line, its caption centred under the line. */
+        .dts-tracking-label-footer.has-signature { grid-template-columns: minmax(0, 1fr) 17mm; column-gap: 1.5mm; align-items: center; text-align: left; }
+        .dts-tracking-label-footer.has-signature strong { font-size: 8.5pt; }
+        .dts-tracking-label-signature { display: grid; margin: 0; min-width: 0; text-align: center; }
+        .dts-tracking-label-signature img { display: block; width: 100%; height: 5mm; object-fit: contain; object-position: center bottom; }
+        .dts-tracking-label-signature figcaption { padding-top: 0.3mm; border-top: 0.2mm solid #111827; color: #4b5563; font-size: 3.4pt; font-weight: 700; line-height: 1.1; text-transform: uppercase; white-space: nowrap; }
         .dts-tracking-label-status { font-weight: 800 !important; letter-spacing: 0.03em; text-transform: uppercase; }
         @media screen {
-            /* Show the sticker larger on screen so it is easy to check before printing; print stays at true size. */
+            /* Show the label larger on screen so it is easy to check before printing; print stays at true size. */
             .label-stack { zoom: 2; }
         }
         @media print {
@@ -48,7 +54,7 @@
     <div class="print-toolbar">
         <a href="{{ $backUrl }}">Back to {{ $labels->count() === 1 ? 'document' : 'registry' }}</a>
         <button type="button" data-print data-tooltip="Print {{ $labels->count() === 1 ? 'label' : 'labels' }}" aria-label="Print {{ $labels->count() === 1 ? 'label' : 'labels' }}"><x-orchid-icon path="bs.printer" /></button>
-        <small>Sticker size 50 &times; 30 mm. Shown here at twice its size.</small>
+        <small>Label size 50 &times; 30 mm, shown here at twice its size. Print it on paper, cut it out and paste it on the received document/s.</small>
     </div>
     <div class="label-stack">
         @foreach ($labels as $label)

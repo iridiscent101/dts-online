@@ -26,8 +26,8 @@
     };
 @endphp
 @if (filled($changeReason) || $changedFields !== [])
-    <details class="dts-workspace-history-remarks dts-change-details">
-        <summary>{{ filled($changeReason) ? 'View reason and changes' : 'View changes' }}</summary>
+    {{-- Always shown, not folded away: the reason and the old/new values are what the reader opens the entry for. --}}
+    <div class="dts-workspace-history-remarks dts-change-details">
         @if (filled($changeReason))
             <p class="dts-change-reason"><strong>Reason for the correction:</strong> {{ $changeReason }}</p>
         @endif
@@ -41,5 +41,5 @@
                 @endforeach
             </dl>
         @endif
-    </details>
+    </div>
 @endif

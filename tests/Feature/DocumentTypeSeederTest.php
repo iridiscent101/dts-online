@@ -17,7 +17,7 @@ class DocumentTypeSeederTest extends TestCase
         $this->seed(DocumentTypeSeeder::class);
         $this->seed(DocumentTypeSeeder::class);
 
-        $this->assertDatabaseCount('document_types', 135);
+        $this->assertDatabaseCount('document_types', 136);
         $this->assertDatabaseHas('document_types', [
             'name' => 'Advisory',
             'sort_order' => 1,
@@ -35,12 +35,12 @@ class DocumentTypeSeederTest extends TestCase
         ]);
         $this->assertDatabaseHas('document_types', [
             'name' => 'Establishment of New Private School',
-            'sort_order' => 41,
+            'sort_order' => 42,
             'is_active' => true,
         ]);
         $this->assertDatabaseHas('document_types', [
             'name' => 'Others',
-            'sort_order' => 135,
+            'sort_order' => 136,
             'is_active' => true,
         ]);
 
@@ -48,7 +48,7 @@ class DocumentTypeSeederTest extends TestCase
             $this->assertDatabaseHas('document_types', ['name' => $name, 'is_active' => true]);
         }
 
-        $this->assertSame(135, DocumentType::query()->distinct()->count('name'));
+        $this->assertSame(136, DocumentType::query()->distinct()->count('name'));
     }
 
     public function test_it_preserves_document_types_not_owned_by_the_deped_list(): void
@@ -61,7 +61,7 @@ class DocumentTypeSeederTest extends TestCase
 
         $this->seed(DocumentTypeSeeder::class);
 
-        $this->assertDatabaseCount('document_types', 136);
+        $this->assertDatabaseCount('document_types', 137);
         $this->assertDatabaseHas('document_types', [
             'name' => 'Local Testing Type',
             'sort_order' => 999,
@@ -79,7 +79,7 @@ class DocumentTypeSeederTest extends TestCase
 
         $this->seed(DocumentTypeSeeder::class);
 
-        $this->assertDatabaseCount('document_types', 135);
+        $this->assertDatabaseCount('document_types', 136);
         $this->assertDatabaseMissing('document_types', [
             'name' => 'Form 6-JHS  (Travel Abroad, Maternity Leave, Paternity Leave etc.)',
         ]);
@@ -98,7 +98,7 @@ class DocumentTypeSeederTest extends TestCase
         $types = Document::typeOptions();
 
         $this->assertSame('Advisory', $types[0]);
-        $this->assertSame('Others', $types[134]);
+        $this->assertSame('Others', $types[135]);
         $this->assertFalse(in_array('Inactive Type', $types, true));
     }
 }

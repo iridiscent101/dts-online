@@ -26,8 +26,8 @@ class DocumentReceiptTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSee(route('tracking.receipt', $document->tracking_number), false)
-            ->assertSee('Print receipt');
+            // Print receipt is hidden on the tracking result for now; the receipt page itself still works.
+            ->assertDontSee('Print receipt');
 
         // Same privacy as the tracking page: a client submission's title and sender are left out.
         $this->get(route('tracking.receipt', $document->tracking_number))

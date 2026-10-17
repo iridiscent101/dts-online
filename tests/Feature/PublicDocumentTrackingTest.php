@@ -29,6 +29,19 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertDontSee('Visit the Records Unit counter at the division office.');
     }
 
+    public function test_a_step_an_office_takes_on_its_own_copy_does_not_repeat_from(): void
+    {
+        $document = Document::factory()->create(['tracking_number' => 'SDONV12345678913', 'current_office' => 'SDO-Legal Unit', 'status' => 'Received']);
+        $document->movements()->create(['action' => 'forwarded', 'from_office' => 'SDO-Records Unit', 'to_office' => 'SDO-Legal Unit', 'from_status' => 'Received', 'to_status' => 'Forwarded']);
+        $this->travel(1)->minute();
+        $document->movements()->create(['action' => 'received', 'from_office' => 'SDO-Legal Unit', 'to_office' => 'SDO-Legal Unit', 'from_status' => 'Forwarded', 'to_status' => 'Received']);
+
+        $html = $this->get(route('tracking.index', ['tracking' => 'SDONV12345678913']))->assertOk()->getContent();
+        // Only the forward has a "From" line; the receipt is named in its title.
+        $this->assertSame(1, substr_count($html, '<dt class="font-medium text-slate-500">From</dt>'));
+        $this->assertStringContainsString('<dt class="font-medium text-slate-500">From</dt><dd class="text-slate-800">SDO-Records Unit</dd>', $html);
+    }
+
     public function test_guests_can_open_the_fast_track_page(): void
     {
         $this->get(route('tracking.index'))

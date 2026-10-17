@@ -145,7 +145,7 @@ class DocumentRoutingService
     }
 
     /**
-     * @param  array{action: string, source_office?: string|null, destination?: string|null, destinations?: list<string>, remarks?: string|null, released_to?: string, destination_remarks?: list<string|null>}  $workflow
+     * @param  array{action: string, source_office?: string|null, destination?: string|null, destinations?: list<string>, remarks?: string|null, released_to?: string, recipient_signature?: string|null, destination_remarks?: list<string|null>}  $workflow
      * @return array{action: string, office: string, offices: list<string>}
      */
     public function route(Document $document, User $user, array $workflow): array
@@ -229,6 +229,7 @@ class DocumentRoutingService
                     'to_status' => $status,
                     'remarks' => $movementRemarks,
                     'released_to' => $action === DocumentMovement::ACTION_RELEASED ? $workflow['released_to'] : null,
+                    'recipient_signature' => $action === DocumentMovement::ACTION_RELEASED ? ($workflow['recipient_signature'] ?? null) : null,
                     'acted_by' => $user->getAuthIdentifier(),
                 ]);
 

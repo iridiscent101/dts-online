@@ -916,6 +916,12 @@ class SearchableChoices extends HTMLElement {
         this.input.addEventListener('keydown', (event) => {
             const choices = [...this.panel.querySelectorAll('[data-choice]')];
             if (event.key === 'Escape') {
+                // Escape closes only the open list; without this it also closed the dialog around the field
+                // (the document window then asked to discard the changes).
+                if (!this.panel.hidden) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
                 this.close();
                 return;
             }

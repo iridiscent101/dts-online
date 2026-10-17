@@ -6,7 +6,14 @@
         <dt>Time</dt><dd>{{ $labelDetails['time'] }}</dd>
         <dt>{{ $labelDetails['byLabel'] }}</dt><dd>{{ $labelDetails['processedBy'] }}</dd>
     </dl>
-    <div class="dts-tracking-label-footer">
+    @php($recipientSignature = $labelDetails['recipientSignatureDataUri'] ?? null)
+    <div @class(['dts-tracking-label-footer', 'has-signature' => $recipientSignature])>
         <strong>{{ $document->tracking_number }}</strong>
+        @if ($recipientSignature)
+            <figure class="dts-tracking-label-signature">
+                <img src="{{ $recipientSignature }}" alt="Signature of the person who received the released document">
+                <figcaption>Recipient's signature</figcaption>
+            </figure>
+        @endif
     </div>
 </div>

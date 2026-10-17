@@ -16,7 +16,7 @@ class DatabaseSeederTest extends TestCase
 
         $this->assertDatabaseCount('offices', 60);
         $this->assertDatabaseCount('schools', 380);
-        $this->assertDatabaseCount('document_types', 135);
+        $this->assertDatabaseCount('document_types', 136);
         $this->assertDatabaseCount('users', 0);
         $this->assertDatabaseCount('documents', 0);
     }

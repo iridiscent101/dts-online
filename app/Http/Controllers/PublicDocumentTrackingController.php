@@ -67,6 +67,8 @@ class PublicDocumentTrackingController extends Controller
                                     'acted_by',
                                     'created_at',
                                 ])
+                                // Whether a release still needs the client's signature; the signature itself never leaves the server.
+                                ->selectRaw('recipient_signature is null as release_unsigned')
                                 ->with('actor:id,name')
                                 ->reorder()
                                 ->oldest('created_at')
@@ -88,23 +90,27 @@ class PublicDocumentTrackingController extends Controller
         if ($registrationOffices?->isEmpty()) {
             $registrationOffices = collect([$initialOffice])->filter();
         }
-        // Remarks staff add for an office ("Add remark") are activity entries, not movements; the public history shows them
-        // as their own steps. Only the office, text, staff name and time leave the server.
+        // Remarks staff add for an office ("Add remark") and the client's signing of a release are activity entries, not
+        // movements; the public history shows them as their own steps. Only the office, text, names and time leave the
+        // server (never the signature).
         $publicRemarks = $document
             ? $document->activities()
                 ->reorder()
-                ->where('description', 'Remark added')
+                ->whereIn('description', ['Remark added', 'Release signed'])
                 ->with('causer:id,name')
                 ->oldest('created_at')
                 ->oldest('id')
                 ->get()
                 ->map(fn ($activity): array => [
+                    'kind' => $activity->description === 'Release signed' ? 'signed' : 'remark',
                     'office' => (string) data_get($activity->properties, 'office', ''),
                     'remark' => (string) data_get($activity->properties, 'remark', ''),
-                    'by' => $activity->causer?->name,
+                    'by' => $activity->description === 'Release signed'
+                        ? (string) data_get($activity->properties, 'signed_by', '')
+                        : $activity->causer?->name,
                     'at' => $activity->created_at,
                 ])
-                ->filter(fn (array $remark): bool => $remark['remark'] !== '')
+                ->filter(fn (array $remark): bool => $remark['kind'] === 'signed' || $remark['remark'] !== '')
                 ->values()
             : collect();
         $assignedOffices = $document?->assignedOfficeStatuses() ?? collect();
@@ -125,6 +131,11 @@ class PublicDocumentTrackingController extends Controller
             fn (DocumentMovement $movement): bool => $movement->from_office === $selectedOffice || $movement->to_office === $selectedOffice,
         ) && ! $publicRemarks->contains('office', $selectedOffice);
         $qrCodeDataUri = $document ? $trackingLabel->dataUri($document) : null;
+        // Records may release without a signature at the counter; the client can then sign here, once.
+        $latestMovement = $document?->movements->last();
+        $releaseAwaitingSignature = $document?->status === DocumentMovement::STATUS_RELEASED
+            && $latestMovement?->action === DocumentMovement::ACTION_RELEASED
+            && (bool) $latestMovement->release_unsigned;
         $submissionKey = (string) Str::uuid();
         $documentTypes = Document::typeOptions();
         $officeOptions = Document::officeOptions();
@@ -145,6 +156,7 @@ class PublicDocumentTrackingController extends Controller
             'trackingError',
             'trackingNumber',
             'qrCodeDataUri',
+            'releaseAwaitingSignature',
             'submissionKey',
             'documentTypes',
             'officeOptions',

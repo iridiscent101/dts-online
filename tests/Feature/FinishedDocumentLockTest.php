@@ -134,11 +134,12 @@ class FinishedDocumentLockTest extends TestCase
         $this->assertSame('Wrong sender typed at registration', $activity->properties['correction_reason']);
         $this->assertSame(['sender' => 'Original sender'], $activity->properties['before']);
 
-        // The reason and the change are shown in the history, behind a "View reason and changes" dropdown.
+        // The reason and the change are shown openly in the history, with no dropdown.
         $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('View reason and changes')
-            ->assertSee('Wrong sender typed at registration')
+            ->assertDontSee('View reason and changes')
+            ->assertDontSee('<details class="dts-workspace-history-remarks dts-change-details">', false)
+            ->assertSee('<p class="dts-change-reason"><strong>Reason for the correction:</strong> Wrong sender typed at registration</p>', false)
             ->assertSeeInOrder(['Sender', 'Original sender', 'Corrected sender']);
         $this->get(route('platform.documents.view', $document))
             ->assertOk()

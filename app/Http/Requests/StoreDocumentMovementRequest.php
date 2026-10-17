@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Rules\RecipientSignature;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -62,6 +63,13 @@ class StoreDocumentMovementRequest extends FormRequest
                 Rule::requiredIf($action === DocumentMovement::ACTION_RELEASED),
                 'string',
                 'max:255',
+            ],
+            'workflow.recipient_signature' => [
+                'nullable',
+                Rule::prohibitedIf($action !== DocumentMovement::ACTION_RELEASED),
+                'string',
+                'max:140000',
+                new RecipientSignature,
             ],
             'workflow.destination_remarks' => [
                 'array',

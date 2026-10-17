@@ -50,6 +50,8 @@ class Document extends Model
         'Attachments added',
         'Attachment replaced',
         'Attachment removed',
+        // The client signed a released document on the Fast Track page (PublicReleaseSignatureController).
+        'Release signed',
     ];
 
     public const STATUSES = [

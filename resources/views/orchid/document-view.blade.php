@@ -236,6 +236,9 @@
                                             @if ($movement->released_to)
                                                 <small>Released to: {{ $movement->released_to }}</small>
                                             @endif
+                                            @if ($movement->action === \App\Models\DocumentMovement::ACTION_RELEASED && filled($movement->recipient_signature))
+                                                <img class="dts-history-signature" src="{{ $movement->recipient_signature }}" alt="Signature of {{ $movement->released_to }}" loading="lazy">
+                                            @endif
                                         </div>
                                     </li>
                                 @endif
