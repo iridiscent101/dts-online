@@ -7,7 +7,10 @@ use App\Models\DocumentMovement;
 use App\Models\User;
 use App\Notifications\DocumentAssignedNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
 class DocumentAdditionalRouteTest extends TestCase
@@ -54,6 +57,38 @@ class DocumentAdditionalRouteTest extends TestCase
         Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
     }
 
+    public function test_failed_notification_rolls_back_an_additional_route_before_retry(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        User::factory()->create(['office' => 'SDO-Legal Unit']);
+        $document = $this->forwardedDocument();
+        $url = route('platform.documents.additional-routes.store', $document);
+        $payload = [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Legal Unit',
+            'dispatch_confirmed' => true,
+        ];
+        $fail = true;
+        Event::listen(NotificationSent::class, function () use (&$fail): void {
+            if ($fail) {
+                throw new \RuntimeException('Notification delivery failed.');
+            }
+        });
+
+        $this->actingAs($sender)->postJson($url, $payload)->assertInternalServerError();
+
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertSame(1, $document->movements()->count());
+        $this->assertDatabaseCount('notifications', 0);
+
+        $fail = false;
+        $this->postJson($url, $payload)->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertSame(2, $document->movements()->count());
+        $this->assertDatabaseCount('notifications', 1);
+    }
+
     public function test_additional_route_requires_the_sending_office(): void
     {
         $recipientStaff = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
@@ -67,6 +102,28 @@ class DocumentAdditionalRouteTest extends TestCase
             ])->assertForbidden();
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+    }
+
+    public function test_administrator_can_add_a_missed_route_for_the_sending_office(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => null]);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($admin)->postJson(route('platform.documents.additional-routes.store', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Legal Unit',
+            'dispatch_confirmed' => true,
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'Administrative Unit',
+            'to_office' => 'SDO-Legal Unit',
+            'acted_by' => $admin->id,
+        ]);
     }
 
     public function test_additional_route_rejects_unconfirmed_duplicate_and_closed_document(): void

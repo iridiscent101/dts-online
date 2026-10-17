@@ -30,6 +30,7 @@ class StoreClientDocumentSubmissionRequest extends FormRequest
             // Honeypot: people never see this field, so anything in it was filled in by a bot.
             'contact_reference' => ['prohibited'],
             'name' => ['required', 'string', 'max:180'],
+            'designation' => ['required', 'string', 'max:120'],
             'office' => ['required', 'string', 'max:180'],
             'delivery_method' => ['required', 'string', Rule::in(Document::DELIVERY_METHODS)],
             'title' => ['required', 'string', 'max:255'],
@@ -51,6 +52,7 @@ class StoreClientDocumentSubmissionRequest extends FormRequest
             'contact_reference.prohibited' => 'The document could not be sent. Please try again.',
             'privacy_consent.accepted' => 'Agree to the privacy notice to send your document.',
             'name.required' => 'Enter your name.',
+            'designation.required' => 'Enter your designation, for example Teacher I or School Head.',
             'office.required' => 'Enter your office.',
             'delivery_method.required' => 'Choose how the document will reach the Records Unit.',
             'delivery_method.in' => 'Choose Hand carry or Official channel.',

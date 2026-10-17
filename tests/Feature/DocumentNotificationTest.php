@@ -176,8 +176,7 @@ class DocumentNotificationTest extends TestCase
             'office' => 'Records Unit',
             'permissions' => ['platform.index' => true],
         ]);
-        $administrativeUnit = Office::create([
-            'name' => 'Administrative Unit',
+        $administrativeUnit = Office::query()->updateOrCreate(['name' => 'Administrative Unit'], [
             'is_sdo' => true,
             'is_active' => true,
         ]);

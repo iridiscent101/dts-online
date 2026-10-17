@@ -15,7 +15,7 @@ class StoreDocumentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return $this->user()?->hasAccess('platform.index') && ! $this->user()->isReadOnlySupervisor();
+        return $this->user()?->canRegisterDocument() ?? false;
     }
 
     /**
@@ -34,7 +34,8 @@ class StoreDocumentRequest extends FormRequest
             'document.description' => ['nullable', 'string', 'max:3000'],
             'document.origin' => ['required', 'string', 'max:180'],
             'document.sender' => ['required', 'string', 'max:180'],
-            'document.received' => ['required', 'date'],
+            'document.designation' => ['nullable', 'string', 'max:120'],
+            'document.received' => ['required', 'date', 'before_or_equal:'.today('Asia/Manila')->toDateString()],
             'document.due' => ['exclude'],
             'document.destination' => ['nullable', 'string', 'max:180', Rule::in($officeOptions)],
             'document.destinations' => ['required', 'array', 'list', 'min:1', 'max:5'],

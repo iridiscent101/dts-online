@@ -18,7 +18,7 @@ class DocumentUploadAvailabilityTest extends TestCase
 
     public function test_registration_and_client_forms_hide_file_controls(): void
     {
-        $staff = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $staff = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         $this->get(route('submission.create'))
             ->assertDontSee('name="attachment"', false)
@@ -31,7 +31,7 @@ class DocumentUploadAvailabilityTest extends TestCase
 
     public function test_registration_and_client_submission_reject_uploaded_files(): void
     {
-        $staff = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $staff = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         $this->actingAs($staff)->post(route('platform.documents.create').'/save', [
             'document' => [
@@ -49,6 +49,7 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
+            'designation' => 'Teacher I',
             'privacy_consent' => '1',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',
@@ -123,6 +124,7 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
+            'designation' => 'Teacher I',
             'privacy_consent' => '1',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',
@@ -154,6 +156,7 @@ class DocumentUploadAvailabilityTest extends TestCase
         $this->post(route('submission.store'), [
             'submission_key' => (string) Str::uuid(),
             'name' => 'Alex Rivera',
+            'designation' => 'Teacher I',
             'privacy_consent' => '1',
             'office' => 'School Office',
             'delivery_method' => 'Hand carry',
@@ -179,6 +182,10 @@ class DocumentUploadAvailabilityTest extends TestCase
                 'destination_remarks' => ['Administrative review.', 'Curriculum review.'],
             ],
         ])->assertRedirect();
+
+        $this->getJson(route('platform.documents.intake', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertJsonPath('receipt.offices', ['Administrative Unit', 'Curriculum Implementation Division']);
 
         $this->assertDatabaseCount('document_route_steps', 0);
         $this->assertDatabaseHas('document_office_assignments', [

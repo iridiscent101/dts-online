@@ -164,9 +164,7 @@ class AdministratorAuthorizationTest extends TestCase
         $staffRole = Role::create(['name' => 'Staff', 'slug' => 'staff', 'permissions' => ['platform.index' => true]]);
         $staff = User::factory()->create(['office' => 'Records Unit', 'permissions' => []]);
         $staff->replaceRoles([$staffRole->id]);
-        $previousOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
         $newOffice = Office::create(['name' => 'Budget Unit', 'sort_order' => 2, 'is_active' => true]);
-        $staff->offices()->attach($previousOffice);
         $oldDocument = Document::factory()->incoming()->create(['current_office' => 'Records Unit']);
         $newDocument = Document::factory()->incoming()->create(['current_office' => 'Budget Unit']);
 
@@ -183,9 +181,41 @@ class AdministratorAuthorizationTest extends TestCase
             ],
         ])->assertRedirectToRoute('platform.systems.users');
 
-        $this->assertSame('Budget Unit', $staff->fresh()->office);
+        $this->assertSame(['Budget Unit'], $staff->fresh()->assignedOfficeNames()->all());
         $this->actingAs($staff->fresh())->get(route('platform.documents.view', $oldDocument))->assertNotFound();
         $this->get(route('platform.documents.view', $newDocument))->assertOk();
+    }
+
+    public function test_office_memberships_control_document_access(): void
+    {
+        $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
+        $budgetOffice = Office::create(['name' => 'Budget Unit', 'sort_order' => 2, 'is_active' => true]);
+        $staff = User::factory()->create(['office' => $budgetOffice->name]);
+        $registrar = User::factory()->create(['office' => $budgetOffice->name]);
+        $recordsDocument = Document::factory()->incoming()->create(['current_office' => $recordsOffice->name]);
+        $budgetDocument = Document::factory()->incoming()->create(['current_office' => $budgetOffice->name]);
+        $registeredDocument = Document::factory()->incoming()->create([
+            'current_office' => 'Legal Unit',
+            'registered_by' => $registrar->id,
+        ]);
+        $recordsViewer = User::factory()->create(['office' => $recordsOffice->name]);
+
+        $this->assertSame([$budgetOffice->name], $staff->assignedOfficeNames()->all());
+        $this->assertFalse($recordsDocument->isVisibleTo($staff));
+        $this->assertTrue($budgetDocument->isVisibleTo($staff));
+        $this->assertFalse($registeredDocument->isVisibleTo($recordsViewer));
+        $this->assertFalse(Document::query()->visibleTo($recordsViewer)->whereKey($registeredDocument)->exists());
+    }
+
+    public function test_staff_without_an_office_membership_cannot_see_another_offices_document(): void
+    {
+        $staff = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'Records Unit']);
+
+        $this->assertSame([], $staff->assignedOfficeNames()->all());
+        $this->assertFalse($document->isVisibleTo($staff));
+        $this->assertFalse(Document::query()->visibleTo($staff)->whereKey($document)->exists());
+        $this->actingAs($staff)->get(route('platform.documents.view', $document))->assertNotFound();
     }
 
     public function test_password_change_ends_an_existing_dashboard_session(): void
@@ -213,10 +243,7 @@ class AdministratorAuthorizationTest extends TestCase
             'platform.systems.users' => true,
         ]]);
         $otherUser = User::factory()->create(['office' => 'Records Unit']);
-        $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
         $budgetOffice = Office::create(['name' => 'Budget Unit', 'sort_order' => 2, 'is_active' => true]);
-        $manager->offices()->attach($recordsOffice);
-        $otherUser->offices()->attach($recordsOffice);
 
         foreach ([$manager, $otherUser] as $target) {
             $this->actingAs($manager)
@@ -247,8 +274,7 @@ class AdministratorAuthorizationTest extends TestCase
     {
         $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
         $target = User::factory()->create(['office' => 'Records Unit']);
-        $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
-        $target->offices()->attach($recordsOffice);
+        $recordsOffice = Office::query()->where('name', 'Records Unit')->sole();
 
         $this->actingAs($manager)
             ->post(route('platform.systems.users.edit', $target).'/save', [
@@ -282,7 +308,7 @@ class AdministratorAuthorizationTest extends TestCase
         $this->post(route('platform.systems.users.create').'/save', [
             'user' => $userDetails + ['offices_submitted' => '1'],
         ])->assertRedirectToRoute('platform.systems.users');
-        $this->assertNull(User::query()->where('email', 'new-clerk@example.test')->sole()->office);
+        $this->assertSame([], User::query()->where('email', 'new-clerk@example.test')->sole()->assignedOfficeNames()->all());
     }
 
     public function test_administrator_can_assign_office_from_quick_edit(): void
@@ -304,7 +330,7 @@ class AdministratorAuthorizationTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertSame('Records Unit', $target->fresh()->office);
+        $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
         $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
     }
 }

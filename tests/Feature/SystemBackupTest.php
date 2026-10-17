@@ -66,6 +66,27 @@ class SystemBackupTest extends TestCase
         }
     }
 
+    public function test_backups_require_an_encryption_password_in_every_environment(): void
+    {
+        $workspace = storage_path('framework/testing/system-backup-no-password-'.Str::lower(Str::random(8)));
+
+        try {
+            config([
+                'backup.password' => null,
+                'backup.path' => $workspace.DIRECTORY_SEPARATOR.'backups',
+                'backup.private_path' => $workspace.DIRECTORY_SEPARATOR.'private',
+            ]);
+
+            $this->artisan('system:backup')
+                ->expectsOutput('BACKUP_PASSWORD must be configured before creating a backup.')
+                ->assertExitCode(Command::FAILURE);
+
+            $this->assertDirectoryDoesNotExist($workspace.DIRECTORY_SEPARATOR.'backups');
+        } finally {
+            File::deleteDirectory($workspace);
+        }
+    }
+
     public function test_production_backups_require_an_encryption_password(): void
     {
         $originalEnvironment = $this->app->environment();
@@ -74,7 +95,7 @@ class SystemBackupTest extends TestCase
 
         try {
             $this->artisan('system:backup')
-                ->expectsOutput('BACKUP_PASSWORD must be configured in production.')
+                ->expectsOutput('BACKUP_PASSWORD must be configured before creating a backup.')
                 ->assertExitCode(Command::FAILURE);
         } finally {
             $this->app->instance('env', $originalEnvironment);
@@ -92,7 +113,7 @@ class SystemBackupTest extends TestCase
 
             $this->fail('Expected a system backup exception.');
         } catch (SystemBackupException $exception) {
-            $this->assertSame('BACKUP_PASSWORD must be configured in production.', $exception->getMessage());
+            $this->assertSame('BACKUP_PASSWORD must be configured before creating a backup.', $exception->getMessage());
             $this->assertSame([
                 'operation' => 'create',
                 'environment' => 'production',

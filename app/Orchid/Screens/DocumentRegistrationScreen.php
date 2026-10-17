@@ -27,7 +27,7 @@ class DocumentRegistrationScreen extends Screen
      */
     public function query(): iterable
     {
-        abort_if(request()->user()?->isReadOnlySupervisor(), 403);
+        abort_unless(request()->user()?->canRegisterDocument(), 403);
 
         return [];
     }
@@ -70,6 +70,7 @@ class DocumentRegistrationScreen extends Screen
                     'description' => $data['description'] ?? null,
                     'origin' => $data['origin'],
                     'sender' => $data['sender'],
+                    'sender_designation' => filled($data['designation'] ?? null) ? trim($data['designation']) : null,
                     'current_office' => $destinations[0],
                     'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
                     'received_at' => $data['received'],
@@ -78,6 +79,10 @@ class DocumentRegistrationScreen extends Screen
                         ? trim($routeRemarks[count($destinations) - 1])
                         : null,
                     'registered_by' => $request->user()?->getAuthIdentifier(),
+                    'registered_office' => $request->user()?->isAssignedToOffice('Records Unit')
+                        && ! $request->user()->isAssignedToOffice('SDO-Records Unit')
+                            ? 'Records Unit'
+                            : 'SDO-Records Unit',
                 ]);
 
                 foreach ($destinations as $index => $office) {

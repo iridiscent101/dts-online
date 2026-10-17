@@ -71,8 +71,7 @@ class Office extends Model
             return false;
         }
 
-        return ! User::query()->where('office', $this->name)->exists()
-            && ! Document::query()->where('current_office', $this->name)->exists()
+        return ! Document::query()->where('current_office', $this->name)->exists()
             && ! DocumentOfficeAssignment::query()->where('office', $this->name)->exists()
             && ! DocumentMovement::query()->where('from_office', $this->name)->orWhere('to_office', $this->name)->exists()
             && ! DB::table('document_route_steps')->where('office', $this->name)->exists();

@@ -15,7 +15,7 @@ final class StatusLabel
     public const PENDING = 'Pending';
 
     private const DESCRIPTIONS = [
-        DocumentMovement::STATUS_AWAITING_RECEIPT => 'Not received yet',
+        DocumentMovement::STATUS_AWAITING_RECEIPT => 'Awaiting acknowledgment of receipt',
         DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT => 'Waiting for document/s',
     ];
 
@@ -25,7 +25,7 @@ final class StatusLabel
     }
 
     /**
-     * Which kind of "Pending" a status is ("Not received yet", "Waiting for document/s"); null for other statuses.
+     * Which kind of "Pending" a status is ("Awaiting acknowledgment of receipt", "Waiting for document/s"); null for other statuses.
      */
     public static function description(?string $status): ?string
     {

@@ -28,3 +28,119 @@
 .dts-public-remarks[open] .dts-public-remarks-chevron {
     transform: rotate(180deg);
 }
+
+/* Landing photos: two gently tilted rows of large office photos drifting in opposite directions. The photos are big
+   enough, and the tilt slight enough, for the two rows to fill the whole section without empty corners. Each track holds its row
+   four times and slides by half its width, so the loop is seamless. The photos sit edge to edge, like one mosaic. Reduced motion keeps it still. */
+.dts-photo-marquee {
+    position: relative;
+    height: 22rem;
+    margin-top: 0.75rem;
+    overflow: hidden;
+}
+
+.dts-photo-marquee-tilt {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    display: grid;
+    gap: 0;
+    width: 160%;
+    transform: translate(-50%, -50%) rotate(-4deg);
+}
+
+.dts-photo-row {
+    overflow: hidden;
+}
+
+.dts-photo-track {
+    display: flex;
+    width: max-content;
+    animation: dts-photo-left 220s linear infinite;
+}
+
+.dts-photo-track.is-reverse {
+    animation-name: dts-photo-right;
+    animation-duration: 250s;
+}
+
+@keyframes dts-photo-left {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
+}
+
+@keyframes dts-photo-right {
+    from { transform: translate3d(-50%, 0, 0); }
+    to { transform: translate3d(0, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dts-photo-track,
+    .dts-photo-track.is-reverse {
+        animation: none;
+    }
+}
+
+.dts-photo-card {
+    position: relative;
+    flex: 0 0 auto;
+    width: 18rem;
+    aspect-ratio: 4 / 3;
+    margin: 0;
+    overflow: hidden;
+    background: #f8f4e7;
+}
+
+.dts-photo-card img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* The caption sits on a light shade at the bottom, so the photo itself stays bright. */
+.dts-photo-card figcaption {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    padding: 1.5rem 0.875rem 0.625rem;
+    background: linear-gradient(to top, rgb(0 0 0 / 55%), transparent);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.dts-photo-placeholder {
+    display: grid;
+    height: 100%;
+    place-items: center;
+    border: 1px solid #e6dcc3;
+    color: #86562d;
+}
+
+/* Placeholders alternate two creams so the tiles still read as separate pictures. */
+.dts-photo-card:nth-child(even) .dts-photo-placeholder {
+    background: #efe7d2;
+}
+
+.dts-photo-placeholder svg {
+    width: 2.5rem;
+    height: 2.5rem;
+    opacity: 0.6;
+}
+
+.dts-photo-placeholder + figcaption {
+    background: none;
+    color: #26332b;
+    text-align: center;
+}
+
+@media (min-width: 640px) {
+    .dts-photo-marquee {
+        height: 30rem;
+    }
+
+    .dts-photo-card {
+        width: 28rem;
+    }
+}

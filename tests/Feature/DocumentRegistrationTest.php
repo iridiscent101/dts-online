@@ -25,7 +25,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_form_offers_repeatable_destination_routes(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         $response = $this->actingAs($user)
             ->get(route('platform.documents.create'))
@@ -44,11 +44,36 @@ class DocumentRegistrationTest extends TestCase
         $response->assertSee('Route 1');
     }
 
+    public function test_other_office_staff_cannot_register_a_document_directly(): void
+    {
+        $user = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+
+        $this->actingAs($user)->get(route('platform.documents.create'))->assertForbidden();
+        $this->post(route('platform.documents.create').'/save', [
+            'document' => $this->validDocumentData(),
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_registration_rejects_a_future_received_date(): void
+    {
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $data = $this->validDocumentData();
+        $data['received'] = today('Asia/Manila')->addDay()->toDateString();
+
+        $this->actingAs($user)->post(route('platform.documents.create').'/save', [
+            'document' => $data,
+        ])->assertSessionHasErrors('document.received');
+
+        $this->assertDatabaseCount('documents', 0);
+    }
+
     public function test_deactivated_catalog_entries_are_not_restored_as_registration_fallbacks(): void
     {
         DocumentType::query()->create(['name' => 'Memorandum', 'is_active' => false]);
         Office::query()->create(['name' => 'Records Unit', 'is_active' => false]);
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         $this->actingAs($user)
             ->get(route('platform.documents.create'))
@@ -127,7 +152,7 @@ class DocumentRegistrationTest extends TestCase
     public function test_registration_rejects_unsupported_attachments(): void
     {
         Storage::fake('local');
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         $response = $this->actingAs($user)
             ->from(route('platform.documents.create'))
@@ -145,7 +170,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_accepts_no_more_than_five_attachments(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $attachments = [];
 
         for ($index = 1; $index <= 6; $index++) {
@@ -251,7 +276,7 @@ class DocumentRegistrationTest extends TestCase
             ->get(route('platform.documents.view', $document))
             ->assertOk()
             ->assertSee('Sent to Administrative Unit')
-            ->assertSee('title="Pending: Not received yet">Pending</span>', false)
+            ->assertSee('title="Pending: Awaiting acknowledgment of receipt">Pending</span>', false)
             ->assertSee('Review the records.')
             ->assertDontSee('Sent to Curriculum Implementation Division')
             ->assertDontSee('Review the curriculum.');
@@ -299,7 +324,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_requires_an_initial_destination(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $documentData = $this->validDocumentData();
         unset($documentData['destination'], $documentData['destinations']);
 
@@ -317,7 +342,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_requires_one_to_five_initial_destinations(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $documentData = $this->validDocumentData();
 
         foreach ([
@@ -360,7 +385,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_accepts_five_initial_destinations(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $documentData = $this->validDocumentData();
         $documentData['destinations'] = array_slice(Document::officeOptions(), 0, 5);
         $documentData['route_remarks'] = array_fill(0, 5, '');
@@ -374,7 +399,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_rejects_unknown_initial_destination_offices(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $documentData = $this->validDocumentData();
         $documentData['destination'] = 'Unknown Office';
 
@@ -392,7 +417,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_rejects_duplicate_initial_offices(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $documentData = $this->validDocumentData();
         unset($documentData['destination']);
         $documentData['destinations'] = ['Administrative Unit', 'Administrative Unit', 'Records Unit'];
@@ -410,7 +435,7 @@ class DocumentRegistrationTest extends TestCase
 
     public function test_registration_rejects_remarks_that_do_not_match_the_destinations(): void
     {
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $documentData = $this->validDocumentData();
         unset($documentData['destination'], $documentData['remarks']);
         $documentData['destinations'] = ['Administrative Unit', 'Records Unit', 'Curriculum Implementation Division'];

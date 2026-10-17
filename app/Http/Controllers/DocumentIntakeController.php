@@ -47,11 +47,23 @@ class DocumentIntakeController extends Controller
                 ->all()
             : [];
         $offices = $state === 'received'
-            ? collect(data_get($document->activities()->where('description', 'Document submitted')->first()?->properties, 'offices', []))
-                ->reject(fn (string $office): bool => $office === 'SDO-Records Unit')
-                ->values()
-                ->all()
+            ? $document->movements()
+                ->whereIn('action', [DocumentMovement::ACTION_FORWARDED, DocumentMovement::ACTION_CANCELLED])
+                ->where('from_office', 'SDO-Records Unit')
+                ->where('id', '>', $receipt->id)
+                ->oldest('id')
+                ->get(['action', 'to_office'])
+                ->reduce(function (array $offices, DocumentMovement $movement): array {
+                    if ($movement->action === DocumentMovement::ACTION_CANCELLED) {
+                        unset($offices[$movement->to_office]);
+                    } else {
+                        $offices[$movement->to_office] = $movement->to_office;
+                    }
+
+                    return $offices;
+                }, [])
             : [];
+        $offices = array_values($offices);
 
         return response()->json([
             'state' => $state,

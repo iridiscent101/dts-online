@@ -114,7 +114,7 @@ class DepEdDashboardTest extends TestCase
 
     public function test_registration_shows_the_secure_upload_form_for_authorized_users(): void
     {
-        $user = User::factory()->create(['name' => 'DTS Preview', 'email' => 'preview@example.test', 'permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['name' => 'DTS Preview', 'email' => 'preview@example.test', 'office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         $response = $this->actingAs($user)->get(route('platform.documents.create'));
 
@@ -225,7 +225,6 @@ class DepEdDashboardTest extends TestCase
 
         $user->refresh();
 
-        $this->assertSame('Records Unit', $user->office);
         $this->assertEqualsCanonicalizing(
             ['Records Unit', 'Administrative Unit'],
             $user->offices()->pluck('name')->all(),
@@ -256,7 +255,7 @@ class DepEdDashboardTest extends TestCase
             ])
             ->assertRedirect(route('platform.profile'));
 
-        $this->assertSame('Records Unit', $user->fresh()->office);
+        $this->assertSame(['Records Unit'], $user->fresh()->assignedOfficeNames()->all());
     }
 
     public function test_user_and_role_forms_use_primary_save_and_destructive_delete_actions(): void

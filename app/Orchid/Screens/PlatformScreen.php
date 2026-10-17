@@ -26,7 +26,7 @@ class PlatformScreen extends Screen
     // "Rows per page" choices for the dashboard queue, as in the document registry.
     private const OFFICE_QUEUE_PAGE_SIZES = [10, 25, 50, 100];
 
-    // Sent to an office that has not received it yet ("Pending · Not received yet").
+    // Sent to an office that has not received it yet ("Pending · Awaiting acknowledgment of receipt").
     private const NOT_RECEIVED_STATUSES = [
         DocumentMovement::STATUS_AWAITING_RECEIPT,
         DocumentMovement::STATUS_FORWARDED,
@@ -130,8 +130,7 @@ class PlatformScreen extends Screen
         $needsAction = $section === 'documents' && request()->boolean('needs_action');
 
         $documents = Document::query()
-            // registeredBy.offices: the row actions check whether the user's office registered the document (canBeEditedBy).
-            ->with(['officeAssignments', 'registeredBy.offices'])
+            ->with('officeAssignments')
             ->visibleTo($user)
             ->when($needsAction, function (Builder $query) use ($user): Builder {
                 if ($user->isReadOnlySupervisor()) {

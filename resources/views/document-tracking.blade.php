@@ -7,7 +7,7 @@
     <title>Track a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css', 'resources/js/copy-button.js', 'resources/js/crowd-canvas.js', 'resources/js/tracking-refresh.js'])
+    @vite(['resources/css/app.css', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'])
 </head>
 <body class="dts-public-page flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
@@ -16,12 +16,32 @@
         <span class="bg-[#86562D]"></span>
     </div>
 
-    <header class="relative overflow-hidden border-b border-slate-200 bg-white">
-        {{-- People walking across the top of every public page (resources/js/crowd-canvas.js); the DocuTrackS branding
-             sits in the landing's intro section. Decorative, so hidden from screen readers; it stands still for people
-             who turn off animations. --}}
-        <div class="relative h-28 sm:h-40" aria-hidden="true">
-            <canvas data-crowd-canvas data-src="{{ asset('images/landing/crowd-peeps.png') }}" data-rows="15" data-cols="7" class="absolute inset-0 size-full"></canvas>
+    {{-- DocuTrackS branding and contact links on every public page (landing, tracking results, the send form). The
+         links come from config/dts.php; empty ones are left out. --}}
+    @php
+        $contact = config('dts.contact');
+    @endphp
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-3 sm:px-8">
+            <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 rounded-lg text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#216E39]">
+                <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-11 shrink-0 rounded-xl sm:size-14">
+                <span class="min-w-0">
+                    <span class="block text-2xl font-bold leading-none tracking-tight text-[#26332B] sm:text-3xl">Docu<span class="text-[#86562D]">TrackS</span></span>
+                    <span class="mt-1 block text-xs font-semibold uppercase tracking-wide text-[#86562D] sm:text-sm">Document Tracking System · SDO – Nueva Vizcaya</span>
+                </span>
+            </a>
+            <nav class="flex flex-wrap items-center gap-1" aria-label="Contact and social links">
+                <a href="#contact" class="inline-flex min-h-10 items-center gap-2 rounded-sm px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.telephone" class="size-4" /> Contact us</a>
+                @if (filled($contact['facebook']))
+                    <a href="{{ $contact['facebook'] }}" target="_blank" rel="noopener" class="grid size-10 place-items-center rounded-sm text-[#216E39] hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]" aria-label="Facebook page (opens in a new tab)" data-tooltip="Facebook" data-tooltip-below><x-orchid-icon path="bs.facebook" class="size-5" /></a>
+                @endif
+                @if (filled($contact['website']))
+                    <a href="{{ $contact['website'] }}" target="_blank" rel="noopener" class="grid size-10 place-items-center rounded-sm text-[#216E39] hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]" aria-label="Division website (opens in a new tab)" data-tooltip="Website" data-tooltip-below><x-orchid-icon path="bs.globe" class="size-5" /></a>
+                @endif
+                @if (filled($contact['email']))
+                    <a href="mailto:{{ $contact['email'] }}" class="grid size-10 place-items-center rounded-sm text-[#216E39] hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]" aria-label="Email {{ $contact['email'] }}" data-tooltip="Email" data-tooltip-below><x-orchid-icon path="bs.envelope" class="size-5" /></a>
+                @endif
+            </nav>
         </div>
     </header>
 
@@ -73,41 +93,63 @@
         </section>
 
         @unless ($searched && ! $trackingError)
-            {{-- Landing: who runs the service. Photos go in public/images/landing/; a dashed placeholder shows until each one exists. --}}
+            {{-- Landing photos: two gently tilted rows of large photos that drift in opposite directions (app.css .dts-photo-marquee). Photos
+                 go in public/images/landing/ (.jpg or .webp, landscape about 4:3, about 1200 px wide); a placeholder card
+                 shows for each one not added yet. --}}
             @php
-                $landingPhotos = [
-                    ['file' => 'office.jpg', 'caption' => 'SDO Nueva Vizcaya division office'],
-                    ['file' => 'records.jpg', 'caption' => 'Records Unit counter'],
-                    ['file' => 'schools.jpg', 'caption' => 'Serving the schools of Nueva Vizcaya'],
-                ];
+                $landingPhotos = collect([
+                    ['file' => 'office', 'caption' => 'SDO Nueva Vizcaya division office'],
+                    ['file' => 'records', 'caption' => 'Records Unit counter'],
+                    ['file' => 'receiving', 'caption' => 'Receiving documents'],
+                    ['file' => 'lobby', 'caption' => 'Waiting area'],
+                    ['file' => 'offices', 'caption' => 'Division offices'],
+                    ['file' => 'staff', 'caption' => 'Our staff'],
+                    ['file' => 'schools', 'caption' => 'Serving the schools of Nueva Vizcaya'],
+                    ['file' => 'events', 'caption' => 'Division events'],
+                ])->map(function (array $photo): array {
+                    $file = collect(['jpg', 'webp', 'png'])->map(fn (string $extension): string => "images/landing/{$photo['file']}.{$extension}")
+                        ->first(fn (string $path): bool => file_exists(public_path($path)));
+
+                    return [...$photo, 'url' => $file ? asset($file) : null];
+                });
+                // Two rows: the second runs the other way and starts elsewhere, so the same photos do not line up.
+                $photoRows = [$landingPhotos->all(), array_reverse([...$landingPhotos->slice(4), ...$landingPhotos->take(4)])];
             @endphp
-            <section class="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8 sm:py-10" aria-labelledby="landing-heading">
-                <div class="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-center">
-                    <img src="{{ asset('images/icon.png') }}" alt="" width="176" height="176" class="size-32 rounded-2xl sm:size-44">
-                    <div>
-                        <p class="text-sm font-semibold uppercase tracking-wide text-[#86562D]">Department of Education · SDO – Nueva Vizcaya</p>
-                        <h2 id="landing-heading" class="mt-1 text-4xl font-bold leading-none tracking-tight text-[#26332B] sm:text-5xl">Docu<span class="text-[#86562D]">TrackS</span></h2>
-                        <p class="mt-2 text-lg font-semibold text-slate-700">Document Tracking System</p>
-                        <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Send your document to the Records Unit and follow it from office to office. Enter the tracking number on your receipt or scan its QR code to see where it is now.</p>
+            <section class="overflow-hidden" aria-labelledby="photos-heading">
+                <div class="mx-auto w-full max-w-6xl px-5 pt-5 sm:px-8 sm:pt-6">
+                    <p class="text-sm font-semibold uppercase tracking-wide text-[#86562D]">Our office</p>
+                    <h2 id="photos-heading" class="mt-1 text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
+                    <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Send your document to the Records Unit and follow it from office to office. Enter the tracking number on your receipt or scan its QR code to see where it is now.</p>
+                    @if ($landingPhotos->whereNotNull('url')->isNotEmpty())
+                        <ul class="sr-only">@foreach ($landingPhotos->whereNotNull('url') as $photo)<li>{{ $photo['caption'] }}</li>@endforeach</ul>
+                    @endif
+                </div>
+                {{-- Decorative and repeated for the loop, so hidden from screen readers (the captions are listed above). --}}
+                <div class="dts-photo-marquee" aria-hidden="true">
+                    <div class="dts-photo-marquee-tilt">
+                        @foreach ($photoRows as $row)
+                            <div class="dts-photo-row">
+                                <div @class(['dts-photo-track', 'is-reverse' => $loop->even])>
+                                    {{-- The row twice over, twice: the track slides by half its width and starts again seamlessly. --}}
+                                    @foreach ([...$row, ...$row, ...$row, ...$row] as $photo)
+                                        <figure class="dts-photo-card">
+                                            @if ($photo['url'])
+                                                <img src="{{ $photo['url'] }}" alt="" loading="lazy" decoding="async">
+                                            @else
+                                                <span class="dts-photo-placeholder"><x-orchid-icon path="bs.image" /></span>
+                                            @endif
+                                            <figcaption>{{ $photo['caption'] }}</figcaption>
+                                        </figure>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
-                <ul class="mt-6 grid gap-4 sm:grid-cols-3">
-                    @foreach ($landingPhotos as $photo)
-                        <li>
-                            <figure class="overflow-hidden rounded-sm border border-slate-300 bg-white">
-                                @if (file_exists(public_path('images/landing/'.$photo['file'])))
-                                    <img src="{{ asset('images/landing/'.$photo['file']) }}" alt="{{ $photo['caption'] }}" class="aspect-[4/3] w-full object-cover" loading="lazy">
-                                @else
-                                    <div class="grid aspect-[4/3] w-full place-items-center border-b-2 border-dashed border-slate-300 bg-[#F8F4E7] text-center text-slate-500">
-                                        <span class="grid justify-items-center gap-2 px-4 text-sm"><x-orchid-icon path="bs.image" class="size-8" />Photo coming soon</span>
-                                    </div>
-                                @endif
-                                <figcaption class="px-4 py-3 text-base font-semibold text-slate-800">{{ $photo['caption'] }}</figcaption>
-                            </figure>
-                        </li>
-                    @endforeach
-                </ul>
-                <ol class="mt-6 grid gap-3 sm:grid-cols-3">
+            </section>
+
+            <section class="mx-auto w-full max-w-6xl px-5 pt-5 pb-8 sm:px-8 sm:pt-6 sm:pb-10" aria-label="How it works">
+                <ol class="grid gap-3 sm:grid-cols-3">
                     @foreach ([
                         ['bs.send', 'Send', 'Fill in the form online or bring your document to the Records Unit.'],
                         ['bs.inbox', 'Records Unit receives', 'Records staff receive it and send it to the right office.'],
@@ -124,7 +166,7 @@
 
         @if ($searched && ! $trackingError)
         <p class="sr-only" role="status" data-tracking-announcer></p>
-        <section class="mx-auto w-full max-w-7xl px-5 py-6 sm:px-8 sm:py-8" data-tracking-results>
+        <section class="mx-auto w-full max-w-[90rem] px-5 py-6 sm:px-8 sm:py-8" data-tracking-results>
             @if (session('submitted'))
                 <p class="mb-6 rounded-sm border border-emerald-300 bg-emerald-50 px-5 py-4 font-medium text-emerald-900" role="status">
                     Document submitted. Save the tracking number below to follow its progress.
@@ -170,7 +212,7 @@
                         {{-- The QR code sits with the tracking number at the top, where clients look for it first. --}}
                         @if ($qrCodeDataUri)
                             <div class="mt-4 flex items-center gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-3">
-                                <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="112" height="112" class="size-24 shrink-0 rounded-sm bg-white p-1 sm:size-28">
+                                <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="176" height="176" class="size-36 shrink-0 rounded-sm bg-white p-1.5 sm:size-44">
                                 <div>
                                     <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
                                     <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot. Scan it later to open this tracking page.</p>
@@ -186,7 +228,7 @@
                                 @endphp
                                 <div class="sm:col-span-2">
                                     <dt class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm font-medium text-slate-500">
-                                        <span>{{ $routeOffices->count() > 1 ? 'Assigned offices' : 'Current office' }}</span>
+                                        <span>{{ $routeOffices->count() > 1 ? 'Assigned offices' : 'Receiving unit' }}</span>
                                         @if ($assignedOffices->count() > 1)
                                             <span class="font-semibold text-slate-700">{{ $finishedOfficeCount }} of {{ $assignedOffices->count() }} offices finished</span>
                                         @endif
@@ -307,7 +349,9 @@
                             </form>
                         @endif
 
-                        <div class="mt-4 max-h-[40rem] min-h-0 overflow-y-auto overscroll-contain pr-2 lg:max-h-[calc(100vh-9rem)]" tabindex="0" aria-label="Document movement history">
+                        {{-- Inner padding on the left and top gives the step dots room for their pop-in and ring (timeline-reveal.js),
+                             which the scrolling list would otherwise cut off. --}}
+                        <div class="mt-4 max-h-[40rem] min-h-0 overflow-y-auto overscroll-contain pt-1 pr-2 pl-3 lg:max-h-[calc(100vh-9rem)]" tabindex="0" aria-label="Document movement history">
                             @foreach ($timelineDays as $day => $events)
                                 @php($timelineDate = \Illuminate\Support\Carbon::parse($day, 'Asia/Manila'))
                                 <section data-timeline-day @class(['hidden' => $events->doesntContain('visible', true)])>
@@ -408,20 +452,51 @@
         </section>
         @endif
 
-        @unless ($document)
-            <section class="mx-auto w-full max-w-6xl px-5 pb-8 sm:px-8" aria-label="Status guide">
-                @include('partials.public-status-guide')
-            </section>
-        @endunless
     </main>
 
     @include('client-document-submission', ['embedded' => true])
 
     <footer class="border-t border-slate-200 bg-white">
-        <div class="mx-auto flex w-full max-w-6xl flex-col gap-1 px-5 py-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <span>Department of Education</span>
-            <span>Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</span>
-        </div>
+        {{-- "Contact us" in the header jumps here. --}}
+        <section id="contact" class="mx-auto grid w-full max-w-6xl scroll-mt-4 gap-4 px-5 py-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-8" aria-labelledby="contact-heading">
+            <div>
+                <h2 id="contact-heading" class="text-base font-semibold text-slate-900">Contact us</h2>
+                <p class="mt-1 text-sm font-medium text-slate-700">{{ $contact['office'] }}</p>
+                <ul class="mt-2 grid gap-1.5 text-sm text-slate-700">
+                    @if (filled($contact['address']))
+                        <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> {{ $contact['address'] }}</li>
+                    @endif
+                    @if (filled($contact['phone']))
+                        <li class="flex gap-2"><x-orchid-icon path="bs.telephone" class="mt-0.5 size-4 shrink-0 text-[#216E39]" />
+                            <span class="flex flex-wrap gap-x-3 gap-y-1">@foreach (array_filter(array_map('trim', explode(',', $contact['phone']))) as $phone)<a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="text-inherit">{{ $phone }}</a>@endforeach</span>
+                        </li>
+                    @endif
+                    @if (filled($contact['email']))
+                        <li class="flex gap-2"><x-orchid-icon path="bs.envelope" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> <a href="mailto:{{ $contact['email'] }}" class="text-inherit">{{ $contact['email'] }}</a></li>
+                    @endif
+                    @if (filled($contact['hours']))
+                        <li class="flex gap-2"><x-orchid-icon path="bs.clock" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> {{ $contact['hours'] }}</li>
+                    @endif
+                    @if (blank($contact['address']) && blank($contact['phone']) && blank($contact['email']))
+                        <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> Visit the Records Unit counter at the division office.</li>
+                    @endif
+                </ul>
+            </div>
+            {{-- One footer: contact details on the left; links and the system line on the right. --}}
+            <div class="grid content-between gap-3 sm:justify-items-end">
+                @if (filled($contact['facebook']) || filled($contact['website']))
+                    <ul class="flex flex-wrap items-start gap-2 text-sm">
+                        @if (filled($contact['facebook']))
+                            <li><a href="{{ $contact['facebook'] }}" target="_blank" rel="noopener" class="inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] px-3 font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7]"><x-orchid-icon path="bs.facebook" class="size-4" /> Facebook</a></li>
+                        @endif
+                        @if (filled($contact['website']))
+                            <li><a href="{{ $contact['website'] }}" target="_blank" rel="noopener" class="inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] px-3 font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7]"><x-orchid-icon path="bs.globe" class="size-4" /> Website</a></li>
+                        @endif
+                    </ul>
+                @endif
+                <p class="text-sm text-slate-500">Department of Education &middot; Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</p>
+            </div>
+        </section>
     </footer>
     @if ($document)
         {{-- Office timeline filter. Elements are looked up on each use and the office data sits on the form, so the

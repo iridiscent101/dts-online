@@ -30,8 +30,8 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $recipient = User::factory()->create(['office' => $user->office]);
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $recipient = User::factory()->create(['office' => $user->assignedOfficeNames()->first()]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         Notification::fake();
 
         $response = $this->actingAs($user)->postJson(
@@ -64,7 +64,7 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         Notification::shouldReceive('send')->once()->andThrow(new RuntimeException('Notification unavailable'));
 
         $this->actingAs($user)->postJson(route('platform.documents.attachments.store', $document), [
@@ -87,7 +87,7 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         $original = $this->createAttachment('original.pdf');
         $originalPath = $original->physicalPath();
         $document->attachments()->attach($original);
@@ -113,7 +113,7 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         $first = $this->createAttachment('first.pdf');
         $second = $this->createAttachment('second.pdf');
         $document->attachments()->attach([$first->id, $second->id]);
@@ -135,7 +135,7 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
 
         $this->actingAs($user)->postJson(route('platform.documents.attachments.store', $document), [
             'attachments' => [UploadedFile::fake()->create('payload.exe', 20, 'application/octet-stream')],
@@ -156,7 +156,7 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         $original = $this->createAttachment('old-report.pdf');
         $originalPath = $original->physicalPath();
         $document->attachments()->attach($original);
@@ -182,7 +182,7 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         $first = $this->createAttachment('first.pdf');
         $second = $this->createAttachment('second.pdf');
         $document->attachments()->attach([$first->id, $second->id]);
@@ -250,8 +250,8 @@ class DocumentAttachmentManagementTest extends TestCase
     {
         Storage::fake('local');
         $user = $this->attachmentManager();
-        $document = Document::factory()->create(['current_office' => $user->office]);
-        $otherDocument = Document::factory()->create(['current_office' => $user->office]);
+        $document = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
+        $otherDocument = Document::factory()->create(['current_office' => $user->assignedOfficeNames()->first()]);
         $attachment = $this->createAttachment('other-record.pdf');
         $otherDocument->attachments()->attach($attachment);
         $this->actingAs($user);

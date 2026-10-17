@@ -1,4 +1,5 @@
 import './copy-button.js';
+import './timeline-reveal.js';
 
 const motionAllowed = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -580,6 +581,41 @@ function relockDocumentDetails(form) {
     if (lock) lock.hidden = false;
 }
 
+// Changing the assigned offices needs a reason (DocumentEditScreen::updateRoutes). Reuses the reason already given to
+// unlock the details; otherwise asks for one and keeps it in the form's correction-reason field. False if cancelled.
+async function ensureRouteChangeReason(form) {
+    const routes = form.querySelector('dts-route-editor');
+    if (!routes?.routesChanged()) return true;
+    let field = form.querySelector('[data-correction-reason]');
+    if (field?.value.trim()) return true;
+    const reason = (await dtsDialog.prompt(
+        'Why are the assigned offices changing? The reason is saved in the history with the change.',
+        { title: 'Change assigned offices', label: 'Reason for the change', confirmLabel: 'Save changes' },
+    ))?.trim();
+    if (!reason) return false;
+    if (!field) {
+        field = document.createElement('input');
+        field.type = 'hidden';
+        field.name = 'document[correction_reason]';
+        field.dataset.correctionReason = '';
+        routes.after(field);
+    }
+    field.value = reason.slice(0, 500);
+    return true;
+}
+
+// The full edit page submits normally: hold the submit until the reason for an office change is given.
+document.addEventListener('submit', async (event) => {
+    const form = event.target;
+    if (!form.querySelector?.('dts-route-editor') || form.dataset.routeReasonChecked) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (!(await ensureRouteChangeReason(form))) return;
+    form.dataset.routeReasonChecked = 'true';
+    form.requestSubmit(event.submitter);
+    delete form.dataset.routeReasonChecked;
+}, true);
+
 // The full edit page has no panel around it.
 document.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-unlock-details]');
@@ -734,9 +770,10 @@ document.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-workspace-details-save]');
     if (!button) return;
     const editor = button.closest('[data-workspace-editor]');
-    const fields = [...editor.querySelectorAll('input, textarea, select')];
-    const invalid = fields.find((field) => !field.checkValidity());
+    const invalid = [...editor.querySelectorAll('input, textarea, select')].find((field) => !field.checkValidity());
     if (invalid) { invalid.reportValidity(); invalid.focus(); return; }
+    if (!(await ensureRouteChangeReason(editor))) return;
+    const fields = [...editor.querySelectorAll('input, textarea, select')];
 
     const data = new FormData();
     fields.forEach((field) => data.append(field.name, field.value));
@@ -1262,6 +1299,14 @@ class DocumentRouteEditor extends HTMLElement {
 
     editRoutes() {
         return [...this.querySelectorAll('[data-edit-route-list] [data-edit-route]')];
+    }
+
+    // Whether the office list differs from the one the page loaded with (order does not matter to the server).
+    routesChanged() {
+        const initial = JSON.parse(this.dataset.initialRoutes || '[]').slice().sort();
+        const current = [...this.querySelectorAll('[data-edit-route-list] [data-edit-office]')]
+            .map((input) => input.value.trim()).filter(Boolean).sort();
+        return initial.join('|') !== current.join('|');
     }
 
     // The server allows five active offices; finished ones (completed, released…) stay on the route on top of those.

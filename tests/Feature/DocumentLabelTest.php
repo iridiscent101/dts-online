@@ -7,9 +7,7 @@ use App\Models\DocumentMovement;
 use App\Models\User;
 use App\Services\DocumentTrackingLabel;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DocumentLabelTest extends TestCase
@@ -132,16 +130,13 @@ class DocumentLabelTest extends TestCase
         $this->assertSame('Rosa Reyes', $details['processedBy']);
     }
 
-    public function test_label_shows_processing_staff_name_without_their_saved_signature(): void
+    public function test_label_shows_processing_staff_name_without_a_signature(): void
     {
-        Storage::fake('local');
         $staff = User::factory()->create([
             'name' => 'Rosa Reyes',
             'office' => 'Records Unit',
             'permissions' => ['platform.index' => true],
         ]);
-        $staff->signature_path = UploadedFile::fake()->image('signature.png')->store('staff-signatures', 'local');
-        $staff->save();
         $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
         DocumentMovement::factory()->for($document)->for($staff, 'actor')->create();
 
@@ -151,7 +146,6 @@ class DocumentLabelTest extends TestCase
             ->assertDontSee('<dt>Sign</dt>', false)
             ->assertDontSee('data:image/png;base64,', false);
 
-        Storage::disk('local')->assertExists($staff->signature_path);
     }
 
     public function test_tracking_qr_code_carries_the_sdo_seal(): void

@@ -25,16 +25,21 @@ class AdminListFiltersTest extends TestCase
         ]);
     }
 
-    public function test_users_can_be_filtered_by_office_from_the_office_list_or_the_legacy_column(): void
+    public function test_users_can_be_filtered_and_searched_by_assigned_office(): void
     {
         $budget = Office::create(['name' => 'Budget Unit', 'sort_order' => 1]);
         User::factory()->create(['name' => 'Linked Budget Staff'])->offices()->attach($budget);
-        User::factory()->create(['name' => 'Legacy Budget Staff', 'office' => 'Budget Unit']);
+        User::factory()->create(['name' => 'Second Budget Staff', 'office' => 'Budget Unit']);
         User::factory()->create(['name' => 'Legal Staff', 'office' => 'Legal Unit']);
 
         $this->users(['user_office' => 'Budget Unit'])
             ->assertSee('Linked Budget Staff')
-            ->assertSee('Legacy Budget Staff')
+            ->assertSee('Second Budget Staff')
+            ->assertDontSee('Legal Staff');
+
+        $this->users(['user_search' => 'Budget Unit'])
+            ->assertSee('Linked Budget Staff')
+            ->assertSee('Second Budget Staff')
             ->assertDontSee('Legal Staff');
 
         $this->users(['user_office' => ''])->assertSee('Legal Staff');

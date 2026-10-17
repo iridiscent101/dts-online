@@ -286,6 +286,7 @@ class DocumentWorkspaceTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Records Unit', 'Administrative Unit'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Adding the office omitted at registration.';
 
         $this->actingAs($user)
             ->postJson(route('platform.documents.edit', $document).'/save', ['document' => $data])

@@ -9,6 +9,7 @@ use App\Services\DocumentRoutingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Orchid\Support\Facades\Toast;
 
@@ -31,8 +32,10 @@ class DocumentRouteCorrectionController extends Controller
 
         $sourceOffice = trim($data['source_office']);
         $replacementOffice = $data['replacement_office'];
-        $action = $routing->correctPendingRoute($document, $user, $sourceOffice, trim($data['destination_office']), $replacementOffice, trim($data['correction_reason']));
-        $notifications->assigned($document, $action, $user, [$replacementOffice]);
+        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $data, $replacementOffice, $notifications): void {
+            $action = $routing->correctPendingRoute($document, $user, $sourceOffice, trim($data['destination_office']), $replacementOffice, trim($data['correction_reason']));
+            $notifications->assigned($document, $action, $user, [$replacementOffice]);
+        });
 
         $message = "Route corrected to {$replacementOffice}.";
         if ($request->expectsJson()) {

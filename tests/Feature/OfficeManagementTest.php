@@ -120,8 +120,7 @@ class OfficeManagementTest extends TestCase
             'office' => 'Temporary Desk',
             'permissions' => ['platform.index' => true],
         ]);
-        $office = Office::create(['name' => 'Temporary Desk', 'sort_order' => 1]);
-        $office->users()->attach($staff);
+        $office = Office::query()->where('name', 'Temporary Desk')->sole();
 
         $primaryDocument = Document::factory()->create(['current_office' => 'Temporary Desk']);
         $movement = $primaryDocument->movements()->create([
@@ -152,7 +151,7 @@ class OfficeManagementTest extends TestCase
             ->assertSessionHasErrors(['office.name' => 'An office with document history cannot be renamed.']);
 
         $this->assertSame('Temporary Desk', $office->fresh()->name);
-        $this->assertSame('Temporary Desk', $staff->fresh()->office);
+        $this->assertSame(['Temporary Desk'], $staff->fresh()->assignedOfficeNames()->all());
         $this->assertSame('Temporary Desk', $primaryDocument->fresh()->current_office);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $primaryDocument->id, 'office' => 'Temporary Desk']);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $secondaryDocument->id, 'office' => 'Temporary Desk']);

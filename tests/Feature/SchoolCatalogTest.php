@@ -62,7 +62,7 @@ class SchoolCatalogTest extends TestCase
             ->assertSee('data-options="origin-units"', false)
             ->assertSee('value="Abaca ES"', false);
 
-        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $this->actingAs($user)
             ->get(route('platform.documents.create'))
             ->assertOk()

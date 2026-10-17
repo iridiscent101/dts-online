@@ -380,6 +380,12 @@ select:not([multiple], [size]):disabled {
     opacity: 1;
 }
 
+/* Near the top of the page (the public header links) there is no room above, so the hover text opens below. */
+[data-tooltip][data-tooltip-below]::after {
+    top: calc(100% + 6px);
+    bottom: auto;
+}
+
 /* An open menu covers the tooltip's spot; hide it there. */
 details[open] > [data-tooltip]::after {
     display: none;
@@ -399,5 +405,36 @@ details[open] > [data-tooltip]::after {
 @keyframes dts-refresh-spin {
     to {
         transform: rotate(360deg);
+    }
+}
+
+/* Timeline steps reveal as they scroll into view (resources/js/timeline-reveal.js adds .dts-reveal-step, then
+   .is-revealed): the dot pops in with a soft ring, then the line to the next step draws down. */
+@media (prefers-reduced-motion: no-preference) {
+    .dts-reveal-step .dts-timeline-dot {
+        opacity: 0;
+        transform: scale(0.4);
+        transition: opacity 220ms ease-out, transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .dts-reveal-step.is-revealed .dts-timeline-dot {
+        opacity: 1;
+        transform: scale(1);
+        animation: dts-dot-ring 700ms ease-out 120ms;
+    }
+
+    .dts-reveal-step::before {
+        transform: scaleY(0);
+        transform-origin: top;
+        transition: transform 520ms ease-out 180ms;
+    }
+
+    .dts-reveal-step.is-revealed::before {
+        transform: scaleY(1);
+    }
+
+    @keyframes dts-dot-ring {
+        from { box-shadow: 0 0 0 0 rgb(33 110 57 / 35%); }
+        to { box-shadow: 0 0 0 10px rgb(33 110 57 / 0%); }
     }
 }

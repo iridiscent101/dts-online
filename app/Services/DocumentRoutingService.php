@@ -15,54 +15,25 @@ class DocumentRoutingService
 {
     private const RECORDS_OFFICES = ['SDO-Records Unit', 'Records Unit'];
 
-    /**
-     * @return Collection<int, array{source: string, destination: string}>
-     */
-    public function correctableRoutes(Document $document, User $user): Collection
-    {
-        if ($user->isReadOnlySupervisor() || ! $user->hasAccess('platform.index') || $document->isClosedRecord()) {
-            return collect();
-        }
-
-        $offices = $user->assignedOfficeNames();
-
-        return $document->officeAssignments->map(function (DocumentOfficeAssignment $assignment) use ($document, $offices): ?array {
-            $movement = $assignment->movement;
-            if ($movement === null) {
-                return null;
-            }
-
-            if ($assignment->status === DocumentMovement::STATUS_FORWARDED
-                && $offices->contains($movement->from_office)
-                && in_array($movement->action, [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED], true)) {
-                return ['source' => $movement->from_office, 'destination' => $assignment->office];
-            }
-
-            if ($assignment->status === DocumentMovement::STATUS_AWAITING_RECEIPT
-                && $movement->action === DocumentMovement::ACTION_SENT
-                && $movement->from_office === null) {
-                $source = $offices->first(fn (string $office): bool => (bool) $document->registeredBy?->isAssignedToOffice($office));
-
-                return $source === null ? null : ['source' => $source, 'destination' => $assignment->office];
-            }
-
-            return null;
-        })->filter()->values();
-    }
-
     public function correctPendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, string $replacementOffice, string $reason): string
     {
         return DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $replacementOffice, $reason): string {
             $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
             abort_unless(! $user->isReadOnlySupervisor()
                 && $user->hasAccess('platform.index')
-                && $user->isAssignedToOffice($sourceOffice), 403);
+                && ($user->isAdministrator() || $user->isAssignedToOffice($sourceOffice)), 403);
 
             $assignment = $currentDocument->officeAssignments()->where('office', $destinationOffice)->first();
+            if ($assignment !== null && ! in_array($assignment->status, [DocumentMovement::STATUS_AWAITING_RECEIPT, DocumentMovement::STATUS_FORWARDED], true)) {
+                throw ValidationException::withMessages([
+                    'destination_office' => 'This route can no longer be corrected because the office received it or the document is finished.',
+                ]);
+            }
+
             $originalMovement = $assignment?->movement;
             $isInitialSend = $originalMovement?->action === DocumentMovement::ACTION_SENT
                 && $originalMovement->from_office === null
-                && $currentDocument->registeredBy?->isAssignedToOffice($sourceOffice);
+                && $currentDocument->registered_office === $sourceOffice;
             $isOfficeForward = $originalMovement?->from_office === $sourceOffice
                 && in_array($originalMovement?->action, [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED], true);
             abort_unless($originalMovement !== null
@@ -131,7 +102,7 @@ class DocumentRoutingService
             $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
             abort_unless(! $user->isReadOnlySupervisor()
                 && $user->hasAccess('platform.index')
-                && $user->isAssignedToOffice($sourceOffice), 403);
+                && ($user->isAdministrator() || $user->isAssignedToOffice($sourceOffice)), 403);
 
             $priorForward = $currentDocument->movements()
                 ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
@@ -222,7 +193,13 @@ class DocumentRoutingService
                     && ($action !== DocumentMovement::ACTION_RESTORED
                         || ! in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true)));
 
-                if ($alreadyAssigned !== null) {
+                $isPaperReturningToRecords = $alreadyAssigned !== null
+                    && $action === DocumentMovement::ACTION_FORWARDED
+                    && in_array($alreadyAssigned->office, self::RECORDS_OFFICES, true)
+                    && $alreadyAssigned->status === DocumentMovement::STATUS_RECEIVED
+                    && $alreadyAssigned->movement?->action === DocumentMovement::ACTION_RECEIVED;
+
+                if ($alreadyAssigned !== null && ! $isPaperReturningToRecords) {
                     throw ValidationException::withMessages([
                         'workflow.destinations' => "This document is already assigned to {$alreadyAssigned->office}. Choose another destination office.",
                     ]);

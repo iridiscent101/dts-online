@@ -11,7 +11,7 @@
     ];
     $pendingKinds = [
         'Being reviewed' => 'the office is checking your document before acting on it.',
-        'Not received yet' => 'the office has not received the document yet.',
+        'Awaiting acknowledgment of receipt' => 'the office has not received the document yet.',
         'Waiting for document/s' => 'bring the document/s to the Records Unit so processing can start.',
     ];
 @endphp

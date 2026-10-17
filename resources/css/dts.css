@@ -2686,6 +2686,11 @@ a.dts-record-status:hover,
 
 /* Activity history in the document window, laid out like the Fast Track "Document movement" timeline: day headings,
    a colored step icon (dts-shared.css .dts-timeline-dot, by data-kind) on a line, and a two-column detail list. */
+/* Room on the left for the step dots' pop-in and ring (timeline-reveal.js), which the scrolling panel would cut off. */
+.dts-workspace-timeline {
+    padding-left: 10px;
+}
+
 .dts-workspace-history-day {
     position: sticky;
     top: 0;
@@ -7540,4 +7545,37 @@ body .invalid-feedback {
     align-items: center;
     gap: 8px 12px;
     margin-top: 12px;
+}
+
+/* Document editor: the assigned offices once processing has started (Document::routeListIsLocked), read-only. */
+.dts-route-list-locked .dts-route-locked-hint {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.dts-route-list-locked .dts-route-locked-hint svg {
+    flex: 0 0 auto;
+    margin-top: 3px;
+}
+
+.dts-route-locked-list {
+    display: grid;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.dts-route-locked-list li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    padding: 8px 12px;
+    border: 1px solid var(--dts-border);
+    border-radius: 6px;
+    background: #fff;
+    font-weight: 600;
 }

@@ -42,8 +42,8 @@ class UserListLayout extends Table
             TD::make('roles', __('Role'))
                 ->render(fn (User $user): string => e($user->roles->pluck('name')->join(', ') ?: __('No role'))),
 
+            // Offices come from memberships, which the list cannot sort by.
             TD::make('office', __('Office'))
-                ->sort()
                 ->render(fn (User $user): string => e($user->assignedOfficeNames()->join(', ') ?: __('Not assigned'))),
 
             TD::make('created_at', __('Date created'))

@@ -96,7 +96,7 @@ class WorkflowGuidanceTest extends TestCase
             ->assertSee('Status guide')
             ->assertSee('>Pending</span>', false)
             ->assertSeeInOrder(['Being reviewed:', 'the office is checking the document before acting on it.'])
-            ->assertSeeInOrder(['Not received yet:', 'sent to the office, which has not received it yet.'])
+            ->assertSeeInOrder(['Awaiting acknowledgment of receipt:', 'sent to the office, which has not received it yet.'])
             ->assertSeeInOrder(['Waiting for document/s:', 'the document/s are not at the Records Unit yet.']);
     }
 

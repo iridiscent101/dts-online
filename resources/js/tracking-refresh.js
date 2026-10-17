@@ -1,5 +1,5 @@
 // Public tracking page: the Refresh button fetches the latest status and swaps the results in place, so the page keeps
-// its scroll position and the crowd keeps walking. Without JavaScript, or if the fetch fails, the link reloads the page.
+// its scroll position. Without JavaScript, or if the fetch fails, the link reloads the page.
 
 async function refreshTrackingResults(link) {
     const results = document.querySelector('[data-tracking-results]');

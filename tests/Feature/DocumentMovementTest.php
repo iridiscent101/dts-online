@@ -755,6 +755,39 @@ class DocumentMovementTest extends TestCase
             ->assertOk();
     }
 
+    public function test_two_offices_can_forward_separate_branches_without_losing_either_route(): void
+    {
+        $records = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
+        $administrative = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $curriculum = User::factory()->create(['office' => 'Curriculum Implementation Division', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Records Unit', 'destinations' => ['Administrative Unit', 'Curriculum Implementation Division']],
+        ])->assertOk();
+
+        $this->actingAs($administrative)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'Administrative Unit'],
+        ])->assertOk();
+        $this->actingAs($curriculum)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'Curriculum Implementation Division'],
+        ])->assertOk();
+
+        $this->actingAs($administrative)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destinations' => ['SDO-Budget Unit']],
+        ])->assertOk();
+        $this->actingAs($curriculum)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Curriculum Implementation Division', 'destinations' => ['SDO-Legal Unit']],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'from_office' => 'Administrative Unit', 'to_office' => 'SDO-Budget Unit']);
+        $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'from_office' => 'Curriculum Implementation Division', 'to_office' => 'SDO-Legal Unit']);
+        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->fresh()->status);
+    }
+
     public function test_forwarding_to_an_already_assigned_office_preserves_its_independent_status(): void
     {
         $user = User::factory()->create([
@@ -1067,6 +1100,103 @@ class DocumentMovementTest extends TestCase
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
         $this->assertSame(1, $document->movements()->where('action', 'released')->count());
+    }
+
+    public function test_office_can_return_paper_to_records_when_records_retained_an_initial_route(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $receipt = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+            'acted_by' => $records->id,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Records Unit')->update(['movement_id' => $receipt->id]);
+        $document->officeAssignments()->create(['office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($budget)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Budget Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
+        $this->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame('Juan Dela Cruz', $document->movements()->latest('id')->value('released_to'));
+    }
+
+    public function test_two_offices_can_return_paper_to_records_sequentially(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $legal = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
+        $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($budget)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Budget Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->actingAs($legal)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Legal Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.destinations');
+
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->actingAs($legal)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Legal Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame(2, $document->movements()->where('action', DocumentMovement::ACTION_FORWARDED)->count());
+    }
+
+    public function test_office_cannot_replace_a_records_route_without_a_receipt_movement(): void
+    {
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
+        $document->officeAssignments()->create([
+            'office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+
+        $this->actingAs($budget)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Budget Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.destinations');
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_FORWARDED)->count());
     }
 
     public function test_records_can_restore_a_released_document_if_pickup_was_recorded_in_error(): void

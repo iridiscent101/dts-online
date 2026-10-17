@@ -131,17 +131,6 @@ class UserListScreen extends Screen
 
             if ($request->user()->isAdministrator() && $request->boolean('user.offices_submitted')) {
                 $officeIds = $this->officeIdsFromRequest($request);
-                $officeNames = Office::query()
-                    ->whereKey($officeIds)
-                    ->pluck('name', 'id');
-
-                $user->forceFill([
-                    'office' => $officeIds
-                        ->map(fn (int $officeId): ?string => $officeNames->get($officeId))
-                        ->filter()
-                        ->first(),
-                ])->save();
-
                 $user->offices()->sync($officeIds->all());
             }
         });

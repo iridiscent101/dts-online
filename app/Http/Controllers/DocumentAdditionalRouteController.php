@@ -10,6 +10,7 @@ use App\Services\DocumentRoutingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Orchid\Support\Facades\Toast;
 
@@ -30,8 +31,10 @@ class DocumentAdditionalRouteController extends Controller
         $destinationOffice = $data['destination_office'];
         $remarks = filled($data['remarks'] ?? null) ? trim($data['remarks']) : null;
 
-        $routing->addAdditionalRoute($document, $user, $sourceOffice, $destinationOffice, $remarks);
-        $notifications->assigned($document, DocumentMovement::ACTION_FORWARDED, $user, [$destinationOffice]);
+        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $destinationOffice, $remarks, $notifications): void {
+            $routing->addAdditionalRoute($document, $user, $sourceOffice, $destinationOffice, $remarks);
+            $notifications->assigned($document, DocumentMovement::ACTION_FORWARDED, $user, [$destinationOffice]);
+        });
 
         $message = "{$document->tracking_number} was also forwarded to {$destinationOffice}.";
         if ($request->expectsJson()) {

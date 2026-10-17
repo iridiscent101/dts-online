@@ -31,6 +31,7 @@ class DocumentMovementController extends Controller
                 $document->update([
                     'received_at' => today('Asia/Manila')->toDateString(),
                     'registered_by' => $user->getAuthIdentifier(),
+                    'registered_office' => 'SDO-Records Unit',
                 ]);
                 $requestedRoutes = DB::table('document_route_steps')
                     ->where('document_id', $document->id)

@@ -8,7 +8,6 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\DocumentOfficeAssignment;
 use App\Models\Office;
-use App\Models\User;
 use App\Orchid\Layouts\Office\OfficeEditLayout;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,7 +140,6 @@ class OfficeEditScreen extends Screen
             $office->save();
 
             if ($previousName !== null && $previousName !== $office->name) {
-                User::query()->where('office', $previousName)->update(['office' => $office->name]);
                 Document::query()->where('current_office', $previousName)->update(['current_office' => $office->name]);
                 DocumentOfficeAssignment::query()->where('office', $previousName)->update(['office' => $office->name]);
                 DB::table('document_route_steps')->where('office', $previousName)->update(['office' => $office->name]);

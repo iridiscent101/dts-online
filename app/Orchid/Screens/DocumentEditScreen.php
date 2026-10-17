@@ -93,6 +93,7 @@ class DocumentEditScreen extends Screen
                 'description',
                 'origin',
                 'sender',
+                'sender_designation',
                 'received_at',
             ]);
 
@@ -103,6 +104,7 @@ class DocumentEditScreen extends Screen
                 'description' => $data['description'] ?? null,
                 'origin' => $data['origin'],
                 'sender' => $data['sender'],
+                'sender_designation' => filled($data['designation'] ?? null) ? trim($data['designation']) : null,
                 'received_at' => $data['received'] ?? $document->received_at,
             ]);
 
@@ -120,7 +122,7 @@ class DocumentEditScreen extends Screen
                 && $document->routesAreEditable()
                 && is_array($destinations)
                 && $destinations !== []) {
-                $routeChanges = $this->updateRoutes($document, $destinations, $user, $data['route_fingerprint'] ?? null);
+                $routeChanges = $this->updateRoutes($document, $destinations, $user, $data['route_fingerprint'] ?? null, $correctionReason);
             }
 
             if ($changedFields !== []) {
@@ -146,6 +148,7 @@ class DocumentEditScreen extends Screen
                     'after' => $routeChanges['after'],
                     'added' => $routeChanges['added'],
                     'removed' => $routeChanges['removed'],
+                    'correction_reason' => $correctionReason,
                 ]);
 
                 if ($routeChanges['added'] !== []) {
@@ -156,6 +159,10 @@ class DocumentEditScreen extends Screen
 
         $routesChanged = $routeChanges['added'] !== [] || $routeChanges['removed'] !== [];
 
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Document details saved.']);
+        }
+
         if ($changedFields !== [] && $routesChanged) {
             Toast::success('Document details and routes were updated.');
         } elseif ($changedFields !== []) {
@@ -164,10 +171,6 @@ class DocumentEditScreen extends Screen
             Toast::success('Document routes were updated.');
         } else {
             Toast::info('No document details changed.');
-        }
-
-        if ($request->expectsJson()) {
-            return response()->json(['message' => 'Document details saved.']);
         }
 
         return redirect()->route('platform.documents.view', $document);
@@ -180,7 +183,7 @@ class DocumentEditScreen extends Screen
      * @param  list<string>  $destinations
      * @return array{before: list<string>, after: list<string>, added: list<string>, removed: list<string>}
      */
-    private function updateRoutes(Document $document, array $destinations, User $user, ?string $routeFingerprint): array
+    private function updateRoutes(Document $document, array $destinations, User $user, ?string $routeFingerprint, string $correctionReason): array
     {
         $destinations = array_values($destinations);
         $existing = $document->officeAssignments()->pluck('office')->all();
@@ -197,6 +200,12 @@ class DocumentEditScreen extends Screen
             ]);
         }
 
+        if ($correctionReason === '') {
+            throw ValidationException::withMessages([
+                'document.correction_reason' => 'Give a reason for changing the assigned offices.',
+            ]);
+        }
+
         if ($removed !== []) {
             $startedOffice = $document->officeAssignments()
                 ->whereIn('office', $removed)
@@ -208,7 +217,17 @@ class DocumentEditScreen extends Screen
                     'document.destinations' => "{$startedOffice} has started work and cannot be removed from this document.",
                 ]);
             }
+        }
 
+        if ($document->registered_office === null
+            || $document->hasBeenProcessed()
+            || $document->officeAssignments()->whereIn('office', $removed)->where('status', DocumentMovement::STATUS_FORWARDED)->exists()) {
+            throw ValidationException::withMessages([
+                'document.destinations' => 'After processing begins, use Forward for new routes or Correct route for a pending destination.',
+            ]);
+        }
+
+        if ($removed !== []) {
             foreach ($document->officeAssignments()->whereIn('office', $removed)->get() as $assignment) {
                 $document->movements()->create([
                     'action' => DocumentMovement::ACTION_CANCELLED,
@@ -216,6 +235,7 @@ class DocumentEditScreen extends Screen
                     'to_office' => $assignment->office,
                     'from_status' => $assignment->status,
                     'to_status' => DocumentMovement::STATUS_CANCELLED,
+                    'remarks' => 'Correction reason: '.$correctionReason,
                     'acted_by' => $user->getAuthIdentifier(),
                 ]);
                 $assignment->delete();
@@ -225,9 +245,9 @@ class DocumentEditScreen extends Screen
         foreach ($added as $office) {
             $movement = $document->movements()->create([
                 'action' => DocumentMovement::ACTION_SENT,
-                'from_office' => $document->current_office,
+                'from_office' => null,
                 'to_office' => $office,
-                'from_status' => $document->status,
+                'from_status' => null,
                 'to_status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
                 'remarks' => null,
                 'acted_by' => $user->getAuthIdentifier(),

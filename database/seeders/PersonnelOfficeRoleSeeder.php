@@ -35,7 +35,6 @@ class PersonnelOfficeRoleSeeder extends Seeder
 
             $user->fill([
                 'name' => $personnel['name'],
-                'office' => $personnel['office'],
             ]);
 
             if (! $user->exists) {
@@ -44,11 +43,8 @@ class PersonnelOfficeRoleSeeder extends Seeder
             }
 
             $user->save();
-            $office = Office::query()->where('name', $personnel['office'])->first();
-
-            if ($office !== null) {
-                $user->offices()->syncWithoutDetaching([$office->id]);
-            }
+            $office = Office::query()->firstOrCreate(['name' => $personnel['office']]);
+            $user->offices()->syncWithoutDetaching([$office->id]);
 
             $user->roles()->syncWithoutDetaching([$role->id]);
         }

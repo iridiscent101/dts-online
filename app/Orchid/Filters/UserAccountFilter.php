@@ -32,8 +32,7 @@ class UserAccountFilter extends Filter
     {
         return match ($this->request->string('user_account')->toString()) {
             'no_role' => $builder->doesntHave('roles'),
-            'no_office' => $builder->doesntHave('offices')
-                ->where(fn (Builder $query): Builder => $query->whereNull('office')->orWhere('office', '')),
+            'no_office' => $builder->doesntHave('offices'),
             default => $builder,
         };
     }

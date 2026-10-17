@@ -7,6 +7,7 @@ use App\Models\DocumentMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
 /**
@@ -51,6 +52,20 @@ class RoutingControlsUiTest extends TestCase
         $this->get(route('platform.documents'))
             ->assertOk()
             ->assertDontSee('to another office');
+    }
+
+    public function test_administrator_sends_to_another_office_from_the_office_that_forwarded_it(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => null]);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = $this->forwardedDocument();
+
+        // The admin has no office of their own, so the sending office offered is the one that actually forwarded it.
+        $page = $this->actingAs($admin)->get(route('platform.outgoing'))->assertOk();
+        preg_match("/data-additional-route='([^']+)'/", $page->getContent(), $match);
+        $details = json_decode(html_entity_decode($match[1] ?? ''), true);
+        $this->assertSame(['Administrative Unit'], $details['sources'] ?? null);
     }
 
     public function test_outgoing_list_runs_no_distinct_query_with_an_order_by(): void

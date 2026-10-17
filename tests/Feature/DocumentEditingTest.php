@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Models\User;
 use App\Notifications\DocumentAssignedNotification;
 use App\Orchid\PlatformProvider;
@@ -99,6 +100,23 @@ class DocumentEditingTest extends TestCase
         $this->assertSame('Corrected memorandum subject', data_get($activity->properties, 'after.subject'));
     }
 
+    public function test_json_document_edit_does_not_flash_a_toast_for_the_next_page(): void
+    {
+        $user = User::factory()->create([
+            'office' => 'Records Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true],
+        ]);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+
+        $this->actingAs($user)->postJson(route('platform.documents.edit', $document).'/save', [
+            'document' => $this->validDocumentData($document),
+        ])->assertOk()
+            ->assertJsonPath('message', 'Document details saved.')
+            ->assertSessionMissing('toast_notification.message');
+
+        $this->assertSame('Corrected memorandum subject', $document->fresh()->subject);
+    }
+
     public function test_records_colleague_can_edit_details_of_a_document_their_office_registered_elsewhere(): void
     {
         $registrar = User::factory()->create(['office' => 'SDO-Records Unit']);
@@ -136,6 +154,47 @@ class DocumentEditingTest extends TestCase
             'causer_id' => $colleague->id,
             'properties->correction_reason' => 'Correcting the title before the destination receives it.',
         ]);
+    }
+
+    public function test_moving_a_records_registrar_does_not_transfer_edit_access_to_their_new_office(): void
+    {
+        $registrar = User::factory()->create(['office' => 'SDO-Records Unit']);
+        $recordsColleague = User::factory()->create([
+            'office' => 'SDO-Records Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true],
+        ]);
+        $newOfficeColleague = User::factory()->create([
+            'office' => 'SDO-Legal Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true],
+        ]);
+        $document = Document::factory()->incoming()->create([
+            'current_office' => 'SDO-Accounting Unit',
+            'registered_by' => $registrar->id,
+        ]);
+        $registrar->offices()->sync([Office::query()->where('name', 'SDO-Legal Unit')->firstOrFail()->id]);
+
+        $this->assertSame('SDO-Records Unit', $document->fresh()->registered_office);
+        $this->assertTrue($document->canBeEditedBy($recordsColleague));
+        $this->assertFalse($document->canBeEditedBy($newOfficeColleague));
+        $this->actingAs($newOfficeColleague)->get(route('platform.documents.edit', $document))->assertNotFound();
+        $this->actingAs($recordsColleague)->get(route('platform.documents.edit', $document))->assertOk();
+    }
+
+    public function test_editing_rejects_a_future_received_date(): void
+    {
+        $user = User::factory()->create([
+            'office' => 'SDO-Records Unit',
+            'permissions' => ['platform.index' => true, 'platform.documents.edit' => true],
+        ]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
+        $data = $this->validDocumentData($document);
+        $data['received'] = today('Asia/Manila')->addDay()->toDateString();
+
+        $this->actingAs($user)->postJson(route('platform.documents.edit', $document).'/save', [
+            'document' => $data,
+        ])->assertUnprocessable()->assertJsonValidationErrors('document.received');
+
+        $this->assertNotSame($data['received'], $document->fresh()->received_at?->toDateString());
     }
 
     public function test_records_staff_cannot_edit_a_document_registered_by_another_office_without_an_assignment(): void
@@ -225,11 +284,45 @@ class DocumentEditingTest extends TestCase
         $admin->replaceRoles([$adminRole->id]);
         $document = Document::factory()->received()->create(['current_office' => 'Curriculum Implementation Division']);
 
+        // No registering office, so the route list is shown read-only (Document::routeListIsLocked).
         $this->actingAs($admin)
             ->get(route('platform.documents.edit', $document))
             ->assertOk()
             ->assertSee('Save changes')
-            ->assertSee('data-edit-route-add', false);
+            ->assertSee('the assigned offices can no longer be changed here')
+            ->assertDontSee('data-edit-route-add', false);
+    }
+
+    public function test_route_editor_locks_after_processing_and_marks_forwarded_offices(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => 'Records Unit']);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'Records Unit', 'registered_by' => $admin->id]);
+        $document->officeAssignments()->create(['office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+
+        // Before processing: the list can change, the forwarded office is locked to Correct route, and a reason is asked.
+        $this->actingAs($admin)->get(route('platform.documents.edit', $document))
+            ->assertOk()
+            ->assertSee('data-initial-routes=', false)
+            ->assertSee('Forwarded by another office. Use Correct route to change it.')
+            ->assertSee('Changing the offices asks for a reason');
+
+        $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'Records Unit',
+            'to_office' => 'Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+
+        // After processing: read-only, no office fields sent, so saving details leaves the routes alone.
+        foreach ([route('platform.documents.edit', $document), route('platform.documents.workspace', $document)] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee('the assigned offices can no longer be changed here')
+                ->assertDontSee('name="document[destinations][]"', false);
+        }
     }
 
     public function test_route_management_is_registered_as_its_own_grantable_permission(): void
@@ -288,11 +381,13 @@ class DocumentEditingTest extends TestCase
             ->get(route('platform.documents.edit', $document))
             ->assertOk()
             ->assertSee('Assigned offices')
-            ->assertSee('data-edit-route-add', false);
+            ->assertSee('data-edit-route-add', false)
+            ->assertSee('data-initial-routes=', false);
 
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Records Unit', 'Curriculum Implementation Division'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Correcting the offices selected at registration.';
 
         $this->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
             ->assertRedirectToRoute('platform.documents.view', $document)
@@ -325,6 +420,7 @@ class DocumentEditingTest extends TestCase
         $this->assertSame('routes', $activity->properties->get('action'));
         $this->assertContains('Curriculum Implementation Division', $activity->properties->get('added'));
         $this->assertContains('Administrative Unit', $activity->properties->get('removed'));
+        $this->assertSame('Correcting the offices selected at registration.', $activity->properties->get('correction_reason'));
         $this->assertEqualsCanonicalizing(
             ['Records Unit', 'Administrative Unit'],
             $activity->properties->get('before'),
@@ -446,6 +542,7 @@ class DocumentEditingTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Records Unit', 'Curriculum Implementation Division'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Correcting an office selected in error.';
 
         $this->actingAs($admin)
             ->from(route('platform.documents.edit', $document))
@@ -465,7 +562,7 @@ class DocumentEditingTest extends TestCase
         ]);
     }
 
-    public function test_withdrawing_an_unreceived_forwarded_route_records_cancellation(): void
+    public function test_admin_editor_cannot_withdraw_a_forwarded_route_without_its_source(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
         $admin = User::factory()->create(['office' => 'Records Unit']);
@@ -478,20 +575,68 @@ class DocumentEditingTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Records Unit'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'This route was selected in error.';
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertRedirectToRoute('platform.documents.view', $document);
+            ->assertSessionHasErrors(['document.destinations' => 'After processing begins, use Forward for new routes or Correct route for a pending destination.']);
 
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit']);
+        $this->assertDatabaseMissing('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_CANCELLED]);
+    }
+
+    public function test_admin_route_change_requires_a_reason_and_rolls_back_detail_changes(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => 'Records Unit']);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = Document::factory()->received()->create([
+            'current_office' => 'Records Unit',
+            'registered_by' => $admin->id,
+            'subject' => 'Original subject',
+        ]);
+        $data = $this->validDocumentData($document);
+        $data['destinations'] = ['Records Unit', 'Administrative Unit'];
+        $data['route_fingerprint'] = $document->routeFingerprint();
+
+        $this->actingAs($admin)
+            ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
+            ->assertSessionHasErrors(['document.correction_reason' => 'Give a reason for changing the assigned offices.']);
+
+        $this->assertSame('Original subject', $document->fresh()->subject);
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit']);
-        $this->assertDatabaseHas('document_movements', [
-            'document_id' => $document->id,
-            'action' => DocumentMovement::ACTION_CANCELLED,
-            'to_office' => 'Administrative Unit',
-            'from_status' => DocumentMovement::STATUS_FORWARDED,
-            'to_status' => DocumentMovement::STATUS_CANCELLED,
+    }
+
+    public function test_admin_cannot_create_an_initial_route_after_records_receives_the_document(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => 'Records Unit']);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = Document::factory()->received()->create([
+            'current_office' => 'Records Unit',
+            'registered_by' => $admin->id,
+            'subject' => 'Original subject',
+        ]);
+        $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'Records Unit',
+            'to_office' => 'Records Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
             'acted_by' => $admin->id,
         ]);
+        $data = $this->validDocumentData($document);
+        $data['destinations'] = ['Records Unit', 'Administrative Unit'];
+        $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Adding a missed office after receipt.';
+
+        $this->actingAs($admin)
+            ->postJson(route('platform.documents.edit', $document).'/save', ['document' => $data])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('document.destinations');
+
+        $this->assertSame('Original subject', $document->fresh()->subject);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit']);
     }
 
     public function test_route_editor_allows_five_active_routes_in_addition_to_finished_routes(): void
@@ -499,15 +644,17 @@ class DocumentEditingTest extends TestCase
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
         $admin = User::factory()->create(['office' => 'Records Unit']);
         $admin->replaceRoles([$adminRole->id]);
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
-        $finishedOffices = array_slice(Document::officeOptions(), 0, 5);
-        $newOffices = array_slice(Document::officeOptions(), 20, 5);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit', 'registered_by' => $admin->id]);
+        $availableOffices = array_values(array_diff(Document::officeOptions(), ['Records Unit']));
+        $finishedOffices = array_slice($availableOffices, 0, 5);
+        $newOffices = array_slice($availableOffices, 20, 5);
         foreach ($finishedOffices as $office) {
             $document->officeAssignments()->create(['office' => $office, 'status' => DocumentMovement::STATUS_COMPLETED]);
         }
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Records Unit', ...$finishedOffices, ...array_slice($newOffices, 0, 4)];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Adding offices omitted at registration.';
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
@@ -614,18 +761,18 @@ class DocumentEditingTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Administrative Unit'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Correcting the selected office.';
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertRedirectToRoute('platform.documents.view', $document);
+            ->assertSessionHasErrors('document.destinations');
 
         $document->refresh();
-        $this->assertSame('Administrative Unit', $document->current_office);
-        $this->assertSame(DocumentMovement::STATUS_AWAITING_RECEIPT, $document->status);
-        $this->assertSame(DocumentMovement::STATUS_AWAITING_RECEIPT, $document->officeAssignments()->firstOrFail()->status);
+        $this->assertSame('Records Unit', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->status);
     }
 
-    public function test_selecting_an_existing_route_uses_that_offices_status(): void
+    public function test_general_editor_does_not_remove_an_existing_forwarded_route(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
         $admin = User::factory()->create(['office' => 'Records Unit']);
@@ -641,17 +788,18 @@ class DocumentEditingTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Administrative Unit'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Removing an unreceived route.';
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertRedirectToRoute('platform.documents.view', $document);
+            ->assertSessionHasErrors('document.destinations');
 
         $document->refresh();
-        $this->assertSame('Administrative Unit', $document->current_office);
-        $this->assertSame(DocumentMovement::STATUS_REVIEWED, $document->status);
+        $this->assertSame('Records Unit', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->status);
     }
 
-    public function test_removing_current_route_keeps_an_unfinished_office_active(): void
+    public function test_general_editor_does_not_remove_a_forwarded_current_route(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
         $admin = User::factory()->create(['office' => 'Records Unit']);
@@ -671,14 +819,15 @@ class DocumentEditingTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Administrative Unit', 'Curriculum Implementation Division'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Removing an unreceived route.';
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertRedirectToRoute('platform.documents.view', $document);
+            ->assertSessionHasErrors('document.destinations');
 
         $document->refresh();
-        $this->assertSame('Curriculum Implementation Division', $document->current_office);
-        $this->assertSame(DocumentMovement::STATUS_AWAITING_RECEIPT, $document->status);
+        $this->assertSame('Records Unit', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->status);
     }
 
     public function test_new_office_route_starts_awaiting_receipt_even_when_document_was_approved(): void
@@ -694,6 +843,7 @@ class DocumentEditingTest extends TestCase
         $data = $this->validDocumentData($document);
         $data['destinations'] = ['Records Unit', 'Administrative Unit'];
         $data['route_fingerprint'] = $document->routeFingerprint();
+        $data['correction_reason'] = 'Adding the omitted office.';
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])

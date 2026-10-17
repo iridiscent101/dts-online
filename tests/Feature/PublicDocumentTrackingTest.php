@@ -11,6 +11,24 @@ class PublicDocumentTrackingTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_header_and_footer_show_only_the_contact_details_that_are_set(): void
+    {
+        config(['dts.contact.facebook' => null, 'dts.contact.phone' => null, 'dts.contact.address' => null, 'dts.contact.email' => null]);
+        $this->get(route('tracking.index'))
+            ->assertOk()
+            ->assertSee('href="#contact"', false)
+            ->assertSee('id="contact"', false)
+            ->assertSee('Visit the Records Unit counter at the division office.')
+            ->assertDontSee('aria-label="Facebook page', false);
+
+        config(['dts.contact.facebook' => 'https://www.facebook.com/example-sdo', 'dts.contact.phone' => '+63 962 681 4945, +63 992 035 2123']);
+        $this->get(route('tracking.index'))
+            ->assertSee('href="https://www.facebook.com/example-sdo"', false)
+            ->assertSee('href="tel:+639626814945"', false)
+            ->assertSee('href="tel:+639920352123"', false)
+            ->assertDontSee('Visit the Records Unit counter at the division office.');
+    }
+
     public function test_guests_can_open_the_fast_track_page(): void
     {
         $this->get(route('tracking.index'))
@@ -21,6 +39,11 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertDontSee('Staff sign in')
             ->assertSee('<title>Track a document | DocuTrackS</title>', false)
             ->assertSee('Docu<span class="text-[#86562D]">TrackS</span>', false)
+            // Branding in the header; the moving crowd is gone and the office photos have their own moving section.
+            ->assertDontSee('data-crowd-canvas', false)
+            ->assertSee('id="photos-heading"', false)
+            ->assertSee('class="dts-photo-marquee" aria-hidden="true"', false)
+            ->assertSee('Records Unit counter')
             ->assertSee('placeholder="Enter your tracking number"', false)
             ->assertDontSee('DTS tracking number')
             ->assertSee('Track document')

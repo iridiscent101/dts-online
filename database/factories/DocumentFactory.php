@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Document;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -15,6 +16,13 @@ class DocumentFactory extends Factory
     public function configure(): static
     {
         return $this->afterCreating(function (Document $document): void {
+            if ($document->registered_by !== null && $document->registered_office === null) {
+                $registeredOffice = User::query()->find($document->registered_by)?->assignedOfficeNames()->first();
+                if ($registeredOffice !== null) {
+                    $document->update(['registered_office' => $registeredOffice]);
+                }
+            }
+
             if (! Schema::hasTable('document_office_assignments')) {
                 return;
             }

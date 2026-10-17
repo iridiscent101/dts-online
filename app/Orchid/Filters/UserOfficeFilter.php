@@ -29,10 +29,7 @@ class UserOfficeFilter extends Filter
             return $builder;
         }
 
-        // Staff are linked to offices through the office list; older accounts may only have the office column.
-        return $builder->where(fn (Builder $query): Builder => $query
-            ->whereHas('offices', fn (Builder $offices): Builder => $offices->where('name', $office))
-            ->orWhere('office', $office));
+        return $builder->whereHas('offices', fn (Builder $offices): Builder => $offices->where('name', $office));
     }
 
     /**

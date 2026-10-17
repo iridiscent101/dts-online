@@ -43,7 +43,7 @@ class PlatformSecurityTest extends TestCase
             'permissions' => ['platform.index' => true],
         ]);
         $document = Document::factory()->create([
-            'current_office' => $user->office,
+            'current_office' => $user->assignedOfficeNames()->first(),
         ]);
 
         $this->actingAs($user)

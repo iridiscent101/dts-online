@@ -94,6 +94,26 @@ class DocumentIntakeTest extends TestCase
             ->count());
     }
 
+    public function test_receipt_summary_excludes_a_corrected_destination(): void
+    {
+        $staff = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->pendingDocument();
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'SDO-Records Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'Administrative Unit',
+            'correction_reason' => 'Wrong destination selected.',
+        ])->assertOk();
+
+        $this->getJson(route('platform.documents.intake', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertJsonPath('receipt.offices', ['SDO-Legal Unit', 'Administrative Unit']);
+    }
+
     public function test_lookup_reports_non_paper_documents_and_missing_tracking_numbers(): void
     {
         $staff = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);

@@ -19,8 +19,8 @@ class SystemBackup
     {
         $password = (string) config('backup.password', '');
 
-        if (app()->isProduction() && $password === '') {
-            throw SystemBackupException::because('BACKUP_PASSWORD must be configured in production.', [
+        if ($password === '') {
+            throw SystemBackupException::because('BACKUP_PASSWORD must be configured before creating a backup.', [
                 'operation' => 'create',
                 'environment' => app()->environment(),
             ]);

@@ -23,6 +23,7 @@
                     <div><dt>Document type</dt><dd>{{ $document->document_type }}</dd></div>
                     <div><dt>Originating office / school{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->origin }}</dd></div>
                     <div><dt>Sender{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->sender }}</dd></div>
+                    @if (filled($document->sender_designation))<div><dt>Designation</dt><dd>{{ $document->sender_designation }}</dd></div>@endif
                     @if (filled($document->delivery_method))
                         <div><dt>Mode of submission</dt><dd>{{ $document->delivery_method }}</dd></div>
                     @endif
@@ -287,7 +288,9 @@
                 <summary class="dts-section-heading tw:cursor-pointer tw:list-none"><h3 id="document-status-heading">Record summary</h3></summary>
                 <dl class="dts-metadata">
                     <dt>Tracking number</dt><dd>{{ $document->tracking_number }} @include('orchid.partials.copy-button', ['text' => $document->tracking_number])</dd>
-                    <dt>Registered by</dt><dd>{{ $document->client_submission_key ? 'Client submission' : ($document->registeredBy?->name ?? 'System') }}</dd>
+                    {{-- Who took the document in: the staff member who registered it at the counter, or for an online submission the
+                         Records staff member who received the document/s. --}}
+                    <dt>Received by</dt><dd>{{ $document->client_submission_key ? ($document->recordsReceipt?->actor?->name ?? 'Not received yet') : ($document->registeredBy?->name ?? 'System') }}</dd>
                     <dt>Registered on</dt><dd>{{ $document->created_at->format('M d, Y · g:i A') }}</dd>
                     <dt>Last changed by</dt><dd>{{ $lastChangedBy }}</dd>
                     <dt>Last changed on</dt><dd>{{ $lastChangedAt->format('M d, Y · g:i A') }}</dd>

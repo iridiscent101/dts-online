@@ -27,26 +27,14 @@ class PersonnelOfficeRoleSeederTest extends TestCase
             'name' => 'Personnel',
             'description' => 'DepEd personnel assigned to an office document queue.',
         ]);
-        $this->assertDatabaseHas('users', [
-            'name' => 'Marilou B. Mendoza',
-            'email' => 'marilou-b-mendoza@deped.local',
-            'office' => 'SDO-Schools Division Superintendent (SDS) Office',
-        ]);
-        $this->assertDatabaseHas('users', [
-            'name' => 'Julie G. Mamugay',
-            'email' => 'julie-g-mamugay@deped.local',
-            'office' => 'SDO-School Governance and Operations Division (SGOD) Chief',
-        ]);
-        $this->assertDatabaseHas('users', [
-            'name' => 'Julie G. Mamugay',
-            'email' => 'julie-g-mamugay-sgod-personnel@deped.local',
-            'office' => 'SDO-SGOD Personnel (SMME/SMAN/EFU/YFP/DRRM/HNU)',
-        ]);
-        $this->assertDatabaseHas('users', [
-            'name' => 'Jovelyn L. Masa',
-            'email' => 'jovelyn-l-masa@deped.local',
-            'office' => 'SDO-CID Personnel (EPS/PSDS)',
-        ]);
+        foreach ([
+            'marilou-b-mendoza@deped.local' => 'SDO-Schools Division Superintendent (SDS) Office',
+            'julie-g-mamugay@deped.local' => 'SDO-School Governance and Operations Division (SGOD) Chief',
+            'julie-g-mamugay-sgod-personnel@deped.local' => 'SDO-SGOD Personnel (SMME/SMAN/EFU/YFP/DRRM/HNU)',
+            'jovelyn-l-masa@deped.local' => 'SDO-CID Personnel (EPS/PSDS)',
+        ] as $email => $office) {
+            $this->assertSame([$office], User::query()->where('email', $email)->sole()->assignedOfficeNames()->all());
+        }
 
         $this->assertSame(22, User::query()->whereHas('roles', fn (Builder $query): Builder => $query->whereKey($role->id))->count());
     }
@@ -76,7 +64,7 @@ class PersonnelOfficeRoleSeederTest extends TestCase
         $this->assertDatabaseCount('users', 22);
         $this->assertDatabaseCount('role_users', 23);
         $this->assertSame('Marilou B. Mendoza', $existingUser->name);
-        $this->assertSame('SDO-Schools Division Superintendent (SDS) Office', $existingUser->office);
+        $this->assertEqualsCanonicalizing(['Old Office', 'SDO-Schools Division Superintendent (SDS) Office'], $existingUser->assignedOfficeNames()->all());
         $this->assertTrue($existingUser->roles()->whereKey($existingRole->id)->exists());
         $this->assertTrue($existingUser->roles()->whereKey($personnelRole->id)->exists());
     }

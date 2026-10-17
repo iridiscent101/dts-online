@@ -81,6 +81,10 @@
                             <input id="document-sender" name="document[sender]" data-field="sender" required maxlength="180" value="{{ old('document.sender') }}" placeholder="Full name" autocomplete="off">
                         </div>
                         <div class="dts-field">
+                            <label for="document-designation">Sender's designation <span class="dts-optional">Optional</span></label>
+                            <input id="document-designation" name="document[designation]" data-field="designation" maxlength="120" value="{{ old('document.designation') }}" placeholder="Example: Teacher I, School Head" autocomplete="off">
+                        </div>
+                        <div class="dts-field">
                             <label for="document-received">Date received <span aria-hidden="true">*</span></label>
                             <input id="document-received" name="document[received]" data-field="received" type="date" required value="{{ old('document.received', now()->timezone('Asia/Manila')->toDateString()) }}">
                         </div>

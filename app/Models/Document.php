@@ -219,12 +219,14 @@ class Document extends Model
         'origin',
         'delivery_method',
         'sender',
+        'sender_designation',
         'current_office',
         'status',
         'received_at',
         'priority',
         'remarks',
         'registered_by',
+        'registered_office',
         'client_submission_key',
     ];
 
@@ -303,18 +305,16 @@ class Document extends Model
 
         $offices = $user->assignedOfficeNames();
 
-        return $query->where(function (Builder $query) use ($offices, $user): void {
-            $query->where('registered_by', $user->id);
+        if ($offices->isEmpty()) {
+            return $query->whereRaw('1 = 0');
+        }
 
-            if ($offices->isNotEmpty()) {
-                $query->orWhereIn('current_office', $offices)
-                    ->orWhereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments->whereIn('office', $offices))
-                    ->orWhereHas('registeredBy', fn (Builder $registrar): Builder => $registrar->where(fn (Builder $officeMatch): Builder => $officeMatch
-                        ->whereIn('office', $offices)
-                        ->orWhereHas('offices', fn (Builder $office): Builder => $office->whereIn('name', $offices))))
-                    // An office keeps read access to what it sent on, so its Outgoing tab can list it.
-                    ->orWhere(fn (Builder $sent): Builder => $sent->sentOnBy($offices));
-            }
+        return $query->where(function (Builder $query) use ($offices): void {
+            $query->whereIn('current_office', $offices)
+                ->orWhereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments->whereIn('office', $offices))
+                ->orWhereIn('registered_office', $offices)
+                // An office keeps read access to what it sent on, so its Outgoing tab can list it.
+                ->orWhere(fn (Builder $sent): Builder => $sent->sentOnBy($offices));
 
             if ($offices->contains('SDO-Records Unit')) {
                 $query->orWhereHas('movements', fn (Builder $movements): Builder => $movements
@@ -330,7 +330,7 @@ class Document extends Model
      */
     public function isVisibleTo(User $user, bool $includeSentOn = true): bool
     {
-        if ($user->hasAccess('platform.documents.view-all') || $this->registered_by === $user->id || $this->isAssignedToUserOffice($user)) {
+        if ($user->hasAccess('platform.documents.view-all') || $this->isAssignedToUserOffice($user)) {
             return true;
         }
 
@@ -342,7 +342,7 @@ class Document extends Model
             return true;
         }
 
-        if ($this->registeredBy?->assignedOfficeNames()->intersect($offices)->isNotEmpty()) {
+        if ($offices->contains($this->registered_office)) {
             return true;
         }
 
@@ -382,7 +382,7 @@ class Document extends Model
         return ! $user->isReadOnlySupervisor()
             && $user->hasAccess('platform.documents.edit')
             && ($this->isAssignedToUserOffice($user)
-                || $this->registeredBy?->assignedOfficeNames()->intersect($user->assignedOfficeNames())->isNotEmpty())
+                || $user->isAssignedToOffice($this->registered_office))
             && ($user->isAdministrator() || $user->assignedOfficeNames()->intersect(['SDO-Records Unit', 'Records Unit'])->isNotEmpty())
             && (! $this->isClosedRecord() || $user->isAdministrator());
     }
@@ -448,24 +448,24 @@ class Document extends Model
         }
 
         $offices = $user->assignedOfficeNames();
-        if ($offices->isEmpty()) {
+        if ($offices->isEmpty() && ! $user->isAdministrator()) {
             return collect();
         }
 
         return $this->officeAssignments
             ->whereIn('status', [DocumentMovement::STATUS_FORWARDED, DocumentMovement::STATUS_AWAITING_RECEIPT])
-            ->map(function (DocumentOfficeAssignment $assignment) use ($offices): ?array {
+            ->map(function (DocumentOfficeAssignment $assignment) use ($offices, $user): ?array {
                 $movement = $assignment->movement;
                 // Forwarded by one of the user's offices.
                 if ($movement !== null && $assignment->status === DocumentMovement::STATUS_FORWARDED
-                    && $offices->contains($movement->from_office)
+                    && ($user->isAdministrator() || $offices->contains($movement->from_office))
                     && in_array($movement->action, [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED], true)) {
                     return ['source' => $movement->from_office, 'destination' => $assignment->office];
                 }
                 // The first send after registration, by someone in one of the user's offices.
                 if ($movement !== null && $assignment->status === DocumentMovement::STATUS_AWAITING_RECEIPT
                     && $movement->action === DocumentMovement::ACTION_SENT && $movement->from_office === null) {
-                    $source = $this->registeredBy?->assignedOfficeNames()->intersect($offices)->first();
+                    $source = $user->isAdministrator() || $offices->contains($this->registered_office) ? $this->registered_office : null;
 
                     return $source === null ? null : ['source' => $source, 'destination' => $assignment->office];
                 }
@@ -474,6 +474,16 @@ class Document extends Model
             })
             ->filter()
             ->values();
+    }
+
+    /**
+     * The editor's assigned-office list can change only before any office processes or receives the document, and only
+     * for documents with a registering office (DocumentEditScreen::updateRoutes refuses the rest). After that, new
+     * offices go through Forward and a wrong pending office through Correct route.
+     */
+    public function routeListIsLocked(): bool
+    {
+        return $this->registered_office === null || $this->hasBeenProcessed();
     }
 
     public function routesAreEditable(): bool
@@ -539,6 +549,7 @@ class Document extends Model
             'description',
             'origin',
             'sender',
+            'sender_designation',
             'received_at',
             'priority',
         ]), JSON_THROW_ON_ERROR));

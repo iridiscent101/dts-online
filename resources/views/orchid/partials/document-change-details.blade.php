@@ -9,6 +9,7 @@
         'description' => 'Description',
         'origin' => 'Originating office / school',
         'sender' => 'Sender',
+        'sender_designation' => 'Designation',
         'received_at' => 'Date received',
         'due_at' => 'Due date',
         'priority' => 'Priority',

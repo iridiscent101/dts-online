@@ -4,10 +4,14 @@ namespace Tests\Feature;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Models\User;
 use App\Notifications\DocumentAssignedNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
 class DocumentRouteCorrectionTest extends TestCase
@@ -35,6 +39,118 @@ class DocumentRouteCorrectionTest extends TestCase
         $this->assertDatabaseHas('activity_log', ['subject_id' => $document->id, 'description' => 'Document route corrected', 'properties->office' => 'Administrative Unit', 'properties->correction_reason' => 'Selected Budget instead of Legal.']);
         $this->assertSame('SDO-Legal Unit', $document->fresh()->current_office);
         Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
+    }
+
+    public function test_failed_notification_rolls_back_a_route_correction_before_retry(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        User::factory()->create(['office' => 'SDO-Legal Unit']);
+        $document = $this->forwardedDocument();
+        $url = route('platform.documents.routes.correct', $document);
+        $payload = [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+            'correction_reason' => 'Budget was selected by mistake.',
+        ];
+        $fail = true;
+        Event::listen(NotificationSent::class, function () use (&$fail): void {
+            if ($fail) {
+                throw new \RuntimeException('Notification delivery failed.');
+            }
+        });
+
+        $this->actingAs($sender)->postJson($url, $payload)->assertInternalServerError();
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_CANCELLED)->count());
+        $this->assertDatabaseCount('notifications', 0);
+
+        $fail = false;
+        $this->postJson($url, $payload)->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertSame(1, $document->movements()->where('action', DocumentMovement::ACTION_CANCELLED)->count());
+        $this->assertDatabaseCount('notifications', 1);
+    }
+
+    public function test_corrected_destination_cannot_reopen_document_from_an_old_notification(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $oldRecipient = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $newRecipient = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $oldRecipient->notify(new DocumentAssignedNotification($document, DocumentMovement::ACTION_FORWARDED, $sender->name));
+        $oldNotification = $oldRecipient->unreadNotifications()->sole();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+            'correction_reason' => 'Budget was selected by mistake.',
+        ])->assertOk();
+
+        $this->actingAs($oldRecipient)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->get(route('platform.notifications.open', $oldNotification->id))->assertRedirectToRoute('platform.main');
+        $this->assertNotNull($oldNotification->fresh()->read_at);
+
+        $this->actingAs($newRecipient)->get(route('platform.documents.view', $document))->assertOk();
+        $this->assertSame(1, $newRecipient->notifications()->count());
+    }
+
+    public function test_admin_corrects_only_the_selected_forwarded_branch_without_changing_its_source(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => 'SDO-Records Unit']);
+        $admin->replaceRoles([$adminRole->id]);
+        $document = $this->forwardedDocument();
+        $secondMovement = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'SDO-Property and Supply Unit',
+            'to_office' => 'SDO-Accounting Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED,
+            'to_status' => DocumentMovement::STATUS_FORWARDED,
+            'remarks' => 'Second branch instructions.',
+        ]);
+        $document->officeAssignments()->create([
+            'office' => 'SDO-Accounting Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+            'movement_id' => $secondMovement->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertSee('data-route-correction=', false);
+
+        $this->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'SDO-Records Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+            'correction_reason' => 'Wrong sending branch.',
+        ])->assertForbidden();
+
+        $this->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+            'correction_reason' => 'Correcting the Budget branch.',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'Administrative Unit',
+            'to_office' => 'SDO-Legal Unit',
+            'remarks' => 'Review this document.',
+            'acted_by' => $admin->id,
+        ]);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Accounting Unit',
+            'movement_id' => $secondMovement->id,
+        ]);
     }
 
     public function test_another_user_in_the_sending_office_can_correct_a_forwarded_route(): void
@@ -74,6 +190,40 @@ class DocumentRouteCorrectionTest extends TestCase
 
         $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_SENT, 'to_office' => 'SDO-Budget Unit', 'acted_by' => $colleague->id]);
         $this->assertDatabaseHas('activity_log', ['subject_id' => $document->id, 'description' => 'Document route corrected', 'causer_id' => $colleague->id, 'properties->correction_reason' => 'Our office chose the wrong destination.']);
+    }
+
+    public function test_reassigning_the_registrar_does_not_transfer_initial_route_control_to_the_new_office(): void
+    {
+        $registrar = User::factory()->create(['office' => 'Administrative Unit']);
+        $originalColleague = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $newColleague = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->registeredDocument($registrar);
+        $newOffice = Office::query()->where('name', 'SDO-Legal Unit')->firstOrFail();
+        $registrar->offices()->sync([$newOffice->id]);
+
+        $this->assertSame('Administrative Unit', $document->fresh()->registered_office);
+        $this->assertTrue($document->isVisibleTo($originalColleague));
+        $this->assertTrue(Document::query()->visibleTo($originalColleague)->whereKey($document)->exists());
+        $this->assertFalse($document->isVisibleTo($newColleague));
+        $this->assertFalse(Document::query()->visibleTo($newColleague)->whereKey($document)->exists());
+        $this->assertFalse($document->isVisibleTo($registrar));
+        $this->assertFalse(Document::query()->visibleTo($registrar)->whereKey($document)->exists());
+        $registrar->offices()->detach();
+        $this->assertFalse(Document::query()->visibleTo($registrar)->whereKey($document)->exists());
+
+        $this->actingAs($newColleague)->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'SDO-Legal Unit',
+            'destination_office' => 'SDO-Accounting Unit',
+            'replacement_office' => 'SDO-Budget Unit',
+            'correction_reason' => 'Wrong office.',
+        ])->assertNotFound();
+
+        $this->actingAs($originalColleague)->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Accounting Unit',
+            'replacement_office' => 'SDO-Budget Unit',
+            'correction_reason' => 'Wrong office.',
+        ])->assertOk();
     }
 
     public function test_records_registrar_can_correct_an_initial_destination_before_receipt(): void
@@ -222,6 +372,66 @@ class DocumentRouteCorrectionTest extends TestCase
 
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+    }
+
+    public function test_receipt_wins_over_a_stale_route_correction(): void
+    {
+        $document = $this->forwardedDocument();
+        $recipient = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $movementUrl = route('platform.documents.movements.store', $document);
+        $correctionUrl = route('platform.documents.routes.correct', $document);
+
+        $this->actingAs($recipient)->postJson($movementUrl, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertOk();
+
+        $this->actingAs($sender)->postJson($correctionUrl, [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+            'correction_reason' => 'This correction was opened before receipt.',
+        ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Budget Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_CANCELLED)->count());
+    }
+
+    public function test_correction_wins_over_a_stale_receipt_for_the_old_destination(): void
+    {
+        $document = $this->forwardedDocument();
+        $oldRecipient = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $newRecipient = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $movementUrl = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+            'correction_reason' => 'Budget was selected by mistake.',
+        ])->assertOk();
+
+        $this->actingAs($oldRecipient)->postJson($movementUrl, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertForbidden();
+
+        $this->actingAs($newRecipient)->postJson($movementUrl, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Legal Unit'],
+        ])->assertOk();
+
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Legal Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $this->assertSame(1, $document->movements()->where('action', DocumentMovement::ACTION_RECEIVED)->count());
     }
 
     public function test_route_correction_requires_a_reason_and_an_unassigned_replacement(): void

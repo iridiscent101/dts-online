@@ -167,17 +167,6 @@ class UserEditScreen extends Screen
 
             if ($request->user()->isAdministrator() && $request->boolean('user.offices_submitted')) {
                 $officeIds = $this->officeIdsFromRequest($request);
-                $officeNames = Office::query()
-                    ->whereKey($officeIds)
-                    ->pluck('name', 'id');
-
-                $user->forceFill([
-                    'office' => $officeIds
-                        ->map(fn (int $officeId): ?string => $officeNames->get($officeId))
-                        ->filter()
-                        ->first(),
-                ])->save();
-
                 $user->offices()->sync($officeIds->all());
             }
 
@@ -210,19 +199,7 @@ class UserEditScreen extends Screen
      */
     private function selectedOfficeIds(User $user): array
     {
-        $officeIds = $user->offices->pluck('id');
-
-        if ($officeIds->isEmpty() && filled($user->office)) {
-            $legacyOfficeId = Office::query()
-                ->where('name', $user->office)
-                ->value('id');
-
-            if ($legacyOfficeId !== null) {
-                $officeIds->push((int) $legacyOfficeId);
-            }
-        }
-
-        return $officeIds->map(fn (mixed $officeId): int => (int) $officeId)->all();
+        return $user->offices->pluck('id')->map(fn (mixed $officeId): int => (int) $officeId)->all();
     }
 
     /**

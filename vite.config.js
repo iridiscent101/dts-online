@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/css/dts.css', 'resources/js/dts.js', 'resources/js/copy-button.js', 'resources/js/crowd-canvas.js', 'resources/js/tracking-refresh.js'],
+            input: ['resources/css/app.css', 'resources/css/dts.css', 'resources/js/dts.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'],
             refresh: true,
             fonts: [
                 bunny('Instrument Sans', {

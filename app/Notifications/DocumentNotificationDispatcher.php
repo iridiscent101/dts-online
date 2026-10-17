@@ -53,8 +53,8 @@ class DocumentNotificationDispatcher
 
         return User::query()
             ->where(function (Builder $query) use ($officeNames): void {
-                $query->whereIn('office', $officeNames)
-                    ->orWhereHas('offices', fn (Builder $offices): Builder => $offices->whereIn('name', $officeNames))
+                // Office memberships are the only record of a user's offices (users.office was dropped).
+                $query->whereHas('offices', fn (Builder $offices): Builder => $offices->whereIn('name', $officeNames))
                     ->orWhereHas('roles', fn (Builder $roles): Builder => $roles->where('slug', User::ADMIN_ROLE_SLUG));
             })
             ->get();
