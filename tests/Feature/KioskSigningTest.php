@@ -7,7 +7,9 @@ use App\Models\DocumentMovement;
 use App\Models\KioskSigningRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Orchid\Platform\Models\Role;
+use RuntimeException;
 use Tests\TestCase;
 
 class KioskSigningTest extends TestCase
@@ -87,6 +89,45 @@ class KioskSigningTest extends TestCase
         $this->assertSame(0, KioskSigningRequest::query()->where('status', KioskSigningRequest::STATUS_CANCELLED)->count());
     }
 
+    public function test_former_office_staff_cannot_retrieve_a_kiosk_signature_or_cancel_its_request(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $sent = $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $signing = KioskSigningRequest::query()->sole();
+        $this->actingAs($this->kioskAccount())->postJson(route('kiosk.sign', $signing), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+        $records->offices()->detach();
+
+        $this->actingAs($records)->getJson($sent->json('status_url'))->assertNotFound();
+        $this->postJson($sent->json('cancel_url'))->assertNotFound();
+    }
+
+    public function test_kiosk_skips_requests_from_former_office_staff_and_rejects_their_signatures(): void
+    {
+        [$formerClerk, $oldDocument] = $this->releasableDocument();
+        $this->postJson(route('platform.kiosk-signing.store', $oldDocument), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $oldRequest = KioskSigningRequest::query()->sole();
+
+        [, $currentDocument] = $this->releasableDocument();
+        $this->postJson(route('platform.kiosk-signing.store', $currentDocument), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $formerClerk->offices()->detach();
+
+        $this->actingAs($this->kioskAccount())->getJson(route('kiosk.current'))
+            ->assertOk()
+            ->assertJsonPath('request.tracking_number', $currentDocument->tracking_number);
+        $this->postJson(route('kiosk.sign', $oldRequest), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertStatus(409);
+        $this->assertSame(KioskSigningRequest::STATUS_PENDING, $oldRequest->fresh()->status);
+    }
+
     public function test_cancelled_replaced_and_expired_requests_cannot_be_signed(): void
     {
         [$records, $document] = $this->releasableDocument();
@@ -109,6 +150,104 @@ class KioskSigningTest extends TestCase
         $this->travel(KioskSigningRequest::LIFETIME_MINUTES + 1)->minutes();
         $this->getJson($third->json('status_url'))->assertJsonPath('status', 'expired');
         $this->actingAs($kiosk)->getJson(route('kiosk.current'))->assertJsonPath('request', null);
+    }
+
+    public function test_failed_replacement_keeps_the_original_kiosk_request_pending(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $store = route('platform.kiosk-signing.store', $document);
+        $this->actingAs($records)->postJson($store, ['source_office' => 'SDO-Records Unit'])->assertCreated();
+        $original = KioskSigningRequest::query()->sole();
+        Event::listen('eloquent.created: '.KioskSigningRequest::class, static function (): void {
+            throw new RuntimeException('The replacement could not be saved.');
+        });
+
+        $this->postJson($store, ['source_office' => 'SDO-Records Unit'])->assertInternalServerError();
+
+        $this->assertSame(KioskSigningRequest::STATUS_PENDING, $original->fresh()->status);
+        $this->assertSame(1, KioskSigningRequest::query()->count());
+    }
+
+    public function test_releasing_a_document_cancels_its_pending_kiosk_request(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $sent = $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->actingAs($this->kioskAccount())
+            ->getJson(route('kiosk.current'))
+            ->assertJsonPath('request', null);
+        $this->postJson(route('kiosk.sign', KioskSigningRequest::query()->sole()), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertStatus(409);
+        $this->actingAs($records)->getJson($sent->json('status_url'))->assertJsonPath('status', 'cancelled');
+    }
+
+    public function test_forwarding_a_document_cancels_its_pending_kiosk_request(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $sent = $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'forwarded',
+                'source_office' => 'SDO-Records Unit',
+                'destinations' => ['SDO-Legal Unit'],
+            ],
+        ])->assertOk();
+
+        $this->actingAs($this->kioskAccount())
+            ->getJson(route('kiosk.current'))
+            ->assertOk()
+            ->assertJsonPath('request', null);
+        $this->actingAs($records)->getJson($sent->json('status_url'))->assertJsonPath('status', 'cancelled');
+    }
+
+    public function test_removing_a_document_cancels_its_pending_kiosk_request(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $sent = $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => null]);
+        $admin->replaceRoles([$adminRole->id]);
+
+        $this->actingAs($admin)
+            ->post(route('platform.documents.destroy', $document))
+            ->assertRedirectToRoute('platform.documents');
+
+        $this->assertSoftDeleted($document);
+        $this->actingAs($this->kioskAccount())
+            ->getJson(route('kiosk.current'))
+            ->assertOk()
+            ->assertJsonPath('request', null);
+        $this->actingAs($records)->getJson($sent->json('status_url'))->assertNotFound();
+    }
+
+    public function test_kiosk_ignores_a_pending_request_for_an_already_removed_document(): void
+    {
+        [, $document] = $this->releasableDocument();
+        $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $signing = KioskSigningRequest::query()->sole();
+        $document->delete();
+
+        $this->actingAs($this->kioskAccount())
+            ->getJson(route('kiosk.current'))
+            ->assertOk()
+            ->assertJsonPath('request', null);
+        $this->postJson(route('kiosk.sign', $signing), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertStatus(409);
     }
 
     public function test_kiosk_page_is_only_for_the_kiosk_account_and_the_kiosk_account_only_sees_it(): void

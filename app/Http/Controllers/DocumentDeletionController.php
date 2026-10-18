@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\KioskSigningRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -62,6 +63,10 @@ class DocumentDeletionController extends Controller
     {
         DB::transaction(function () use ($documents, $actor): void {
             foreach ($documents as $document) {
+                KioskSigningRequest::query()
+                    ->where('document_id', $document->id)
+                    ->where('status', KioskSigningRequest::STATUS_PENDING)
+                    ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
                 $document->recordActivity('Document removed', $actor, [
                     'action' => 'delete',
                     'tracking_number' => $document->tracking_number,

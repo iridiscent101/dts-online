@@ -81,7 +81,7 @@ class DocumentWorkspaceController extends Controller
         $activities = $document->activities()
             ->whereIn('description', Document::AUDIT_DESCRIPTIONS)
             ->when($offices !== null, fn (Builder $query): Builder => $query->where(function (Builder $query) use ($offices): void {
-                $query->whereNotIn('description', ['Document routes updated', 'Document route corrected'])
+                $query->whereNotIn('description', ['Document routes updated', 'Document route corrected', 'Document route added'])
                     ->orWhere(fn (Builder $query): Builder => $query->where('description', '!=', 'Document routes updated')->whereIn('properties->office', $offices))
                     ->orWhereIn('properties->from_office', $offices)
                     ->orWhereIn('properties->to_office', $offices);

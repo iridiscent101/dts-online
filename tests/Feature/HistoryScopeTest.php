@@ -62,6 +62,36 @@ class HistoryScopeTest extends TestCase
             ->assertDontSee('Document routes updated');
     }
 
+    public function test_added_route_history_is_visible_only_to_its_sending_and_destination_offices(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $destination = User::factory()->create(['office' => 'Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $unrelated = User::factory()->create(['office' => 'Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'Administrative Unit']);
+        $document->officeAssignments()->create(['office' => 'Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $document->officeAssignments()->create(['office' => 'Budget Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $document->recordActivity('Document route added', $sender, [
+            'office' => 'Administrative Unit',
+            'from_office' => 'Administrative Unit',
+            'to_office' => 'Legal Unit',
+            'reason' => 'Private legal routing reason',
+        ]);
+
+        foreach ([$sender, $destination] as $viewer) {
+            $this->actingAs($viewer)
+                ->get(route('platform.documents.workspace', $document))
+                ->assertSee('Private legal routing reason');
+            $this->get(route('platform.documents.view', $document))
+                ->assertSee('Document route added');
+        }
+
+        $this->actingAs($unrelated)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertDontSee('Private legal routing reason');
+        $this->get(route('platform.documents.view', $document))
+            ->assertDontSee('Document route added');
+    }
+
     public function test_unfiltered_history_never_shows_another_offices_actions(): void
     {
         $legal = User::factory()->create(['office' => 'Legal Unit', 'permissions' => ['platform.index' => true]]);

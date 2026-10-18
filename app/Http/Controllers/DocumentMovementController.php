@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDocumentMovementRequest;
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\KioskSigningRequest;
 use App\Notifications\DocumentNotificationDispatcher;
 use App\Services\DocumentRoutingService;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,10 @@ class DocumentMovementController extends Controller
             $transition = $routing->route($document, $user, $workflow);
 
             $document->refresh();
+            KioskSigningRequest::query()
+                ->where('document_id', $document->id)
+                ->where('status', KioskSigningRequest::STATUS_PENDING)
+                ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
             if ($wasAwaitingPaper && $transition['action'] === DocumentMovement::ACTION_RECEIVED) {
                 $document->update([
                     'received_at' => today('Asia/Manila')->toDateString(),

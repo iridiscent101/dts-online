@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\DocumentRoutingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The Records clerk's side of kiosk signing: send a Release to the kiosk laptop outside, follow it until the recipient
@@ -28,26 +29,30 @@ class KioskSigningRequestController extends Controller
             'recipient_name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $document->loadMissing('officeAssignments.movement');
-        $state = $routing->workflowState($user, $document, $data['source_office']);
-        abort_unless($state !== null
-            && array_key_exists(DocumentMovement::ACTION_RELEASED, $routing->availableActionOptions($user, $document, $state)), 403, 'This document cannot be released from this office.');
+        $signing = DB::transaction(function () use ($document, $user, $data, $routing): KioskSigningRequest {
+            $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
+            abort_unless($currentDocument->isVisibleTo($user), 404);
+            $currentDocument->load('officeAssignments.movement');
+            $state = $routing->workflowState($user, $currentDocument, $data['source_office']);
+            abort_unless($state !== null
+                && array_key_exists(DocumentMovement::ACTION_RELEASED, $routing->availableActionOptions($user, $currentDocument, $state)), 403, 'This document cannot be released from this office.');
 
-        // A new request replaces any still waiting for this document, so the kiosk never shows it twice.
-        KioskSigningRequest::query()
-            ->where('document_id', $document->id)
-            ->where('status', KioskSigningRequest::STATUS_PENDING)
-            ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
+            KioskSigningRequest::query()
+                ->where('document_id', $currentDocument->id)
+                ->where('status', KioskSigningRequest::STATUS_PENDING)
+                ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
 
-        $recipientName = trim((string) ($data['recipient_name'] ?? ''));
-        $signing = KioskSigningRequest::create([
-            'document_id' => $document->id,
-            'requested_by' => $user->id,
-            'office' => $state['office'],
-            'status' => KioskSigningRequest::STATUS_PENDING,
-            'recipient_name' => $recipientName !== '' ? $recipientName : null,
-            'expires_at' => now()->addMinutes(KioskSigningRequest::LIFETIME_MINUTES),
-        ]);
+            $recipientName = trim((string) ($data['recipient_name'] ?? ''));
+
+            return KioskSigningRequest::create([
+                'document_id' => $currentDocument->id,
+                'requested_by' => $user->id,
+                'office' => $state['office'],
+                'status' => KioskSigningRequest::STATUS_PENDING,
+                'recipient_name' => $recipientName !== '' ? $recipientName : null,
+                'expires_at' => now()->addMinutes(KioskSigningRequest::LIFETIME_MINUTES),
+            ]);
+        });
 
         return response()->json([
             'status' => $signing->displayStatus(),
@@ -59,7 +64,7 @@ class KioskSigningRequestController extends Controller
 
     public function show(Request $request, KioskSigningRequest $signing): JsonResponse
     {
-        abort_unless($request->user()?->id === $signing->requested_by, 404);
+        $this->authorizeRequester($request, $signing);
 
         $signed = $signing->displayStatus() === KioskSigningRequest::STATUS_SIGNED;
 
@@ -72,12 +77,20 @@ class KioskSigningRequestController extends Controller
 
     public function cancel(Request $request, KioskSigningRequest $signing): JsonResponse
     {
-        abort_unless($request->user()?->id === $signing->requested_by, 404);
+        $this->authorizeRequester($request, $signing);
 
         if ($signing->status === KioskSigningRequest::STATUS_PENDING) {
             $signing->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
         }
 
         return response()->json(['status' => $signing->displayStatus()]);
+    }
+
+    private function authorizeRequester(Request $request, KioskSigningRequest $signing): void
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User
+            && $user->id === $signing->requested_by
+            && $signing->requesterCanHandle(), 404);
     }
 }

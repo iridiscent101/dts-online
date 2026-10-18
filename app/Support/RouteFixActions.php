@@ -72,10 +72,14 @@ class RouteFixActions
                 ->distinct()
                 ->pluck('from_office');
 
-        $finishedOffices = $document->officeAssignments
-            ->whereIn('status', DocumentMovement::FINISHED_STATUSES)
+        $unavailableOffices = $document->officeAssignments
+            ->whereIn('status', [
+                ...DocumentMovement::FINISHED_STATUSES,
+                DocumentMovement::STATUS_AWAITING_RECEIPT,
+                DocumentMovement::STATUS_FORWARDED,
+            ])
             ->pluck('office');
-        $sendingOffices = $sendingOffices->diff($finishedOffices)->values();
+        $sendingOffices = $sendingOffices->diff($unavailableOffices)->values();
 
         return $sendingOffices->isEmpty() ? null : [
             'url' => route('platform.documents.additional-routes.store', $document),

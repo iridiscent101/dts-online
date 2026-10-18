@@ -207,6 +207,40 @@ class DocumentAdditionalRouteTest extends TestCase
         $this->assertNull(RouteFixActions::for($document->fresh(), $sender)['additional']);
     }
 
+    public function test_sending_office_cannot_add_a_route_before_receiving_a_new_arrival(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $newArrival = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'SDO-Budget Unit',
+            'to_office' => 'Administrative Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED,
+            'to_status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        $document->officeAssignments()->create([
+            'office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+            'movement_id' => $newArrival->id,
+        ]);
+        $document->update(['current_office' => 'Administrative Unit']);
+
+        $this->actingAs($sender)
+            ->postJson(route('platform.documents.additional-routes.store', $document), [
+                'source_office' => 'Administrative Unit',
+                'destination_office' => 'SDO-Legal Unit',
+                'reason' => 'An additional office was missed.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('source_office');
+
+        $this->assertDatabaseMissing('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Legal Unit',
+        ]);
+        $this->assertNull(RouteFixActions::for($document->fresh(), $sender)['additional']);
+    }
+
     private function forwardedDocument(): Document
     {
         $document = Document::factory()->create([

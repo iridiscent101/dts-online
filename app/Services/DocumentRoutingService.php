@@ -104,10 +104,15 @@ class DocumentRoutingService
                 && $user->hasAccess('platform.index')
                 && ($user->isAdministrator() || $user->isAssignedToOffice($sourceOffice)), 403);
 
-            if ($currentDocument->officeAssignments()->where('office', $sourceOffice)
-                ->whereIn('status', DocumentMovement::FINISHED_STATUSES)->exists()) {
+            $sourceStatus = $currentDocument->officeAssignments()->where('office', $sourceOffice)->value('status');
+            if (in_array($sourceStatus, DocumentMovement::FINISHED_STATUSES, true)) {
                 throw ValidationException::withMessages([
                     'source_office' => 'This office has finished its route. Restore it before sending to another office.',
+                ]);
+            }
+            if (in_array($sourceStatus, [DocumentMovement::STATUS_AWAITING_RECEIPT, DocumentMovement::STATUS_FORWARDED], true)) {
+                throw ValidationException::withMessages([
+                    'source_office' => 'Receive the document in this office before sending it to another office.',
                 ]);
             }
 

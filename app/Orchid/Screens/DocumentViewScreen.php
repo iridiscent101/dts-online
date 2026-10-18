@@ -40,7 +40,7 @@ class DocumentViewScreen extends Screen
             ->whereIn('description', Document::AUDIT_DESCRIPTIONS)
             ->with('causer')
             ->when($visibleOffices !== null, fn (Builder $query): Builder => $query->where(function (Builder $query) use ($visibleOffices): void {
-                $query->whereNotIn('description', ['Document routes updated', 'Document route corrected'])
+                $query->whereNotIn('description', ['Document routes updated', 'Document route corrected', 'Document route added'])
                     ->orWhere(fn (Builder $query): Builder => $query->where('description', '!=', 'Document routes updated')->whereIn('properties->office', $visibleOffices))
                     ->orWhereIn('properties->from_office', $visibleOffices)
                     ->orWhereIn('properties->to_office', $visibleOffices);

@@ -76,6 +76,17 @@ class KioskSigningRequest extends Model
         return $this->status === self::STATUS_PENDING && $this->expires_at->isFuture();
     }
 
+    public function requesterCanHandle(): bool
+    {
+        $user = $this->requester;
+
+        return $user !== null
+            && $user->hasAccess('platform.index')
+            && ! $user->isReadOnlySupervisor()
+            && ($user->isAdministrator() || $user->isAssignedToOffice($this->office))
+            && $this->document?->isVisibleTo($user);
+    }
+
     /**
      * What the clerk's screen shows: pending, signed, cancelled, or expired (a pending request past its time).
      */

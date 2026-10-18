@@ -30,9 +30,10 @@ class KioskController extends Controller
 
         $signing = KioskSigningRequest::query()
             ->waiting()
-            ->with('document:id,tracking_number,document_type')
-            ->oldest('id')
-            ->first();
+            ->whereHas('document')
+            ->with(['document', 'requester.offices'])
+            ->lazyById(100)
+            ->first(fn (KioskSigningRequest $candidate): bool => $candidate->isWaiting() && $candidate->requesterCanHandle());
 
         return response()->json(['request' => $signing ? [
             'id' => $signing->id,
@@ -58,8 +59,11 @@ class KioskController extends Controller
         ]);
 
         $signed = DB::transaction(function () use ($signing, $data): bool {
-            $current = KioskSigningRequest::query()->lockForUpdate()->find($signing->id);
-            if (! $current?->isWaiting()) {
+            $current = KioskSigningRequest::query()
+                ->with(['document', 'requester.offices'])
+                ->lockForUpdate()
+                ->find($signing->id);
+            if (! $current?->isWaiting() || ! $current->requesterCanHandle()) {
                 return false;
             }
 
