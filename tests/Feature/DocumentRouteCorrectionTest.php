@@ -474,7 +474,9 @@ class DocumentRouteCorrectionTest extends TestCase
         $this->get(route('platform.documents.workspace', $document))
             ->assertSee('Route corrected')
             ->assertSeeInOrder(['<dt>Wrong office</dt><dd>SDO-Budget Unit</dd>', '<dt>Corrected to</dt><dd>SDO-Legal Unit</dd>'], false)
-            ->assertSee('Correction reason: Selected Budget instead of Legal.');
+            ->assertSee('Correction reason: Selected Budget instead of Legal.')
+            // Newest first: the correction sits above the steps it caused, not below them.
+            ->assertSeeInOrder(['Route corrected', 'Forwarded to SDO-Legal Unit', 'Route to SDO-Budget Unit cancelled', 'Forwarded to SDO-Budget Unit']);
 
         $this->actingAs($unrelated)->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Route corrected');

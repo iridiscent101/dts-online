@@ -98,8 +98,10 @@ class DocumentWorkspaceController extends Controller
             ->when($offices !== null, fn (Builder $query): Builder => $query->where(fn (Builder $query): Builder => $query->whereIn('properties->office', $offices)->orWhereIn('properties->from_office', $offices)->orWhereIn('properties->to_office', $offices)))
             ->reorder();
 
+        // Within the same second (newest first): a change such as "Route corrected" or "Office added" sits above the
+        // routing steps it caused, while the registration stays below the first "sent" step it created.
         $history = $movements->selectRaw('id, created_at, 0 as source_rank')
-            ->unionAll($activities->selectRaw('id, created_at, 1 as source_rank'))
+            ->unionAll($activities->selectRaw("id, created_at, case when description in ('Document registered', 'Document submitted') then 3 else -1 end as source_rank"))
             ->unionAll($remarks->selectRaw('id, created_at, 2 as source_rank'));
         $rows = DB::query()->fromSub($history, 'history')->orderByDesc('created_at')->orderBy('source_rank')->orderByDesc('id')
             ->offset(($page - 1) * self::HISTORY_PAGE_SIZE)
