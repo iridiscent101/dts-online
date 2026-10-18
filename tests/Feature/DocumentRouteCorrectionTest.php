@@ -472,11 +472,12 @@ class DocumentRouteCorrectionTest extends TestCase
         ])->assertOk();
 
         $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('Document route corrected')
+            ->assertSee('Route corrected')
+            ->assertSeeInOrder(['<dt>Wrong office</dt><dd>SDO-Budget Unit</dd>', '<dt>Corrected to</dt><dd>SDO-Legal Unit</dd>'], false)
             ->assertSee('Correction reason: Selected Budget instead of Legal.');
 
         $this->actingAs($unrelated)->get(route('platform.documents.workspace', $document))
-            ->assertDontSee('Document route corrected');
+            ->assertDontSee('Route corrected');
     }
 
     public function test_outgoing_list_offers_correct_route_only_to_the_sending_office_before_receipt(): void

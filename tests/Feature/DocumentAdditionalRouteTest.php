@@ -31,7 +31,7 @@ class DocumentAdditionalRouteTest extends TestCase
                 'source_office' => 'Administrative Unit',
                 'destination_office' => 'SDO-Legal Unit',
                 'remarks' => 'Additional copy for Legal review.',
-                'dispatch_confirmed' => true,
+                'reason' => 'The ASDS asked for a copy.',
             ])
             ->assertOk()
             ->assertJsonPath('message', "{$document->tracking_number} was also forwarded to SDO-Legal Unit.");
@@ -56,6 +56,13 @@ class DocumentAdditionalRouteTest extends TestCase
         $this->assertSame('SDO-Budget Unit', $document->fresh()->current_office);
         $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->status);
         Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
+
+        // The reason is kept in the history, under the sending office.
+        $added = $document->activities()->where('description', 'Document route added')->sole();
+        $this->assertSame('The ASDS asked for a copy.', $added->properties['reason']);
+        $this->assertSame('SDO-Legal Unit', $added->properties['to_office']);
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<strong>Reason</strong><p>The ASDS asked for a copy.</p>', false);
     }
 
     public function test_failed_notification_rolls_back_an_additional_route_before_retry(): void
@@ -67,7 +74,7 @@ class DocumentAdditionalRouteTest extends TestCase
         $payload = [
             'source_office' => 'Administrative Unit',
             'destination_office' => 'SDO-Legal Unit',
-            'dispatch_confirmed' => true,
+            'reason' => 'The ASDS asked for a copy.',
         ];
         $fail = true;
         Event::listen(NotificationSent::class, function () use (&$fail): void {
@@ -99,7 +106,7 @@ class DocumentAdditionalRouteTest extends TestCase
             ->postJson(route('platform.documents.additional-routes.store', $document), [
                 'source_office' => 'Administrative Unit',
                 'destination_office' => 'SDO-Legal Unit',
-                'dispatch_confirmed' => true,
+                'reason' => 'The ASDS asked for a copy.',
             ])->assertForbidden();
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
@@ -115,7 +122,7 @@ class DocumentAdditionalRouteTest extends TestCase
         $this->actingAs($admin)->postJson(route('platform.documents.additional-routes.store', $document), [
             'source_office' => 'Administrative Unit',
             'destination_office' => 'SDO-Legal Unit',
-            'dispatch_confirmed' => true,
+            'reason' => 'The ASDS asked for a copy.',
         ])->assertOk();
 
         $this->assertDatabaseHas('document_movements', [
@@ -127,7 +134,7 @@ class DocumentAdditionalRouteTest extends TestCase
         ]);
     }
 
-    public function test_additional_route_rejects_unconfirmed_duplicate_and_closed_document(): void
+    public function test_additional_route_rejects_a_missing_reason_a_duplicate_and_a_closed_document(): void
     {
         $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $document = $this->forwardedDocument();
@@ -135,15 +142,15 @@ class DocumentAdditionalRouteTest extends TestCase
 
         $this->actingAs($sender)
             ->postJson($url, ['source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Legal Unit'])
-            ->assertUnprocessable()->assertJsonValidationErrors('dispatch_confirmed');
+            ->assertUnprocessable()->assertJsonValidationErrors('reason');
 
         $this->postJson($url, [
-            'source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Budget Unit', 'dispatch_confirmed' => true,
+            'source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Budget Unit', 'reason' => 'The ASDS asked for a copy.',
         ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
 
         $document->update(['status' => DocumentMovement::STATUS_COMPLETED]);
         $this->postJson($url, [
-            'source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Legal Unit', 'dispatch_confirmed' => true,
+            'source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Legal Unit', 'reason' => 'The ASDS asked for a copy.',
         ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
@@ -158,7 +165,7 @@ class DocumentAdditionalRouteTest extends TestCase
             ->postJson(route('platform.documents.additional-routes.store', $notForwarded), [
                 'source_office' => 'Administrative Unit',
                 'destination_office' => 'SDO-Legal Unit',
-                'dispatch_confirmed' => true,
+                'reason' => 'The ASDS asked for a copy.',
             ])->assertForbidden();
 
         $document = $this->forwardedDocument();
@@ -169,7 +176,7 @@ class DocumentAdditionalRouteTest extends TestCase
         $this->postJson(route('platform.documents.additional-routes.store', $document), [
             'source_office' => 'Administrative Unit',
             'destination_office' => 'SDO-Legal Unit',
-            'dispatch_confirmed' => true,
+            'reason' => 'The ASDS asked for a copy.',
         ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
@@ -188,7 +195,7 @@ class DocumentAdditionalRouteTest extends TestCase
             ->postJson(route('platform.documents.additional-routes.store', $document), [
                 'source_office' => 'Administrative Unit',
                 'destination_office' => 'SDO-Legal Unit',
-                'dispatch_confirmed' => true,
+                'reason' => 'The ASDS asked for a copy.',
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('source_office');

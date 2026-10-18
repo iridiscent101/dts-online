@@ -8,7 +8,20 @@
 @forelse ($history as $event)
     @php
         $isMovement = $event instanceof \App\Models\DocumentMovement;
-        $eventRemark = $isMovement ? $event->remarks : data_get($event->properties, 'remark');
+        // A client's "Instructions for Records" are kept on the automatic first "sent" step; show them on "Document submitted".
+        $eventRemark = match (true) {
+            $isMovement => $document->isClientSubmissionStep($event) ? null : $event->remarks,
+            $event->description === 'Document submitted' => $document->clientInstructions(),
+            // Route corrections and added offices keep the reason given for them.
+            in_array($event->description, ['Document route corrected', 'Document route added'], true) => data_get($event->properties, 'reason', data_get($event->properties, 'correction_reason')),
+            default => data_get($event->properties, 'remark'),
+        };
+        $eventRemarkLabel = match (true) {
+            $isMovement => 'Remarks',
+            $event->description === 'Document submitted' => 'Instructions for Records',
+            in_array($event->description, ['Document route corrected', 'Document route added'], true) => 'Reason',
+            default => 'Remarks',
+        };
         $eventKind = $isMovement ? $event->publicKind() : match ($event->description) {
             'Remark added' => 'remark',
             'Document registered', 'Document submitted' => 'registered',
@@ -20,6 +33,12 @@
         $eventFrom = $isMovement ? $event->from_office : data_get($event->properties, 'from_office', data_get($event->properties, 'office'));
         $eventTo = $isMovement ? $event->to_office : data_get($event->properties, 'to_office');
         $eventBy = $isMovement ? $event->actor?->name : ($eventKind === 'signed' ? data_get($event->properties, 'signed_by') : $event->causer?->name);
+        // Correct route and Send to another office: say which office changed, not just where it went.
+        $routeChange = match ($isMovement ? null : $event->description) {
+            'Document route corrected' => ['Route corrected', ['Sending office' => $eventFrom, 'Wrong office' => data_get($event->properties, 'old_destination'), 'Corrected to' => data_get($event->properties, 'new_destination', $eventTo)]],
+            'Document route added' => ['Office added', ['Sending office' => $eventFrom, 'Office added' => $eventTo]],
+            default => null,
+        };
     @endphp
     @if ($eventDay !== $previousDay)
         {{-- loadWorkspaceHistory (dts.js) drops a repeated heading when an older page starts on the same day. --}}
@@ -29,13 +48,17 @@
     <article class="dts-workspace-entry dts-workspace-timeline-entry" data-kind="{{ $eventKind }}" tabindex="-1" data-workspace-history-event data-history-from="{{ $eventFrom }}" data-history-to="{{ $isMovement ? $event->to_office : data_get($event->properties, 'to_office', data_get($event->properties, 'office')) }}">
         <span class="dts-timeline-dot" aria-hidden="true"><x-orchid-icon :path="$historyIcons[$eventKind] ?? 'bs.dot'" /></span>
         <div class="dts-workspace-timeline-body">
-            <strong class="dts-workspace-event-title">{{ $isMovement ? $event->title() : ($eventKind === 'signed' ? 'Signed for by the recipient' : $event->description) }}@if ($historyPage === 1 && $loop->first) <span class="dts-timeline-latest">Latest</span>@endif</strong>
+            <strong class="dts-workspace-event-title">{{ $isMovement ? $event->title() : ($routeChange[0] ?? ($eventKind === 'signed' ? 'Signed for by the recipient' : $event->description)) }}@if ($historyPage === 1 && $loop->first) <span class="dts-timeline-latest">Latest</span>@endif</strong>
             <dl class="dts-workspace-step-details">
+                @if ($routeChange)
+                    @foreach (array_filter($routeChange[1], 'filled') as $routeLabel => $routeOffice)
+                        <dt>{{ $routeLabel }}</dt><dd>{{ $routeOffice }}</dd>
+                    @endforeach
                 {{-- "From" only when the step moved the document; a step an office took on its own copy names that office. --}}
-                @if (filled($eventFrom))
+                @elseif (filled($eventFrom))
                     <dt>{{ filled($eventTo) && $eventTo !== $eventFrom ? 'From' : 'Office' }}</dt><dd>{{ $eventFrom }}</dd>
                 @endif
-                @if (filled($eventTo) && $eventTo !== $eventFrom)
+                @if (! $routeChange && filled($eventTo) && $eventTo !== $eventFrom)
                     <dt>Office destination</dt><dd>{{ $eventTo }}</dd>
                 @endif
                 @if ($isMovement && filled($event->to_status))
@@ -61,7 +84,7 @@
                 @endif
             </dl>
             @if (filled($eventRemark))
-                <div class="dts-workspace-history-remarks"><strong>Remarks</strong><p>{{ $eventRemark }}</p></div>
+                <div class="dts-workspace-history-remarks"><strong>{{ $eventRemarkLabel }}</strong><p>{{ $eventRemark }}</p></div>
             @endif
             @if (! $isMovement && $event->description === 'Document details updated')
                 @include('orchid.partials.document-change-details', ['activity' => $event])

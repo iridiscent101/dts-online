@@ -208,6 +208,9 @@
                                             <strong>{{ $document->client_submission_key ? 'Document submitted' : 'Document registered' }}@if ($entry['index'] === 0) <span class="dts-timeline-latest">Latest</span>@endif</strong>
                                             <small class="dts-timeline-meta"><span>{{ $document->client_submission_key ? 'Client' : ($document->registeredBy?->name ?? 'System') }}</span><span aria-hidden="true">&middot;</span><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->format('g:i A') }}</time></small>
                                             <small>{{ $document->origin }}</small>
+                                            @if ($document->clientInstructions())
+                                                <p><strong>Instructions for Records:</strong> {{ $document->clientInstructions() }}</p>
+                                            @endif
                                         </div>
                                     </li>
                                 @else
@@ -232,7 +235,7 @@
                                             @if ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null && filled($document->delivery_method))
                                                 <small>Mode of submission: {{ $document->delivery_method }}</small>
                                             @endif
-                                            @if ($movement->remarks)
+                                            @if ($movement->remarks && ! $document->isClientSubmissionStep($movement))
                                                 <p>{{ $movement->remarks }}</p>
                                             @endif
                                             @if ($movement->released_to)

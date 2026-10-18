@@ -7030,26 +7030,6 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
     color: var(--dts-text-strong);
 }
 
-.dts-additional-route-confirm {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px 12px;
-    border: 1px solid var(--dts-border-strong);
-    border-radius: 5px;
-    background: var(--dts-warning-soft, #fff8e6);
-    line-height: 1.45;
-    cursor: pointer;
-}
-
-.dts-additional-route-confirm input {
-    flex-shrink: 0;
-    width: 22px;
-    height: 22px;
-    margin-top: 1px;
-    accent-color: var(--dts-green);
-}
-
 /* Outgoing list: "Send to another office" row action, outlined so Edit stays the main button. */
 .dts-row-actions .dts-row-action.dts-row-action-send {
     border: 1px solid var(--dts-green) !important;

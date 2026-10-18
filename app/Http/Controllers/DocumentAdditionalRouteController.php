@@ -25,14 +25,18 @@ class DocumentAdditionalRouteController extends Controller
             'source_office' => ['required', 'string', 'max:180'],
             'destination_office' => ['required', 'string', Rule::in(Document::officeOptions())],
             'remarks' => ['nullable', 'string', 'max:1000'],
-            'dispatch_confirmed' => ['accepted'],
+            // Why another office is being added; kept in the history like a route correction's reason.
+            'reason' => ['required', 'string', 'max:500'],
+        ], [
+            'reason.required' => 'Say why you are adding this office.',
         ]);
         $sourceOffice = trim($data['source_office']);
         $destinationOffice = $data['destination_office'];
         $remarks = filled($data['remarks'] ?? null) ? trim($data['remarks']) : null;
+        $reason = trim($data['reason']);
 
-        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $destinationOffice, $remarks, $notifications): void {
-            $routing->addAdditionalRoute($document, $user, $sourceOffice, $destinationOffice, $remarks);
+        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $destinationOffice, $remarks, $reason, $notifications): void {
+            $routing->addAdditionalRoute($document, $user, $sourceOffice, $destinationOffice, $remarks, $reason);
             $notifications->assigned($document, DocumentMovement::ACTION_FORWARDED, $user, [$destinationOffice]);
         });
 

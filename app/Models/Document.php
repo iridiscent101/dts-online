@@ -47,6 +47,8 @@ class Document extends Model
         'Document details updated',
         'Document routes updated',
         'Document route corrected',
+        // "Send to another office" (DocumentRoutingService::addAdditionalRoute), with the reason it was added.
+        'Document route added',
         'Attachments added',
         'Attachment replaced',
         'Attachment removed',
@@ -475,6 +477,34 @@ class Document extends Model
             })
             ->filter()
             ->values();
+    }
+
+    /**
+     * The step a client's online submission creates (sent to Records, from no office). Its remarks are the client's
+     * "Instructions for Records", which the timelines show on the "Document submitted" step instead.
+     */
+    public function isClientSubmissionStep(DocumentMovement $movement): bool
+    {
+        return $this->client_submission_key !== null
+            && $movement->action === DocumentMovement::ACTION_SENT
+            && $movement->from_office === null;
+    }
+
+    /**
+     * What the client typed under "Instructions for Records" when submitting, or null.
+     */
+    public function clientInstructions(): ?string
+    {
+        if ($this->client_submission_key === null) {
+            return null;
+        }
+
+        $movements = $this->relationLoaded('movements')
+            ? $this->movements->sortBy('id')
+            : $this->movements()->reorder()->orderBy('id')->get();
+        $remarks = $movements->first(fn (DocumentMovement $movement): bool => $this->isClientSubmissionStep($movement))?->remarks;
+
+        return filled($remarks) ? $remarks : null;
     }
 
     /**

@@ -347,7 +347,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertSee('Review this.')
-            ->assertDontSee('Please ask Records to send this to the right office.');
+            ->assertSee('Please ask Records to send this to the right office.');
     }
 
     public function test_records_receipt_does_not_dispatch_unselected_routes(): void
@@ -446,17 +446,22 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertJsonPath('document.delivery_method', 'Hand carry')
             ->assertJsonPath('document.routes', []);
 
-        $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('<dt>Mode of submission</dt><dd>Hand carry</dd>', false);
+        // The instructions show once, on the "Document submitted" step, in all three timelines (user decision 2026-10-18).
+        $workspace = $this->get(route('platform.documents.workspace', $document))
+            ->assertSee('<dt>Mode of submission</dt><dd>Hand carry</dd>', false)
+            ->assertSee('<strong>Instructions for Records</strong><p>Please send copies to Budget and Legal for review.</p>', false);
+        $this->assertSame(1, substr_count($workspace->getContent(), 'Please send copies to Budget and Legal for review.'));
 
         $this->get(route('platform.documents.view', $document))
-            ->assertSee('Mode of submission: Hand carry');
+            ->assertSee('Mode of submission: Hand carry')
+            ->assertSee('Instructions for Records:</strong> Please send copies to Budget and Legal for review.', false);
 
-        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+        $public = $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertSee('Mode of submission')
             ->assertSee('Hand carry')
-            ->assertDontSee('Please send copies to Budget and Legal for review.');
+            ->assertSee('Instructions for Records');
+        $this->assertSame(1, substr_count($public->getContent(), 'Please send copies to Budget and Legal for review.'));
     }
 
     public function test_client_routing_instructions_must_be_short_text(): void

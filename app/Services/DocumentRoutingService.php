@@ -96,9 +96,9 @@ class DocumentRoutingService
         });
     }
 
-    public function addAdditionalRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $remarks): void
+    public function addAdditionalRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $remarks, string $reason): void
     {
-        DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $remarks): void {
+        DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $remarks, $reason): void {
             $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
             abort_unless(! $user->isReadOnlySupervisor()
                 && $user->hasAccess('platform.index')
@@ -147,6 +147,12 @@ class DocumentRoutingService
                 'status' => DocumentMovement::STATUS_FORWARDED,
                 'assigned_by' => $user->id,
                 'movement_id' => $movement->id,
+            ]);
+            $currentDocument->recordActivity('Document route added', $user, [
+                'office' => $sourceOffice,
+                'from_office' => $sourceOffice,
+                'to_office' => $destinationOffice,
+                'reason' => $reason,
             ]);
         });
     }

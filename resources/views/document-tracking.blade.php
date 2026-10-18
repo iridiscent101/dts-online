@@ -399,6 +399,14 @@
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                         </dl>
+                                                        @php($clientInstructions = $document->clientInstructions())
+                                                        @if ($clientInstructions)
+                                                            {{-- What the client typed when submitting (stored on the first "sent" step, shown here instead). --}}
+                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2">
+                                                                <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Instructions for Records</p>
+                                                                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $clientInstructions }}</p>
+                                                            </div>
+                                                        @endif
                                                     </div>
                                                 </li>
                                             @else
@@ -431,7 +439,7 @@
                                                                 <dt class="font-medium text-slate-500">Released to</dt><dd class="text-slate-800">{{ $movement->released_to }}</dd>
                                                             @endif
                                                         </dl>
-                                                        @if (filled($movement->remarks) && ! ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null))
+                                                        @if (filled($movement->remarks) && ! $document->isClientSubmissionStep($movement))
                                                             {{-- Shown in full, not folded away: the remarks are often the instruction the reader needs. --}}
                                                             <div class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2">
                                                                 <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Remarks</p>

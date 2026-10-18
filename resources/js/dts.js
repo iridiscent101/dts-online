@@ -1897,8 +1897,8 @@ class WorkflowRouting extends HTMLElement {
 
 if (!customElements.get('dts-workflow-routing')) customElements.define('dts-workflow-routing', WorkflowRouting);
 
-// Outgoing list: "Send to another office" (orchid/cells/document-row-actions). Adds one more office to an active
-// document after the sending office has dispatched an extra paper copy; the original routes are not touched.
+// Outgoing list and dashboard: "Send to another office" (orchid/cells/document-row-actions). Adds one more office to an
+// active document, with the reason, which the history keeps; the original routes are not touched.
 function additionalRouteDialog() {
     let dialog = document.querySelector('#dts-additional-route-dialog');
     if (dialog) return dialog;
@@ -1927,10 +1927,11 @@ function additionalRouteDialog() {
                 <label for="dts-additional-route-remarks">Remarks <span class="dts-optional">Optional</span></label>
                 <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="3" maxlength="1000" autocomplete="off" placeholder="Instructions for this office"></textarea>
             </div>
-            <label class="dts-additional-route-confirm">
-                <input type="checkbox" data-additional-route-dispatched>
-                <span><strong>I have sent a separate copy of the document/s to this office.</strong> Check this only after the extra copy has left your office.</span>
-            </label>
+            <div class="dts-field">
+                <label for="dts-additional-route-reason">Why are you adding this office? <span aria-hidden="true">*</span></label>
+                <textarea id="dts-additional-route-reason" data-additional-route-reason rows="2" maxlength="500" autocomplete="off" required placeholder="For example: the ASDS asked for a copy"></textarea>
+                <small class="dts-field-hint">Kept in the document history.</small>
+            </div>
             <p class="dts-workspace-form-errors" data-additional-route-errors role="alert" hidden></p>
         </div>
         <div class="dts-app-dialog-actions">
@@ -1960,7 +1961,7 @@ document.addEventListener('click', async (event) => {
         dialog.querySelector('[data-additional-route-source-field]').hidden = details.sources.length < 2;
         dialog.querySelector('[data-additional-route-office]').value = '';
         dialog.querySelector('[data-additional-route-remarks]').value = '';
-        dialog.querySelector('[data-additional-route-dispatched]').checked = false;
+        dialog.querySelector('[data-additional-route-reason]').value = '';
         dialog.querySelector('[data-additional-route-errors]').hidden = true;
         dialog.showModal();
         dialog.querySelector('[data-additional-route-office]').focus();
@@ -1972,12 +1973,12 @@ document.addEventListener('click', async (event) => {
     const dialog = save.closest('dialog');
     const errors = dialog.querySelector('[data-additional-route-errors]');
     const office = dialog.querySelector('[data-additional-route-office]');
-    const dispatched = dialog.querySelector('[data-additional-route-dispatched]');
+    const reason = dialog.querySelector('[data-additional-route-reason]');
     const source = dialog.querySelector('[data-additional-route-source]').value;
     const offices = [...document.querySelectorAll('#additional-route-offices option')].map((option) => option.value);
     const problem = !offices.includes(office.value.trim()) ? ['Choose an office from the list.', office]
         : office.value.trim() === source || dialog.details.assigned.includes(office.value.trim()) ? ['That office already has this document. Choose a different office.', office]
-            : !dispatched.checked ? ['Confirm that the extra copy of the document/s was sent before adding the office.', dispatched]
+            : reason.value.trim() === '' ? ['Say why you are adding this office.', reason]
                 : null;
     if (problem) {
         errors.textContent = problem[0];
@@ -1990,7 +1991,7 @@ document.addEventListener('click', async (event) => {
     data.append('source_office', source);
     data.append('destination_office', office.value.trim());
     data.append('remarks', dialog.querySelector('[data-additional-route-remarks]').value.trim());
-    data.append('dispatch_confirmed', '1');
+    data.append('reason', reason.value.trim());
     const result = await postWorkspace(dialog.details.url, data, errors, save);
     if (!result) return;
 
