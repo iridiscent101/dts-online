@@ -141,7 +141,7 @@ class DocumentEditScreen extends Screen
             if ($routeChanges['added'] !== [] || $routeChanges['removed'] !== []) {
                 $document->recordActivity('Document routes updated', $user, [
                     'action' => 'routes',
-                    'office' => $document->current_office,
+                    'affected_offices' => array_values(array_unique(array_merge($routeChanges['added'], $routeChanges['removed']))),
                     'before' => $routeChanges['before'],
                     'after' => $routeChanges['after'],
                     'added' => $routeChanges['added'],

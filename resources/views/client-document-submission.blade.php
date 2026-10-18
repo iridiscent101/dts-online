@@ -148,7 +148,19 @@
             </div>
 
             <div class="sm:col-span-2">
-                <button type="submit" class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#216E39] px-6 py-3 font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.send" class="size-4" /> Send document</button>
+                <button type="submit" data-submit-button class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#216E39] px-6 py-3 font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39] disabled:cursor-wait disabled:opacity-80">
+                    <span data-submit-idle class="inline-flex items-center gap-2"><x-orchid-icon path="bs.send" class="size-4" /> Send document</span>
+                    <span data-submit-busy hidden class="inline-flex items-center gap-2"><span class="size-5 animate-spin rounded-full border-[3px] border-white/40 border-t-white" aria-hidden="true"></span> Sending… please wait</span>
+                </button>
+            </div>
+
+            {{-- Shown when sending takes longer than a moment (large files, slow connection). --}}
+            <div data-submit-overlay hidden class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="status" aria-live="assertive">
+                <div class="flex max-w-sm flex-col items-center gap-4 rounded-sm bg-white p-6 text-center shadow-xl">
+                    <span class="size-12 animate-spin rounded-full border-4 border-[#216E39]/25 border-t-[#216E39]" aria-hidden="true"></span>
+                    <p class="text-lg font-semibold text-slate-900">Sending your document…</p>
+                    <p class="text-base text-slate-700">This can take a moment for large files or a slow connection. Please don't close or refresh this page.</p>
+                </div>
             </div>
         </form>
 @if (! $embedded)
@@ -243,6 +255,31 @@
         document.addEventListener('focusout', (event) => {
             const combo = event.target.closest('[data-combo]');
             if (combo && !combo.contains(event.relatedTarget)) closeSuggestions(combo);
+        });
+
+        // Sending: lock the button against double-submits and, if it takes a while, show a loading overlay.
+        document.querySelectorAll('form[action="{{ route('submission.store') }}"]').forEach((form) => {
+            const button = form.querySelector('[data-submit-button]');
+            const overlay = form.querySelector('[data-submit-overlay]');
+            let overlayTimer = null;
+            const setBusy = (busy) => {
+                clearTimeout(overlayTimer);
+                button.disabled = busy;
+                button.setAttribute('aria-busy', String(busy));
+                button.querySelector('[data-submit-idle]').hidden = busy;
+                button.querySelector('[data-submit-busy]').hidden = !busy;
+                if (busy) overlayTimer = setTimeout(() => { overlay.hidden = false; }, 800);
+                else overlay.hidden = true;
+            };
+            form.addEventListener('submit', (event) => {
+                if (button.disabled) {
+                    event.preventDefault();
+                    return;
+                }
+                setBusy(true);
+            });
+            // Coming back with the browser's Back button restores the page from cache: unlock it.
+            window.addEventListener('pageshow', () => setBusy(false));
         });
 
         @if ($embedded)

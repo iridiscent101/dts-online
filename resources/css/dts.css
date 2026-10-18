@@ -3665,33 +3665,11 @@ a.dts-record-status:hover,
     font-size: 0.875rem;
 }
 
-.form-signin .dts-brand strong {
-    font-size: 2rem;
-}
 
-.form-signin .dts-brand-mark {
-    width: 64px;
-    height: 64px;
-}
 
-.form-signin .dts-brand small {
-    font-size: 0.875rem;
-}
 
-.form-signin .dts-footer {
-    justify-content: center;
-    margin-top: 28px;
-}
 
-.form-signin #button-login {
-    background: var(--dts-green) !important;
-    border-color: var(--dts-green) !important;
-    color: #fff !important;
-}
 
-.form-signin .bg-white {
-    border-top: 3px solid var(--dts-green);
-}
 
 a:focus-visible {
     outline: 3px solid var(--dts-green);
@@ -4589,25 +4567,33 @@ dts-searchable [data-suggestions] p {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-content: center;
-    column-gap: 10px;
-    row-gap: 2px;
+    column-gap: 14px;
+    row-gap: 6px;
     margin: 0;
     font-size: 0.875rem;
     line-height: 1.25;
+}
+
+.dts-tracking-label-field {
+    min-width: 0;
+}
+
+.dts-tracking-label-field.is-wide {
+    grid-column: 1 / -1;
 }
 
 .dts-tracking-label-details dt {
     color: var(--dts-text-muted);
     font-size: 0.75rem;
     font-weight: 700;
-    line-height: 1.45;
+    line-height: 1.3;
     text-transform: uppercase;
 }
 
 .dts-tracking-label-details dd {
     margin: 0;
     font-weight: 700;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .dts-tracking-label-footer {
@@ -5063,9 +5049,6 @@ input.form-control,
     box-shadow: 0 0 0 0.2rem rgb(33 110 57 / 25%);
 }
 
-.form-signin :is(.form-control, .form-select, .btn) {
-    min-height: 48px;
-}
 
 .form-control::placeholder {
     color: var(--dts-text-muted);
@@ -7588,39 +7571,6 @@ body .invalid-feedback {
     font-weight: 600;
 }
 
-/* Signature block, as on paper: the signature centred on a short line, its caption centred under the line. */
-.dts-tracking-label-footer.has-signature {
-    grid-template-columns: minmax(0, 1fr) 116px;
-    align-items: center;
-    gap: 10px;
-    text-align: left;
-}
-
-.dts-tracking-label-signature {
-    display: grid;
-    min-width: 0;
-    margin: 0;
-    text-align: center;
-}
-
-.dts-tracking-label-signature img {
-    width: 100% !important;
-    height: 34px !important;
-    object-fit: contain;
-    object-position: center bottom;
-}
-
-.dts-tracking-label-signature figcaption {
-    padding-top: 2px;
-    border-top: 1px solid var(--dts-charcoal);
-    color: var(--dts-text-muted);
-    font-size: 0.5625rem;
-    font-weight: 700;
-    line-height: 1.2;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
 /* The recipient's signature on a release step (staff views only). */
 .dts-history-signature {
     display: block;
@@ -7638,4 +7588,419 @@ body .invalid-feedback {
 .dts-workspace-shared-remarks .dts-field-hint {
     margin-top: 0;
     font-weight: 400;
+}
+
+/* Page-loading status (see pageLoading in dts.js) */
+.dts-page-loading[hidden] {
+    display: none !important;
+}
+
+.dts-page-loading__bar {
+    position: fixed;
+    inset: 0 0 auto 0;
+    z-index: 2147483000;
+    height: 4px;
+    background: linear-gradient(90deg, transparent 0, var(--dts-green) 30%, var(--dts-gold) 50%, var(--dts-green) 70%, transparent 100%);
+    background-size: 200% 100%;
+    animation: dts-page-loading-bar 1.2s linear infinite;
+}
+
+.dts-page-loading__pill {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    z-index: 2147483000;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    transform: translateX(-50%);
+    border: 1px solid var(--dts-green-dark);
+    border-radius: 999px;
+    background: var(--dts-green);
+    color: #fff;
+    font-size: var(--dts-text);
+    font-weight: 600;
+    line-height: 1.2;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    pointer-events: none;
+}
+
+.dts-page-loading__spinner {
+    width: 18px;
+    height: 18px;
+    flex: none;
+    border: 3px solid rgb(255 255 255 / 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: dts-page-loading-spin 0.8s linear infinite;
+}
+
+@keyframes dts-page-loading-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes dts-page-loading-bar {
+    from { background-position: 100% 0; }
+    to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dts-page-loading__bar,
+    .dts-page-loading__spinner {
+        animation-duration: 2.4s;
+    }
+}
+
+@media print {
+    .dts-page-loading {
+        display: none !important;
+    }
+}
+
+/* Sign-in page (vendor/platform/auth.blade.php) */
+/* Orchid wraps every page in a centred column; let the sign-in layout use the full window. */
+body:has(.dts-auth) > .container-fluid {
+    padding: 0;
+}
+
+body:has(.dts-auth) > .container-fluid > .row {
+    margin: 0;
+}
+
+body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
+    flex: 1 0 100%;
+    width: 100%;
+    max-width: none;
+    padding: 0;
+}
+
+.dts-auth {
+    display: grid;
+    min-height: 100vh;
+    grid-template-columns: minmax(0, 1fr);
+    background: var(--dts-surface);
+}
+
+.dts-auth-hero {
+    position: relative;
+    display: none;
+    color: #fff;
+    background:
+        linear-gradient(160deg, rgb(24 84 43 / 0.94) 0%, rgb(24 84 43 / 0.86) 55%, rgb(38 51 43 / 0.92) 100%),
+        var(--dts-auth-photo) center / cover no-repeat,
+        var(--dts-green-dark);
+}
+
+.dts-auth-hero::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 6px;
+    background: linear-gradient(90deg, var(--dts-gold) 0 60%, var(--dts-brown) 60% 100%);
+}
+
+.dts-auth-hero__inner {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 40px;
+    height: 100%;
+    max-width: 560px;
+    padding: 48px 56px 56px;
+}
+
+.dts-auth-hero__org {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 1rem;
+    line-height: 1.35;
+    color: rgb(255 255 255 / 0.88);
+}
+
+.dts-auth-hero__org img {
+    width: 64px;
+    height: 64px;
+    flex: none;
+    border-radius: 50%;
+    background: #fff;
+    padding: 2px;
+}
+
+.dts-auth-hero__org strong {
+    color: #fff;
+    font-weight: 700;
+}
+
+.dts-auth-hero__title {
+    margin: 0 0 16px;
+    font-size: clamp(2rem, 3vw, 2.75rem);
+    line-height: 1.1;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+}
+
+.dts-auth-hero__lead {
+    margin: 0;
+    max-width: 30em;
+    font-size: 1.125rem;
+    line-height: 1.55;
+    color: rgb(255 255 255 / 0.9);
+}
+
+.dts-auth-hero__public {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+}
+
+.dts-auth-hero__public p {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 1rem;
+    color: rgb(255 255 255 / 0.85);
+}
+
+.dts-auth-hero__public a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 16px;
+    border: 1px solid rgb(255 255 255 / 0.55);
+    border-radius: var(--dts-radius);
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.dts-auth-hero__public a:hover {
+    background: rgb(255 255 255 / 0.12);
+    color: #fff;
+}
+
+.dts-auth-hero__public a:focus-visible {
+    outline-color: var(--dts-gold);
+}
+
+.dts-auth-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    border-top: 4px solid var(--dts-green);
+}
+
+.dts-auth-panel {
+    width: 100%;
+    max-width: 440px;
+}
+
+.dts-auth-brand {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+    text-decoration: none;
+}
+
+.dts-auth-brand .dts-brand strong {
+    font-size: 2rem;
+}
+
+.dts-auth-brand .dts-brand-mark {
+    width: 60px;
+    height: 60px;
+}
+
+.dts-auth-brand .dts-brand small {
+    font-size: 0.875rem;
+}
+
+.dts-auth-card {
+    padding: 32px 28px;
+    border: 1px solid var(--dts-line);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgb(38 51 43 / 0.05), 0 12px 32px rgb(38 51 43 / 0.08);
+}
+
+.dts-auth-title {
+    margin: 0 0 6px;
+    color: var(--dts-heading);
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.dts-auth-subtitle {
+    margin: 0 0 24px;
+    color: var(--dts-text-muted);
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.dts-auth .form-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--dts-text-strong);
+}
+
+.dts-auth :is(.form-control, .form-select, .btn) {
+    min-height: 48px;
+    font-size: 1.0625rem;
+}
+
+.dts-auth-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    background: var(--dts-green) !important;
+    border-color: var(--dts-green) !important;
+    color: #fff !important;
+    font-weight: 700;
+}
+
+.dts-auth-submit:hover {
+    background: var(--dts-green-dark) !important;
+    border-color: var(--dts-green-dark) !important;
+}
+
+.dts-auth-help {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin: 20px 0 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--dts-line);
+    color: var(--dts-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.45;
+}
+
+.dts-auth-help svg {
+    flex: none;
+    margin-top: 3px;
+}
+
+.dts-auth .dts-footer {
+    justify-content: center;
+    margin-top: 24px;
+    padding: 0;
+    text-align: center;
+}
+
+.dts-auth-public-mobile {
+    margin: 20px 0 0;
+    color: var(--dts-text-muted);
+    font-size: 1rem;
+    text-align: center;
+}
+
+.dts-auth-public-mobile a {
+    color: var(--dts-green-dark);
+    font-weight: 600;
+}
+
+@media (min-width: 992px) {
+    .dts-auth-public-mobile {
+        display: none;
+    }
+
+    .dts-auth {
+        grid-template-columns: minmax(420px, 5fr) 6fr;
+    }
+
+    .dts-auth-hero {
+        display: block;
+    }
+
+    .dts-auth-main {
+        border-top: 0;
+        padding: 48px 32px;
+    }
+}
+
+/* Release: recipient's name and counter signature (partials/release-signature.blade.php) */
+.dts-required-mark {
+    margin-left: 5px;
+    color: var(--dts-danger-text);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.dts-release-signature {
+    display: grid;
+    gap: 6px;
+}
+
+.dts-release-signature[hidden] {
+    display: none;
+}
+
+.dts-release-signature-label {
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-sm);
+    font-weight: 600;
+}
+
+/* A taller pad in the full document page and the workspace, where staff turn the screen to the recipient. */
+.dts-release-signature .dts-signature-box canvas {
+    height: 220px;
+}
+
+.dts-release-signature-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 12px;
+}
+
+/* "Send to kiosk" progress: waiting, signed, cancelled or failed. */
+.dts-kiosk-status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--dts-info-text);
+    border-radius: var(--dts-radius);
+    background: var(--dts-info-soft);
+    color: var(--dts-info-text);
+    font-size: var(--dts-text-sm);
+    font-weight: 600;
+}
+
+.dts-kiosk-status[hidden] {
+    display: none;
+}
+
+.dts-kiosk-status [data-kiosk-message] {
+    flex: 1 1 240px;
+}
+
+.dts-kiosk-status[data-tone="success"] {
+    border-color: var(--dts-green);
+    background: var(--dts-green-soft);
+    color: var(--dts-green-dark);
+}
+
+.dts-kiosk-status[data-tone="warning"] {
+    border-color: #c79936;
+    background: var(--dts-warning-soft);
+    color: var(--dts-warning-text);
+}
+
+.dts-kiosk-status[data-tone="error"] {
+    border-color: var(--dts-danger);
+    background: var(--dts-danger-soft);
+    color: var(--dts-danger-text);
+}
+
+.dts-kiosk-status .dts-workspace-spinner[hidden] {
+    display: none;
 }

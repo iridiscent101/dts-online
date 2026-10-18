@@ -8,6 +8,8 @@ use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Orchid\Attachment\File;
 use Tests\TestCase;
@@ -126,6 +128,53 @@ class DocumentRegistrationTest extends TestCase
             'causer_type' => User::class,
             'causer_id' => $user->id,
         ]);
+    }
+
+    public function test_failed_registration_keeps_a_file_already_used_by_another_document(): void
+    {
+        Storage::fake('local');
+        $registrar = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
+        User::factory()->create(['office' => 'Administrative Unit']);
+        $existingDocument = Document::factory()->create();
+        $attachment = (new File(UploadedFile::fake()->create('shared.pdf', 10, 'application/pdf'), 'local', 'documents'))->load();
+        $existingDocument->attachments()->attach($attachment);
+        Event::listen(NotificationSent::class, function (): void {
+            throw new \RuntimeException('Notification delivery failed.');
+        });
+
+        $this->actingAs($registrar)
+            ->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', [
+                'document' => $this->validDocumentData(),
+                'attachments' => [UploadedFile::fake()->create('shared.pdf', 10, 'application/pdf')],
+            ])
+            ->assertRedirect(route('platform.documents.create'));
+
+        $this->assertDatabaseCount('documents', 1);
+        $this->assertDatabaseCount('attachments', 1);
+        Storage::disk('local')->assertExists($attachment->physicalPath());
+    }
+
+    public function test_failed_registration_removes_a_newly_uploaded_file(): void
+    {
+        Storage::fake('local');
+        $registrar = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
+        User::factory()->create(['office' => 'Administrative Unit']);
+        Event::listen(NotificationSent::class, function (): void {
+            throw new \RuntimeException('Notification delivery failed.');
+        });
+
+        $this->actingAs($registrar)
+            ->from(route('platform.documents.create'))
+            ->post(route('platform.documents.create').'/save', [
+                'document' => $this->validDocumentData(),
+                'attachments' => [UploadedFile::fake()->create('new.pdf', 10, 'application/pdf')],
+            ])
+            ->assertRedirect(route('platform.documents.create'));
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertDatabaseCount('attachments', 0);
+        $this->assertSame([], Storage::disk('local')->allFiles());
     }
 
     public function test_registration_ignores_removed_due_and_priority_fields(): void

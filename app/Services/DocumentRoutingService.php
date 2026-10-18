@@ -104,6 +104,13 @@ class DocumentRoutingService
                 && $user->hasAccess('platform.index')
                 && ($user->isAdministrator() || $user->isAssignedToOffice($sourceOffice)), 403);
 
+            if ($currentDocument->officeAssignments()->where('office', $sourceOffice)
+                ->whereIn('status', DocumentMovement::FINISHED_STATUSES)->exists()) {
+                throw ValidationException::withMessages([
+                    'source_office' => 'This office has finished its route. Restore it before sending to another office.',
+                ]);
+            }
+
             $priorForward = $currentDocument->movements()
                 ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
                 ->where('from_office', $sourceOffice)

@@ -16,6 +16,52 @@ class HistoryScopeTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_route_edit_history_is_visible_to_affected_office_not_unaffected_current_office(): void
+    {
+        $legal = User::factory()->create(['office' => 'Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $budget = User::factory()->create(['office' => 'Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'Legal Unit']);
+        $document->officeAssignments()->create(['office' => 'Budget Unit', 'status' => DocumentMovement::STATUS_AWAITING_RECEIPT]);
+        activity('documents')->performedOn($document)
+            ->withProperties(['affected_offices' => ['Budget Unit'], 'correction_reason' => 'Budget routing correction'])
+            ->log('Document routes updated');
+
+        $this->actingAs($budget)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertSee('Document routes updated');
+        $this->get(route('platform.documents.view', $document))
+            ->assertSee('Document routes updated');
+
+        $this->actingAs($legal)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertDontSee('Document routes updated');
+        $this->get(route('platform.documents.view', $document))
+            ->assertDontSee('Document routes updated');
+    }
+
+    public function test_older_route_edit_history_uses_changed_offices_instead_of_its_old_current_office_tag(): void
+    {
+        $legal = User::factory()->create(['office' => 'Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $budget = User::factory()->create(['office' => 'Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'Legal Unit']);
+        $document->officeAssignments()->create(['office' => 'Budget Unit', 'status' => DocumentMovement::STATUS_AWAITING_RECEIPT]);
+        activity('documents')->performedOn($document)
+            ->withProperties(['office' => 'Legal Unit', 'added' => ['Budget Unit'], 'removed' => []])
+            ->log('Document routes updated');
+
+        $this->actingAs($budget)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertSee('Document routes updated');
+        $this->get(route('platform.documents.view', $document))
+            ->assertSee('Document routes updated');
+
+        $this->actingAs($legal)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertDontSee('Document routes updated');
+        $this->get(route('platform.documents.view', $document))
+            ->assertDontSee('Document routes updated');
+    }
+
     public function test_unfiltered_history_never_shows_another_offices_actions(): void
     {
         $legal = User::factory()->create(['office' => 'Legal Unit', 'permissions' => ['platform.index' => true]]);

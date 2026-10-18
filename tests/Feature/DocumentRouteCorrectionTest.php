@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\DocumentAssignedNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Notifications\Events\NotificationSent;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Orchid\Platform\Models\Role;
@@ -494,6 +495,62 @@ class DocumentRouteCorrectionTest extends TestCase
 
         $document->officeAssignments()->where('office', 'SDO-Budget Unit')->update(['status' => DocumentMovement::STATUS_RECEIVED]);
         $this->actingAs($sender)->get(route('platform.outgoing'))->assertOk()->assertDontSee('data-route-correction', false);
+    }
+
+    public function test_outgoing_route_fix_actions_batch_load_movements_for_multiple_documents(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $documents = [];
+        for ($index = 0; $index < 3; $index++) {
+            $documents[] = $this->forwardedDocument();
+        }
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $firstTable = explode(' from ', strtolower($query->sql), 2)[1] ?? '';
+            if (str_starts_with($firstTable, '"document_movements"')) {
+                $queries[] = strtolower($query->sql);
+            }
+        });
+
+        $response = $this->actingAs($sender)
+            ->get(route('platform.outgoing'))
+            ->assertOk()
+            ->assertSee('Correct route')
+            ->assertSee('Send to another office');
+        foreach ($documents as $document) {
+            $response->assertSee($document->tracking_number);
+        }
+
+        $this->assertLessThanOrEqual(2, count($queries), implode("\n", $queries));
+    }
+
+    public function test_dashboard_route_fix_actions_batch_load_movements_for_multiple_documents(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['office' => null]);
+        $admin->replaceRoles([$adminRole->id]);
+        $documents = [];
+        for ($index = 0; $index < 3; $index++) {
+            $documents[] = $this->forwardedDocument();
+        }
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $firstTable = explode(' from ', strtolower($query->sql), 2)[1] ?? '';
+            if (str_starts_with($firstTable, '"document_movements"')) {
+                $queries[] = strtolower($query->sql);
+            }
+        });
+
+        $response = $this->actingAs($admin)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertSee('data-route-correction', false)
+            ->assertSee('data-additional-route', false);
+        foreach ($documents as $document) {
+            $response->assertSee($document->tracking_number);
+        }
+
+        $this->assertLessThanOrEqual(3, count($queries), implode("\n", $queries));
     }
 
     public function test_document_window_offers_correct_route_for_an_unreceived_destination(): void

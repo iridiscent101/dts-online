@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\User;
 use App\Notifications\DocumentAssignedNotification;
+use App\Support\RouteFixActions;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
@@ -172,6 +173,31 @@ class DocumentAdditionalRouteTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+    }
+
+    public function test_completed_sending_office_cannot_add_another_route_while_another_branch_is_active(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $document->officeAssignments()->create([
+            'office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_COMPLETED,
+        ]);
+
+        $this->actingAs($sender)
+            ->postJson(route('platform.documents.additional-routes.store', $document), [
+                'source_office' => 'Administrative Unit',
+                'destination_office' => 'SDO-Legal Unit',
+                'dispatch_confirmed' => true,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('source_office');
+
+        $this->assertDatabaseMissing('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Legal Unit',
+        ]);
+        $this->assertNull(RouteFixActions::for($document->fresh(), $sender)['additional']);
     }
 
     private function forwardedDocument(): Document

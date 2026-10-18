@@ -16,7 +16,7 @@ class DocumentAccessRoleSeederTest extends TestCase
     {
         $this->seed(DocumentAccessRoleSeeder::class);
 
-        $this->assertDatabaseCount('roles', 3);
+        $this->assertDatabaseCount('roles', 4); // includes the Kiosk role from the 2026_10_18 migration
         $this->assertDatabaseCount('users', 0);
 
         $personnel = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => []]);
@@ -48,7 +48,7 @@ class DocumentAccessRoleSeederTest extends TestCase
         $this->seed(DocumentAccessRoleSeeder::class);
         $this->seed(DocumentAccessRoleSeeder::class);
 
-        $this->assertDatabaseCount('roles', 3);
+        $this->assertDatabaseCount('roles', 4); // includes the Kiosk role from the 2026_10_18 migration
         $this->assertDatabaseCount('users', 0);
     }
 }

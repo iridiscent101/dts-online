@@ -20,14 +20,11 @@
     @enderror
 </div>
 
-<div class="row align-items-center">
-    <div class="col-md-6 col-xs-12">
-        <a href="{{ route('platform.login.lock') }}" class="dts-switch-user">{{ __('Sign in with another user.') }}</a>
-    </div>
-    <div class="col-md-6 col-xs-12">
-        <button id="button-login" type="submit" class="btn btn-default btn-block">
-            <x-orchid-icon path="bs.box-arrow-in-right" class="small me-2"/>
-            {{ __('Sign in') }}
-        </button>
-    </div>
-</div>
+<button id="button-login" type="submit" class="btn btn-default dts-auth-submit">
+    <x-orchid-icon path="bs.box-arrow-in-right"/>
+    {{ __('Sign in') }}
+</button>
+
+<p class="dts-auth-help">
+    <a href="{{ route('platform.login.lock') }}" class="dts-switch-user">{{ __('Not you? Sign in with another account.') }}</a>
+</p>

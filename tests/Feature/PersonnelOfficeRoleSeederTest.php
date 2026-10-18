@@ -19,7 +19,7 @@ class PersonnelOfficeRoleSeederTest extends TestCase
 
         $role = Role::query()->where('slug', 'personnel')->firstOrFail();
 
-        $this->assertDatabaseCount('roles', 1);
+        $this->assertDatabaseCount('roles', 2); // includes the Kiosk role from the 2026_10_18 migration
         $this->assertDatabaseCount('users', 22);
         $this->assertDatabaseCount('role_users', 22);
         $this->assertDatabaseHas('roles', [
@@ -60,7 +60,7 @@ class PersonnelOfficeRoleSeederTest extends TestCase
         $personnelRole = Role::query()->where('slug', 'personnel')->firstOrFail();
         $existingUser->refresh();
 
-        $this->assertDatabaseCount('roles', 2);
+        $this->assertDatabaseCount('roles', 3); // includes the Kiosk role from the 2026_10_18 migration
         $this->assertDatabaseCount('users', 22);
         $this->assertDatabaseCount('role_users', 23);
         $this->assertSame('Marilou B. Mendoza', $existingUser->name);

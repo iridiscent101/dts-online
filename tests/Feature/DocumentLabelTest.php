@@ -46,7 +46,7 @@ class DocumentLabelTest extends TestCase
         $response->assertOk()
             ->assertSee('Print label')
             ->assertSee('DTS-2026-000123')
-            ->assertSee('50mm 30mm')
+            ->assertSee('60mm 30mm')
             ->assertSee('data:image/svg+xml;base64,', false);
 
         preg_match('/src="data:image\/svg\+xml;base64,([^"]+)"/', $response->getContent(), $matches);
@@ -128,23 +128,45 @@ class DocumentLabelTest extends TestCase
         $this->assertSame('Oct 5, 2026', $details['date']);
         $this->assertSame('9:15 AM', $details['time']);
         $this->assertSame('Rosa Reyes', $details['processedBy']);
+        $this->assertNull($details['releasedBy']);
     }
 
-    public function test_label_details_include_the_recipient_signature_only_for_the_latest_release(): void
+    public function test_after_a_release_the_label_names_who_received_and_who_released_it(): void
     {
+        $clerk = User::factory()->create(['name' => 'Maricar Valido']);
         $document = Document::factory()->received()->create();
-        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
-        DocumentMovement::factory()->for($document)->create([
+        DocumentMovement::factory()->for($document)->for($clerk, 'actor')->create([
             'action' => DocumentMovement::ACTION_RELEASED,
-            'recipient_signature' => $signature,
+            'released_to' => 'Juan Dela Cruz',
         ]);
 
-        $this->assertSame($signature, app(DocumentTrackingLabel::class)->details($document)['recipientSignatureDataUri']);
+        $details = app(DocumentTrackingLabel::class)->details($document);
+        $this->assertSame('Received by', $details['byLabel']);
+        $this->assertSame('Juan Dela Cruz', $details['processedBy']);
+        $this->assertSame('Maricar Valido', $details['releasedBy']);
+        $this->assertArrayNotHasKey('recipientSignatureDataUri', $details);
 
         DocumentMovement::factory()->for($document)->create(['action' => DocumentMovement::ACTION_RESTORED]);
         $document->unsetRelation('latestMovement');
 
-        $this->assertNull(app(DocumentTrackingLabel::class)->details($document)['recipientSignatureDataUri']);
+        $afterRestore = app(DocumentTrackingLabel::class)->details($document);
+        $this->assertNotSame('Juan Dela Cruz', $afterRestore['processedBy']);
+        $this->assertNull($afterRestore['releasedBy']);
+    }
+
+    public function test_a_release_without_the_recipients_name_shows_only_who_released_it(): void
+    {
+        $clerk = User::factory()->create(['name' => 'Maricar Valido']);
+        $document = Document::factory()->received()->create();
+        DocumentMovement::factory()->for($document)->for($clerk, 'actor')->create([
+            'action' => DocumentMovement::ACTION_RELEASED,
+            'released_to' => null,
+        ]);
+
+        $details = app(DocumentTrackingLabel::class)->details($document);
+        $this->assertSame('Released by', $details['byLabel']);
+        $this->assertSame('Maricar Valido', $details['processedBy']);
+        $this->assertNull($details['releasedBy']);
     }
 
     public function test_label_shows_processing_staff_name_without_a_signature(): void
@@ -160,12 +182,13 @@ class DocumentLabelTest extends TestCase
         $this->actingAs($staff)
             ->get(route('platform.documents.label', $document))
             ->assertSee('<dt>By</dt><dd>Rosa Reyes</dd>', false)
+            ->assertDontSee('<dt>Released by</dt>', false)
             ->assertDontSee('<dt>Sign</dt>', false)
             ->assertDontSee('data:image/png;base64,', false);
 
     }
 
-    public function test_label_prints_the_recipient_signature_after_a_release(): void
+    public function test_label_never_prints_the_recipient_signature(): void
     {
         $staff = User::factory()->create([
             'name' => 'Rosa Reyes',
@@ -176,15 +199,50 @@ class DocumentLabelTest extends TestCase
         $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
         DocumentMovement::factory()->for($document)->for($staff, 'actor')->create([
             'action' => DocumentMovement::ACTION_RELEASED,
+            'released_to' => 'Juan Dela Cruz',
             'recipient_signature' => $signature,
         ]);
 
+        // The signature is shown on the history only; the label names who received and who released the document.
         $this->actingAs($staff)
             ->get(route('platform.documents.label', $document))
             ->assertOk()
-            ->assertSee('dts-tracking-label-footer has-signature', false)
-            ->assertSee('src="'.$signature.'"', false)
-            ->assertSee("Recipient's signature", false);
+            ->assertSee('<dt>Received by</dt><dd>Juan Dela Cruz</dd>', false)
+            ->assertSee('<dt>Released by</dt><dd>Rosa Reyes</dd>', false)
+            ->assertDontSee($signature, false)
+            ->assertDontSee("Recipient's signature", false);
+    }
+
+    public function test_fast_track_result_links_to_a_public_label_without_the_signature(): void
+    {
+        $staff = User::factory()->create(['name' => 'Rosa Reyes', 'office' => 'Records Unit']);
+        $document = Document::factory()->received()->create([
+            'tracking_number' => 'SDONV12345678912',
+            'current_office' => 'Records Unit',
+        ]);
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
+        DocumentMovement::factory()->for($document)->for($staff, 'actor')->create([
+            'action' => DocumentMovement::ACTION_RELEASED,
+            'released_to' => 'Juan Dela Cruz',
+            'recipient_signature' => $signature,
+        ]);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertOk()
+            ->assertSee('Print label')
+            ->assertSee(route('tracking.label', 'SDONV12345678912'), false);
+
+        // No sign-in needed; the same label staff print, without the signature.
+        $this->get(route('tracking.label', 'sdonv12345678912'))
+            ->assertOk()
+            ->assertSee('class="dts-tracking-label"', false)
+            ->assertSee('alt="QR code for SDONV12345678912"', false)
+            ->assertSee('<dt>Received by</dt><dd>Juan Dela Cruz</dd>', false)
+            ->assertSee('Back to tracking')
+            ->assertDontSee($signature, false);
+
+        $this->get(route('tracking.label', 'SDONV11111111111'))->assertNotFound();
+        $this->get('/label/not-a-number')->assertNotFound();
     }
 
     public function test_tracking_qr_code_carries_the_sdo_seal(): void
@@ -239,7 +297,7 @@ class DocumentLabelTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Print labels')
-            ->assertSee('50mm 30mm')
+            ->assertSee('60mm 30mm')
             ->assertSeeInOrder(['DTS-2026-SECOND', 'DTS-2026-FIRST']);
         $this->assertSame(2, substr_count($response->getContent(), 'class="dts-tracking-label"'));
     }

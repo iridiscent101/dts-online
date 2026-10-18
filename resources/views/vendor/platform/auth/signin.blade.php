@@ -28,18 +28,18 @@
     @include('platform::partials.password-input', ['id' => 'login-password', 'invalid' => $errors->has('password'), 'describedBy' => $errors->any() ? 'login-errors' : null])
 </div>
 
-<div class="row align-items-center">
-    <div class="col-md-6 col-xs-12">
-        <label class="form-check dts-remember">
-            <input type="hidden" name="remember">
-            <input type="checkbox" name="remember" value="true" class="form-check-input" {{ !old('remember') || old('remember') === 'true' ? 'checked' : '' }}>
-            <span class="form-check-label">{{ __('Remember me') }}</span>
-        </label>
-    </div>
-    <div class="col-md-6 col-xs-12">
-        <button id="button-login" type="submit" class="btn btn-default btn-block">
-            <x-orchid-icon path="bs.box-arrow-in-right" class="small me-2"/>
-            {{ __('Sign in') }}
-        </button>
-    </div>
-</div>
+<label class="form-check dts-remember mb-4">
+    <input type="hidden" name="remember">
+    <input type="checkbox" name="remember" value="true" class="form-check-input" {{ !old('remember') || old('remember') === 'true' ? 'checked' : '' }}>
+    <span class="form-check-label">{{ __('Keep me signed in on this computer') }}</span>
+</label>
+
+<button id="button-login" type="submit" class="btn btn-default dts-auth-submit">
+    <x-orchid-icon path="bs.box-arrow-in-right"/>
+    {{ __('Sign in') }}
+</button>
+
+<p class="dts-auth-help">
+    <x-orchid-icon path="bs.question-circle"/>
+    <span>{{ __('Forgot your password or locked out? Ask your system administrator to reset it.') }}</span>
+</p>

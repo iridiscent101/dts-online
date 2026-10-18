@@ -1,3 +1,4 @@
+import './signature-pad.js';
 import './copy-button.js';
 import './timeline-reveal.js';
 
@@ -1642,8 +1643,18 @@ class WorkflowRouting extends HTMLElement {
         if (releaseRecipient) releaseRecipient.hidden = action !== 'released';
         if (releaseRecipientInput) {
             releaseRecipientInput.disabled = action !== 'released';
-            // Optional: the client can type it when signing on the Fast Track page.
+            // Optional for now, like the signature below.
             releaseRecipientInput.required = false;
+        }
+        // Release can carry the recipient's signature, drawn at the counter or on the kiosk (optional for now).
+        const releaseSignature = this.querySelector('[data-release-signature]');
+        const releaseSignatureInput = releaseSignature?.querySelector('[data-signature-value]');
+        if (releaseSignature) releaseSignature.hidden = action !== 'released';
+        if (releaseSignatureInput) {
+            releaseSignatureInput.disabled = action !== 'released';
+            releaseSignatureInput.required = false;
+            const pad = releaseSignature.querySelector('dts-signature-pad');
+            if (pad?.input) pad.syncValue(false);
         }
     }
 
@@ -3054,3 +3065,148 @@ function attachStickyScrollbars() {
 document.addEventListener('turbo:load', attachStickyScrollbars);
 document.addEventListener('turbo:frame-load', attachStickyScrollbars);
 attachStickyScrollbars();
+
+// Page-loading status: a "Loading…" pill (and top bar) while Turbo fetches the next page or a form
+// submission is in flight, plus on full-page navigations. Shown after a short delay so fast loads don't flash.
+const pageLoading = (() => {
+    let el = null;
+    let timer = null;
+
+    const ensure = () => {
+        if (el && document.body.contains(el)) return el;
+        el = document.createElement('div');
+        el.className = 'dts-page-loading';
+        el.setAttribute('role', 'status');
+        el.setAttribute('aria-live', 'polite');
+        el.innerHTML = '<div class="dts-page-loading__bar"></div>'
+            + '<div class="dts-page-loading__pill"><span class="dts-page-loading__spinner" aria-hidden="true"></span>'
+            + '<span class="dts-page-loading__text">Loading…</span></div>';
+        el.hidden = true;
+        document.body.appendChild(el);
+        return el;
+    };
+
+    const show = (label = 'Loading…', delay = 150) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+            const node = ensure();
+            node.querySelector('.dts-page-loading__text').textContent = label;
+            node.hidden = false;
+            document.documentElement.setAttribute('aria-busy', 'true');
+        }, delay);
+    };
+
+    const hide = () => {
+        clearTimeout(timer);
+        if (el) el.hidden = true;
+        document.documentElement.removeAttribute('aria-busy');
+    };
+
+    return { show, hide };
+})();
+
+document.addEventListener('turbo:visit', () => pageLoading.show());
+document.addEventListener('turbo:submit-start', (event) => {
+    const method = (event.detail.formSubmission?.method || 'get').toLowerCase();
+    pageLoading.show(method === 'get' ? 'Loading…' : 'Saving…');
+});
+document.addEventListener('turbo:submit-end', (event) => {
+    // A successful submit usually redirects, which starts a turbo:visit; otherwise stop here.
+    if (!event.detail.success) pageLoading.hide();
+});
+['turbo:load', 'turbo:render', 'turbo:fetch-request-error'].forEach((name) => {
+    document.addEventListener(name, pageLoading.hide);
+});
+window.addEventListener('pageshow', pageLoading.hide);
+// Full (non-Turbo) navigations and reloads: show immediately while the browser waits for the next page.
+window.addEventListener('beforeunload', () => pageLoading.show('Loading…', 0));
+
+// Release "Send to kiosk": ask the recipient to sign on the kiosk laptop outside the Records Unit, then fill the name
+// and signature into this Release form once they have signed (KioskSigningRequestController). Staff still save the
+// release themselves.
+const kioskPollTimers = new WeakMap();
+
+function setKioskStatus(block, message, { waiting = false, cancellable = false, tone = '' } = {}) {
+    const status = block.querySelector('[data-kiosk-status]');
+    status.hidden = !message;
+    status.dataset.tone = tone;
+    status.querySelector('[data-kiosk-message]').textContent = message;
+    status.querySelector('[data-kiosk-spinner]').hidden = !waiting;
+    status.querySelector('[data-kiosk-cancel]').hidden = !cancellable;
+    block.querySelector('[data-kiosk-send]').disabled = waiting;
+}
+
+function stopKioskPolling(block) {
+    clearTimeout(kioskPollTimers.get(block));
+    kioskPollTimers.delete(block);
+}
+
+function pollKioskSigning(block) {
+    stopKioskPolling(block);
+    kioskPollTimers.set(block, setTimeout(async () => {
+        if (!block.isConnected || !block.dataset.kioskStatusUrl) return;
+        try {
+            const response = await fetch(block.dataset.kioskStatusUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            if (!response.ok) throw new Error();
+            const result = await response.json();
+            if (result.status === 'pending') { pollKioskSigning(block); return; }
+            delete block.dataset.kioskStatusUrl;
+            if (result.status === 'signed') {
+                const nameInput = block.closest('dts-workflow-routing')?.querySelector('[data-release-recipient] input');
+                if (nameInput && result.recipient_name) {
+                    nameInput.value = result.recipient_name;
+                    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                block.querySelector('dts-signature-pad')?.loadSignature(result.recipient_signature);
+                setKioskStatus(block, result.recipient_name
+                    ? `Signed at the kiosk by ${result.recipient_name}. Check the name and signature, then save the release.`
+                    : 'Signed at the kiosk (no name given). Check the signature, then save the release.', { tone: 'success' });
+            } else {
+                setKioskStatus(block, result.status === 'expired'
+                    ? 'The kiosk request expired before it was signed. Send it again.'
+                    : 'The kiosk request was cancelled.', { tone: 'warning' });
+            }
+        } catch {
+            // A brief network problem: keep checking.
+            pollKioskSigning(block);
+        }
+    }, 2000));
+}
+
+document.addEventListener('click', async (event) => {
+    const send = event.target.closest('[data-kiosk-send]');
+    const cancel = event.target.closest('[data-kiosk-cancel]');
+    if (!send && !cancel) return;
+    const block = (send ?? cancel).closest('[data-release-signature]');
+    const token = document.querySelector('meta[name="csrf_token"]')?.content ?? '';
+
+    if (cancel) {
+        stopKioskPolling(block);
+        const url = block.dataset.kioskCancelUrl;
+        delete block.dataset.kioskStatusUrl;
+        setKioskStatus(block, 'The kiosk request was cancelled.', { tone: 'warning' });
+        if (url) fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, Accept: 'application/json' } }).catch(() => {});
+        return;
+    }
+
+    const routing = block.closest('dts-workflow-routing');
+    const data = new FormData();
+    data.append('source_office', routing?.querySelector('[data-workflow-source-office]')?.value ?? '');
+    data.append('recipient_name', routing?.querySelector('[data-release-recipient] input')?.value ?? '');
+    setKioskStatus(block, 'Sending to the kiosk…', { waiting: true });
+    try {
+        const response = await fetch(block.dataset.kioskUrl, {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': token, Accept: 'application/json' },
+            body: data,
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.errors ? Object.values(result.errors).flat()[0] : result.message);
+        block.dataset.kioskStatusUrl = result.status_url;
+        block.dataset.kioskCancelUrl = result.cancel_url;
+        setKioskStatus(block, 'Waiting for the recipient to sign at the kiosk…', { waiting: true, cancellable: true });
+        pollKioskSigning(block);
+    } catch (error) {
+        setKioskStatus(block, error.message || 'Could not reach the kiosk. Try again, or let the recipient sign here.', { tone: 'error' });
+    }
+});

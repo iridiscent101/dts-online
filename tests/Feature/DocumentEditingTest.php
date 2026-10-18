@@ -420,6 +420,11 @@ class DocumentEditingTest extends TestCase
         $this->assertSame('routes', $activity->properties->get('action'));
         $this->assertContains('Curriculum Implementation Division', $activity->properties->get('added'));
         $this->assertContains('Administrative Unit', $activity->properties->get('removed'));
+        $this->assertEqualsCanonicalizing(
+            ['Curriculum Implementation Division', 'Administrative Unit'],
+            $activity->properties->get('affected_offices'),
+        );
+        $this->assertNull($activity->properties->get('office'));
         $this->assertSame('Correcting the offices selected at registration.', $activity->properties->get('correction_reason'));
         $this->assertEqualsCanonicalizing(
             ['Records Unit', 'Administrative Unit'],

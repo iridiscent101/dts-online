@@ -3,6 +3,7 @@
 use App\Http\Middleware\LimitLoginAttempts;
 use App\Http\Middleware\LogoutInactiveStaff;
 use App\Http\Middleware\PauseDocumentUploads;
+use App\Http\Middleware\SendKioskAccountsToKiosk;
 use App\Orchid\PlatformProvider;
 use Orchid\Attachment\Engines\Generator;
 use Orchid\Support\BootstrapIconsPath;
@@ -54,7 +55,7 @@ return [
     'middleware' => [
         // 'web' already adds AddSecurityHeaders (bootstrap/app.php).
         'public' => ['web', LimitLoginAttempts::class, 'cache.headers:private;must_revalidate;etag'],
-        'private' => ['web', 'platform', 'auth.session', LogoutInactiveStaff::class, PauseDocumentUploads::class, 'cache.headers:private;must_revalidate;etag'],
+        'private' => ['web', SendKioskAccountsToKiosk::class, 'platform', 'auth.session', LogoutInactiveStaff::class, PauseDocumentUploads::class, 'cache.headers:private;must_revalidate;etag'],
     ],
 
     /*

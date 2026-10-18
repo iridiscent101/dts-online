@@ -83,6 +83,10 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('platform.documents.routes.manage', __('Manage document routes'))
                 ->addPermission('platform.documents.attachments.manage', __('Manage document attachments')),
 
+            // For the laptop outside the Records Unit: give this alone to the kiosk account, which then opens /kiosk.
+            ItemPermission::group(__('Kiosk'))
+                ->addPermission('platform.kiosk', __('Signing kiosk (recipients sign for released documents)')),
+
             ItemPermission::group(__('System'))
                 ->addPermission('platform.systems.roles', __('Roles'))
                 ->addPermission('platform.systems.users', __('Users'))

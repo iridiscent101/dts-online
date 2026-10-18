@@ -14,6 +14,8 @@ class DocumentWorkspaceTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    private const SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAYCAYAAABKtPtEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQUlEQVRYhe3QsRGAMAwDQCcbpGMD9h8nG9AxQuhyTIC583+nTlIEAACU1N5hHOfKKvKl+5p7d88s8gflDwAAoKoH38oEBtR+TtAAAAAASUVORK5CYII=';
+
     public function test_registry_opens_an_authorized_document_workspace_without_loading_it_into_the_table(): void
     {
         $user = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
@@ -96,7 +98,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertSee('"completed":"Complete"', false);
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -118,7 +120,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertSee('data-workspace-action="released"', false);
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -169,7 +171,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertDontSee('"released":"Release"', false);
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
     }
 

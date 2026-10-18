@@ -121,10 +121,13 @@ class OfficeEditScreen extends Screen
             }
 
             // shortcut: history stores office names; allow renames after movements use stable office IDs.
-            if ($office->exists && $validated['office']['name'] !== $office->name && DocumentMovement::query()
-                ->where('from_office', $office->name)
-                ->orWhere('to_office', $office->name)
-                ->exists()) {
+            if ($office->exists && $validated['office']['name'] !== $office->name && (
+                DocumentMovement::query()
+                    ->where('from_office', $office->name)
+                    ->orWhere('to_office', $office->name)
+                    ->exists()
+                || Document::query()->where('registered_office', $office->name)->exists()
+            )) {
                 throw ValidationException::withMessages([
                     'office.name' => 'An office with document history cannot be renamed.',
                 ]);

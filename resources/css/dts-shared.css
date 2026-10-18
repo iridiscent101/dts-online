@@ -440,8 +440,8 @@ details[open] > [data-tooltip]::after {
     }
 }
 
-/* Signature pad (signature-pad.js) on the Fast Track page, for signing a released document.
-   Colours fall back to the DTS palette because the public page does not load the staff tokens. */
+/* Signature pad (signature-pad.js): the recipient signs at the counter when Records releases a document.
+   Colours fall back to the DTS palette for pages that do not load the staff tokens. */
 dts-signature-pad {
     display: grid;
     gap: 8px;
@@ -533,3 +533,19 @@ dts-signature-pad.is-invalid .dts-signature-hint {
     font-weight: 600;
 }
 
+
+/* The kiosk outside the Records Unit (kiosk.blade.php): a bigger box, since recipients sign with the mouse. */
+.dts-kiosk-signature .dts-signature-box canvas {
+    height: 300px;
+}
+
+/* A signature that came back from the kiosk (signature-pad.js loadSignature): shown as an image, not editable strokes. */
+.dts-signature-received {
+    position: absolute;
+    inset: 8px 16px 40px;
+    z-index: 2;
+    width: calc(100% - 32px);
+    height: calc(100% - 48px);
+    object-fit: contain;
+    pointer-events: none;
+}

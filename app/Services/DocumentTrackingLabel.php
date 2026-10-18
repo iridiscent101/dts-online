@@ -28,9 +28,11 @@ class DocumentTrackingLabel
 
     /**
      * What the printed label shows: the status at printing time and the latest routing action (or the registration
-     * when nothing has moved yet), in Philippine time.
+     * when nothing has moved yet), in Philippine time. After a release, "Received by" names the person who took the
+     * document and "Released by" the staff member who released it; the recipient's signature is only on the history,
+     * never on the label.
      *
-     * @return array{status: string, date: string, time: string, byLabel: string, processedBy: string, recipientSignatureDataUri: string|null}
+     * @return array{status: string, date: string, time: string, byLabel: string, processedBy: string, releasedBy: string|null}
      */
     public function details(Document $document): array
     {
@@ -40,16 +42,34 @@ class DocumentTrackingLabel
             ? ($movement->actor?->name ?? 'System')
             : ($document->client_submission_key ? 'Client' : ($document->registeredBy?->name ?? 'System'));
         $receipt = $document->recordsReceipt;
+        $released = $movement?->action === DocumentMovement::ACTION_RELEASED;
+        $releasedTo = $released ? trim((string) $movement->released_to) : '';
+        $releaser = $released ? ($movement->actor?->name ?? 'Former staff member') : null;
+
+        // A release without the recipient's name (the name is optional): only "Released by", since "Received by" would
+        // otherwise fall back to the Records receiver.
+        if ($released && $releasedTo === '') {
+            return [
+                'status' => $document->status,
+                'date' => $actedAt->format('M j, Y'),
+                'time' => $actedAt->format('g:i A'),
+                'byLabel' => 'Released by',
+                'processedBy' => $releaser,
+                'releasedBy' => null,
+            ];
+        }
 
         return [
             'status' => $document->status,
             'date' => $actedAt->format('M j, Y'),
             'time' => $actedAt->format('g:i A'),
-            'byLabel' => $receipt ? 'Received by' : 'By',
-            'processedBy' => $receipt ? ($receipt->actor?->name ?? 'Former staff member') : $processedBy,
-            'recipientSignatureDataUri' => $movement?->action === DocumentMovement::ACTION_RELEASED
-                ? $movement->recipient_signature
-                : null,
+            'byLabel' => $releasedTo !== '' || $receipt ? 'Received by' : 'By',
+            'processedBy' => match (true) {
+                $releasedTo !== '' => $releasedTo,
+                (bool) $receipt => $receipt->actor?->name ?? 'Former staff member',
+                default => $processedBy,
+            },
+            'releasedBy' => $releaser,
         ];
     }
 

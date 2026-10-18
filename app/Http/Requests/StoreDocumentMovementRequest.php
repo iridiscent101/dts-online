@@ -59,7 +59,7 @@ class StoreDocumentMovementRequest extends FormRequest
                 'string',
                 'max:1000',
             ],
-            // Optional: when Records leaves it blank, the client types it when signing on the Fast Track page.
+            // Both optional on Release for now (user decision 2026-10-18); when given, the signature must be a real PNG.
             'workflow.released_to' => [
                 'nullable',
                 Rule::prohibitedIf($action !== DocumentMovement::ACTION_RELEASED),

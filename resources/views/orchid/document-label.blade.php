@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tracking {{ $labels->count() === 1 ? 'label | '.$labels->first()['document']->tracking_number : 'labels | '.$labels->count().' documents' }}</title>
     <style>
-        @page { size: 50mm 30mm; margin: 0; }
+        @page { size: 60mm 30mm; margin: 0; }
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; padding: 24px; background: #f8f4e7; color: #26332b; font-family: Arial, sans-serif; }
         .print-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
@@ -19,23 +19,23 @@
         .print-toolbar small { color: #4b5563; font-size: 14px; }
         .label-stack { display: grid; justify-content: start; gap: 12px; }
         /* QR on the left, the routing details beside it, and the tracking number across the bottom. */
-        .dts-tracking-label { display: grid; grid-template-columns: 18mm minmax(0, 1fr); grid-template-rows: minmax(18mm, 1fr) auto; column-gap: 1.8mm; row-gap: 0.8mm; width: 50mm; height: 30mm; padding: 1.5mm 1.8mm; overflow: hidden; border: 1px solid #9ca3af; border-radius: 3px; background: #fff; color: #111827; }
+        .dts-tracking-label { display: grid; grid-template-columns: 18mm minmax(0, 1fr); grid-template-rows: minmax(18mm, 1fr) auto; column-gap: 1.8mm; row-gap: 0.8mm; width: 60mm; height: 30mm; padding: 1.5mm 1.8mm; overflow: hidden; border: 1px solid #9ca3af; border-radius: 3px; background: #fff; color: #111827; }
         .dts-tracking-label img { display: block; align-self: center; width: 18mm; height: 18mm; }
-        .dts-tracking-label-details { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; column-gap: 1.8mm; row-gap: 0.4mm; margin: 0; font-size: 6.5pt; line-height: 1.12; }
-        .dts-tracking-label-details dt { color: #4b5563; font-size: 5pt; font-weight: 700; letter-spacing: 0.02em; line-height: 1.6; text-transform: uppercase; }
-        .dts-tracking-label-details dd { display: -webkit-box; margin: 0; overflow: hidden; font-weight: 700; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-        /* Status may need three lines ("Awaiting physical document"); a long name is cut at two. */
-        .dts-tracking-label-details dd:first-of-type { -webkit-line-clamp: 3; }
+        .dts-tracking-label-details { display: grid; grid-template-columns: auto minmax(0, 1fr); align-content: center; column-gap: 1.6mm; row-gap: 0.7mm; margin: 0; font-size: 6.5pt; line-height: 1.12; }
+        .dts-tracking-label-field { min-width: 0; }
+        .dts-tracking-label-field.is-wide { grid-column: 1 / -1; }
+        .dts-tracking-label-details dt { color: #4b5563; font-size: 4.6pt; font-weight: 700; letter-spacing: 0.03em; line-height: 1.25; text-transform: uppercase; }
+        /* Values break only between words; a long name is cut at two lines. */
+        .dts-tracking-label-details dd { display: -webkit-box; margin: 0; overflow: hidden; font-weight: 700; overflow-wrap: break-word; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        .dts-tracking-label-details .is-wide:first-child dd { font-size: 7.5pt; -webkit-line-clamp: 1; }
+        /* Names stay on one line; the script below shrinks a long name (down to 4.6pt, the caption size) until it fits,
+           and only a name still too long at that size ends in "…". Release labels carry two names, so rows sit closer. */
+        .dts-tracking-label-details .is-name dd { display: block; white-space: nowrap; text-overflow: ellipsis; }
+        .dts-tracking-label-details.has-release { row-gap: 0.4mm; }
         .dts-tracking-label-footer { display: grid; grid-column: 1 / -1; align-content: center; gap: 0.3mm; border-top: 0.3mm solid #111827; padding-top: 0.6mm; text-align: center; }
         /* The tracking number is the one line staff read off the label, so it is the largest text on it. */
         .dts-tracking-label-footer strong { font-family: "Consolas", "Courier New", monospace; font-size: 10pt; font-weight: 800; letter-spacing: -0.01em; line-height: 1.1; overflow-wrap: anywhere; }
-        /* Signature block, as on paper: the signature centred on a short line, its caption centred under the line. */
-        .dts-tracking-label-footer.has-signature { grid-template-columns: minmax(0, 1fr) 17mm; column-gap: 1.5mm; align-items: center; text-align: left; }
-        .dts-tracking-label-footer.has-signature strong { font-size: 8.5pt; }
-        .dts-tracking-label-signature { display: grid; margin: 0; min-width: 0; text-align: center; }
-        .dts-tracking-label-signature img { display: block; width: 100%; height: 5mm; object-fit: contain; object-position: center bottom; }
-        .dts-tracking-label-signature figcaption { padding-top: 0.3mm; border-top: 0.2mm solid #111827; color: #4b5563; font-size: 3.4pt; font-weight: 700; line-height: 1.1; text-transform: uppercase; white-space: nowrap; }
-        .dts-tracking-label-status { font-weight: 800 !important; letter-spacing: 0.03em; text-transform: uppercase; }
+        .dts-tracking-label-status { font-weight: 800 !important; letter-spacing: 0.02em; text-transform: uppercase; }
         @media screen {
             /* Show the label larger on screen so it is easy to check before printing; print stays at true size. */
             .label-stack { zoom: 2; }
@@ -52,9 +52,9 @@
 </head>
 <body>
     <div class="print-toolbar">
-        <a href="{{ $backUrl }}">Back to {{ $labels->count() === 1 ? 'document' : 'registry' }}</a>
+        <a href="{{ $backUrl }}">{{ $backLabel ?? 'Back to '.($labels->count() === 1 ? 'document' : 'registry') }}</a>
         <button type="button" data-print data-tooltip="Print {{ $labels->count() === 1 ? 'label' : 'labels' }}" aria-label="Print {{ $labels->count() === 1 ? 'label' : 'labels' }}"><x-orchid-icon path="bs.printer" /></button>
-        <small>Label size 50 &times; 30 mm, shown here at twice its size. Print it on paper, cut it out and paste it on the received document/s.</small>
+        <small>Label size 60 &times; 30 mm, shown here at twice its size. Print it on paper, cut it out and paste it on the received document/s.</small>
     </div>
     <div class="label-stack">
         @foreach ($labels as $label)
@@ -63,6 +63,17 @@
     </div>
     <script nonce="{{ Vite::cspNonce() }}">
         document.querySelector('[data-print]').addEventListener('click', () => window.print());
+
+        // Fit each name on its one line: step the size down from 6.5pt to 4.6pt until it no longer overflows.
+        const fitNames = () => document.querySelectorAll('.dts-tracking-label-details .is-name dd').forEach((name) => {
+            name.style.fontSize = '';
+            for (let size = 6.25; name.scrollWidth > name.clientWidth; size -= 0.25) {
+                name.style.fontSize = `${Math.max(size, 4.6)}pt`;
+                if (size <= 4.6) break;
+            }
+        });
+        fitNames();
+        document.fonts?.ready.then(fitNames);
     </script>
 </body>
 </html>

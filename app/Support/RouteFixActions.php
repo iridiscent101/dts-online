@@ -62,14 +62,20 @@ class RouteFixActions
             return null;
         }
 
-        // reorder(): the movements relation sorts by date, and MySQL refuses ORDER BY on a column a DISTINCT list leaves out.
-        $sendingOffices = $document->movements()
-            ->reorder()
-            ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
-            ->whereNotNull('from_office')
-            ->when(! $isAdministrator, fn ($query) => $query->whereIn('from_office', $userOffices))
-            ->distinct()
-            ->pluck('from_office');
+        $sendingOffices = $document->relationLoaded('forwardMovements')
+            ? $document->forwardMovements->pluck('from_office')
+                ->when(! $isAdministrator, fn ($offices) => $offices->intersect($userOffices))
+                ->unique()
+                ->values()
+            : $document->forwardMovements()
+                ->when(! $isAdministrator, fn ($query) => $query->whereIn('from_office', $userOffices))
+                ->distinct()
+                ->pluck('from_office');
+
+        $finishedOffices = $document->officeAssignments
+            ->whereIn('status', DocumentMovement::FINISHED_STATUSES)
+            ->pluck('office');
+        $sendingOffices = $sendingOffices->diff($finishedOffices)->values();
 
         return $sendingOffices->isEmpty() ? null : [
             'url' => route('platform.documents.additional-routes.store', $document),

@@ -162,6 +162,53 @@ class OfficeManagementTest extends TestCase
             ->assertOk();
     }
 
+    public function test_office_registered_on_a_document_without_movements_cannot_be_renamed(): void
+    {
+        $manager = User::factory()->create(['permissions' => [
+            'platform.index' => true,
+            'platform.systems.offices' => true,
+        ]]);
+        $office = Office::create(['name' => 'Original Desk', 'sort_order' => 1, 'is_active' => true]);
+        $document = Document::factory()->create([
+            'current_office' => 'Records Unit',
+            'registered_office' => $office->name,
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('platform.systems.offices.edit', $office).'/save', [
+                'office' => [
+                    'name' => 'Renamed Desk',
+                    'sort_order' => 1,
+                    'is_active' => '1',
+                ],
+            ])
+            ->assertSessionHasErrors('office.name');
+
+        $this->assertSame('Original Desk', $office->fresh()->name);
+        $this->assertSame('Original Desk', $document->fresh()->registered_office);
+    }
+
+    public function test_office_registered_on_a_document_without_movements_cannot_be_deleted(): void
+    {
+        $manager = User::factory()->create(['permissions' => [
+            'platform.index' => true,
+            'platform.systems.offices' => true,
+        ]]);
+        $office = Office::create(['name' => 'Original Desk', 'sort_order' => 1, 'is_active' => true]);
+        Document::factory()->create([
+            'current_office' => 'Records Unit',
+            'registered_office' => $office->name,
+        ]);
+
+        $this->actingAs($manager)
+            ->post(route('platform.systems.offices').'/bulkRemove', [
+                'selected' => [$office->id],
+            ])
+            ->assertSessionHasErrors('selected');
+
+        $this->assertDatabaseHas('offices', ['id' => $office->id]);
+    }
+
     public function test_renaming_an_office_preserves_a_clients_pending_paper_route(): void
     {
         $manager = User::factory()->create(['permissions' => [

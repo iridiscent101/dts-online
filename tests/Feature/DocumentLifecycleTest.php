@@ -83,7 +83,12 @@ class DocumentLifecycleTest extends TestCase
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
         ])->assertOk();
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Jamie Cruz'],
+            'workflow' => [
+                'action' => 'released',
+                'source_office' => 'SDO-Records Unit',
+                'released_to' => 'Jamie Cruz',
+                'recipient_signature' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAYCAYAAABKtPtEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQUlEQVRYhe3QsRGAMAwDQCcbpGMD9h8nG9AxQuhyTIC583+nTlIEAACU1N5hHOfKKvKl+5p7d88s8gflDwAAoKoH38oEBtR+TtAAAAAASUVORK5CYII=',
+            ],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);

@@ -67,8 +67,6 @@ class PublicDocumentTrackingController extends Controller
                                     'acted_by',
                                     'created_at',
                                 ])
-                                // Whether a release still needs the client's signature; the signature itself never leaves the server.
-                                ->selectRaw('recipient_signature is null as release_unsigned')
                                 ->with('actor:id,name')
                                 ->reorder()
                                 ->oldest('created_at')
@@ -131,11 +129,7 @@ class PublicDocumentTrackingController extends Controller
             fn (DocumentMovement $movement): bool => $movement->from_office === $selectedOffice || $movement->to_office === $selectedOffice,
         ) && ! $publicRemarks->contains('office', $selectedOffice);
         $qrCodeDataUri = $document ? $trackingLabel->dataUri($document) : null;
-        // Records may release without a signature at the counter; the client can then sign here, once.
-        $latestMovement = $document?->movements->last();
-        $releaseAwaitingSignature = $document?->status === DocumentMovement::STATUS_RELEASED
-            && $latestMovement?->action === DocumentMovement::ACTION_RELEASED
-            && (bool) $latestMovement->release_unsigned;
+        $releaseAwaitingSignature = false;
         $submissionKey = (string) Str::uuid();
         $documentTypes = Document::typeOptions();
         $officeOptions = Document::officeOptions();

@@ -514,6 +514,13 @@ class Document extends Model
         return $this->hasMany(DocumentMovement::class)->latest();
     }
 
+    public function forwardMovements(): HasMany
+    {
+        return $this->hasMany(DocumentMovement::class)
+            ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
+            ->whereNotNull('from_office');
+    }
+
     public function latestMovement(): HasOne
     {
         return $this->hasOne(DocumentMovement::class)->latestOfMany();

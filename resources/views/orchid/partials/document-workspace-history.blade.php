@@ -52,12 +52,12 @@
                 @if ($isMovement && $event->released_to)
                     <dt>Released to</dt><dd>{{ $event->released_to }}</dd>
                 @elseif ($isMovement && $event->action === \App\Models\DocumentMovement::ACTION_RELEASED)
-                    <dt>Released to</dt><dd>Name not given yet</dd>
+                    <dt>Released to</dt><dd>Not recorded</dd>
                 @endif
                 @if ($isMovement && $event->action === \App\Models\DocumentMovement::ACTION_RELEASED && filled($event->recipient_signature))
                     <dt>Signature</dt><dd><img class="dts-history-signature" src="{{ $event->recipient_signature }}" alt="Signature of {{ $event->released_to }}" loading="lazy"></dd>
                 @elseif ($isMovement && $event->action === \App\Models\DocumentMovement::ACTION_RELEASED)
-                    <dt>Signature</dt><dd>Not signed yet. The client can sign on the Fast Track page.</dd>
+                    <dt>Signature</dt><dd>Not signed</dd>
                 @endif
             </dl>
             @if (filled($eventRemark))

@@ -10,6 +10,7 @@ use App\Models\DocumentMovement;
 use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Orchid\Attachment\File;
 use Orchid\Attachment\Models\Attachment;
 use Orchid\Screen\Action;
@@ -123,8 +124,11 @@ class DocumentRegistrationScreen extends Screen
             });
         } catch (Throwable $exception) {
             foreach ($uploadedAttachments as $attachment) {
-                if ($attachment instanceof Attachment) {
-                    $attachment->delete();
+                if ($attachment instanceof Attachment && ! Attachment::query()
+                    ->where('hash', $attachment->hash)
+                    ->where('disk', $attachment->disk)
+                    ->exists()) {
+                    Storage::disk($attachment->disk)->delete($attachment->physicalPath());
                 }
             }
 

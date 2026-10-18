@@ -7,7 +7,7 @@
     <title>Track a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js', 'resources/js/signature-pad.js'])
+    @vite(['resources/css/app.css', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'])
 </head>
 <body class="dts-public-page flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
@@ -172,11 +172,6 @@
                     Document submitted. Save the tracking number below to follow its progress.
                 </p>
             @endif
-            @if (session('release_signature_saved'))
-                <p class="mb-6 rounded-sm border border-emerald-300 bg-emerald-50 px-5 py-4 font-medium text-emerald-900" role="status">
-                    Thank you. Your signature was saved.
-                </p>
-            @endif
             @if ($document)
                 @php
                     $finishedOfficeCount = $assignedOffices->whereIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)->count();
@@ -220,51 +215,13 @@
                                 <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="176" height="176" class="size-36 shrink-0 rounded-sm bg-white p-1.5 sm:size-44">
                                 <div>
                                     <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
-                                    <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot. Scan it later to open this tracking page.</p>
+                                    <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot, or print the label and stick it on your copy. Scan it later to open this tracking page.</p>
+                                    <a href="{{ route('tracking.label', $document->tracking_number) }}" class="mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.printer" class="size-4" /> Print label</a>
                                     {{-- Print receipt is hidden while the office checks whether clients need it; the receipt page (tracking.receipt) stays.
                                          To bring it back, restore this link:
                                     <a href="{{ route('tracking.receipt', $document->tracking_number) }}" class="mt-3 inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.printer" class="size-4" /> Print receipt</a> --}}
                                 </div>
                             </div>
-                        @endif
-
-                        {{-- Records released it without a signature at the counter: the person who received it signs here, once
-                             (PublicReleaseSignatureController). The saved signature is never shown on this page. --}}
-                        @if ($releaseAwaitingSignature)
-                            @php
-                                $releasedTo = $document->movements->last()?->released_to;
-                            @endphp
-                            <form method="POST" action="{{ route('tracking.signature', $document->tracking_number) }}" class="mt-4 grid gap-3 rounded-sm border border-amber-300 bg-amber-50 p-4" aria-labelledby="release-signature-heading">
-                                @csrf
-                                <div>
-                                    <h3 id="release-signature-heading" class="text-base font-semibold text-slate-900">Sign to confirm you received the document/s</h3>
-                                    <p class="mt-1 text-sm text-slate-700">The Records Unit released your document/s. Type your full name and sign inside the box to confirm you received them. You can sign only once.</p>
-                                </div>
-                                <div>
-                                    <label for="release-recipient-name" class="block text-sm font-semibold text-slate-800">Your full name <span aria-hidden="true">*</span></label>
-                                    <input id="release-recipient-name" name="recipient_name" value="{{ old('recipient_name', $releasedTo) }}" maxlength="255" autocomplete="name" required class="mt-2 block min-h-11 w-full rounded-sm border border-[#B3843F] bg-white px-3 text-base text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">
-                                    @error('recipient_name', 'releaseSignature')
-                                        <p class="mt-1 text-sm font-semibold text-red-700" role="alert">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <dts-signature-pad data-required-message="Sign inside the box before saving.">
-                                    <div class="dts-signature-box">
-                                        <canvas aria-labelledby="release-signature-heading" aria-describedby="release-signature-hint" role="img"></canvas>
-                                        <span class="dts-signature-line" aria-hidden="true">Sign above this line</span>
-                                        <input class="dts-signature-value" name="recipient_signature" data-signature-value tabindex="-1" aria-hidden="true" required>
-                                    </div>
-                                    <div class="dts-signature-footer">
-                                        <p class="dts-signature-hint" id="release-signature-hint" data-signature-hint>Sign with your finger, a stylus or the mouse.</p>
-                                        <button type="button" class="inline-flex min-h-11 items-center rounded-sm border border-[#216E39] bg-white px-4 font-semibold text-[#216E39] hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39] disabled:opacity-50" data-signature-clear disabled>Clear</button>
-                                    </div>
-                                </dts-signature-pad>
-                                @error('recipient_signature', 'releaseSignature')
-                                    <p class="text-sm font-semibold text-red-700" role="alert">{{ $message }}</p>
-                                @enderror
-                                <div class="flex justify-end">
-                                    <button type="submit" class="inline-flex min-h-11 items-center rounded-sm bg-[#216E39] px-5 font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">Save signature</button>
-                                </div>
-                            </form>
                         @endif
 
                         <div class="grid gap-4 border-t border-slate-200 pt-4">

@@ -14,6 +14,8 @@ class DocumentMovementTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    private const SIGNATURE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAYCAYAAABKtPtEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQUlEQVRYhe3QsRGAMAwDQCcbpGMD9h8nG9AxQuhyTIC583+nTlIEAACU1N5hHOfKKvKl+5p7d88s8gflDwAAoKoH38oEBtR+TtAAAAAASUVORK5CYII=';
+
     public function test_office_must_receive_before_processing_a_forwarded_document(): void
     {
         $user = User::factory()->create([
@@ -971,7 +973,7 @@ class DocumentMovementTest extends TestCase
         $url = route('platform.documents.movements.store', $document);
 
         $this->actingAs($staff)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'Administrative Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'Administrative Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->postJson($url, [
@@ -979,7 +981,7 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->postJson($url, [
@@ -987,7 +989,7 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
@@ -1020,13 +1022,13 @@ class DocumentMovementTest extends TestCase
 
         // The office's own staff cannot release; only Records and administrators can.
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->actingAs($admin)->get(route('platform.documents.workspace', $document))
             ->assertSee('"released":"Release"', false);
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -1049,43 +1051,56 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->actingAs($admin)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Budget Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
     }
 
-    public function test_records_can_release_without_the_receivers_name(): void
+    public function test_release_works_without_the_receivers_name_or_signature_for_now(): void
     {
-        // The client types it when signing on the Fast Track page (PublicReleaseSignatureTest).
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
         $url = route('platform.documents.movements.store', $document);
         $this->actingAs($records)->postJson($url, ['workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit']])->assertOk();
 
-        $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('name="workflow[released_to]"', false)
-            ->assertDontSee('name="workflow[released_to]" maxlength="255" autocomplete="name" required', false)
-            // Clients sign on the Fast Track page, not in the staff Release form.
-            ->assertDontSee('<dts-signature-pad', false)
-            ->assertDontSee('name="workflow[recipient_signature]"', false);
-        $this->get(route('platform.documents.view', $document))
-            ->assertDontSee('<dts-signature-pad', false);
+        // A signature that is given must still be a real PNG.
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'recipient_signature' => 'data:image/png;base64,bm90IGEgcG5n'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.recipient_signature');
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
 
+        // A blank name and no signature: released with neither.
         $this->postJson($url, [
             'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => '   '],
         ])->assertOk();
 
+        $release = $document->movements()->latest('id')->first();
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
-        $this->assertNull($document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->value('released_to'));
-        $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('<dt>Released to</dt><dd>Name not given yet</dd>', false)
-            ->assertSee('Not given yet. The client types it when signing on the Fast Track page.');
+        $this->assertSame(DocumentMovement::ACTION_RELEASED, $release->action);
+        $this->assertNull($release->released_to);
+        $this->assertNull($release->recipient_signature);
+    }
+
+    public function test_release_forms_ask_for_the_counter_signature(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+
+        foreach ([route('platform.documents.view', $document), route('platform.documents.workspace', $document)] as $url) {
+            $this->actingAs($records)->get($url)
+                ->assertOk()
+                ->assertSee('<dts-signature-pad', false)
+                ->assertSee('name="workflow[recipient_signature]"', false)
+                ->assertSee("Recipient's signature", false)
+                ->assertDontSee('sign on the Fast Track page')
+                ->assertDontSee('signing on the Fast Track page');
+        }
     }
 
     public function test_release_stores_a_valid_recipient_signature_encrypted(): void
     {
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
-        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=';
+        $signature = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAAAYCAYAAABKtPtEAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQUlEQVRYhe3QsRGAMAwDQCcbpGMD9h8nG9AxQuhyTIC583+nTlIEAACU1N5hHOfKKvKl+5p7d88s8gflDwAAoKoH38oEBtR+TtAAAAAASUVORK5CYII=';
 
         $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
@@ -1132,6 +1147,40 @@ class DocumentMovementTest extends TestCase
         $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
     }
 
+    public function test_release_rejects_a_one_pixel_or_blank_signature(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $blank = imagecreatetruecolor(64, 24);
+        imagesavealpha($blank, true);
+        imagefill($blank, 0, 0, imagecolorallocatealpha($blank, 0, 0, 0, 127));
+        ob_start();
+        imagepng($blank);
+        $blankSignature = 'data:image/png;base64,'.base64_encode(ob_get_clean());
+
+        foreach ([
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=',
+            $blankSignature,
+        ] as $signature) {
+            $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
+            $url = route('platform.documents.movements.store', $document);
+            $this->actingAs($records)->postJson($url, [
+                'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+            ])->assertOk();
+
+            $this->postJson($url, [
+                'workflow' => [
+                    'action' => 'released',
+                    'source_office' => 'SDO-Records Unit',
+                    'released_to' => 'Juan Dela Cruz',
+                    'recipient_signature' => $signature,
+                ],
+            ])->assertUnprocessable()->assertJsonValidationErrors('workflow.recipient_signature');
+
+            $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+            $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_RELEASED)->count());
+        }
+    }
+
     public function test_records_cannot_release_while_another_office_route_is_active(): void
     {
         $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
@@ -1149,14 +1198,14 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
 
         $this->actingAs($otherStaff)->postJson($url, [
             'workflow' => ['action' => 'completed', 'source_office' => 'Curriculum Implementation Division'],
         ])->assertOk();
         $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -1190,13 +1239,13 @@ class DocumentMovementTest extends TestCase
             'status' => DocumentMovement::STATUS_FORWARDED,
         ]);
         $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
         $this->postJson($url, [
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
         ])->assertOk();
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -1232,7 +1281,7 @@ class DocumentMovementTest extends TestCase
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
         ])->assertOk();
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz'],
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
         ])->assertOk();
 
         $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
@@ -1661,6 +1710,7 @@ class DocumentMovementTest extends TestCase
                 'workflow' => [
                     'action' => 'released',
                     'released_to' => 'Juan Dela Cruz',
+                    'recipient_signature' => self::SIGNATURE,
                     'remarks' => 'Attempted invalid transition.',
                 ],
             ])

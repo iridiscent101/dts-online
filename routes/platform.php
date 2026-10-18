@@ -13,6 +13,7 @@ use App\Http\Controllers\DocumentNotificationController;
 use App\Http\Controllers\DocumentRemarkController;
 use App\Http\Controllers\DocumentRouteCorrectionController;
 use App\Http\Controllers\DocumentWorkspaceController;
+use App\Http\Controllers\KioskSigningRequestController;
 use App\Http\Middleware\LogoutInactiveStaff;
 use App\Orchid\Screens\DocumentEditScreen;
 use App\Orchid\Screens\DocumentRegistrationScreen;
@@ -110,6 +111,13 @@ Route::middleware('throttle:staff-requests')->group(function (): void {
         ->name('platform.documents.destroy');
     Route::post('notifications/actions/read-all', [DocumentNotificationController::class, 'markAllRead'])
         ->name('platform.notifications.read-all');
+    // Release signing on the kiosk laptop outside the Records Unit (KioskController is the kiosk's side).
+    Route::post('documents/{document}/kiosk-signing', [KioskSigningRequestController::class, 'store'])
+        ->name('platform.kiosk-signing.store');
+    Route::get('kiosk-signing/{signing}', [KioskSigningRequestController::class, 'show'])
+        ->name('platform.kiosk-signing.show');
+    Route::post('kiosk-signing/{signing}/cancel', [KioskSigningRequestController::class, 'cancel'])
+        ->name('platform.kiosk-signing.cancel');
 });
 Route::screen('documents/{document}', DocumentViewScreen::class)
     ->name('platform.documents.view');

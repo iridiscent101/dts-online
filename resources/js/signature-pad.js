@@ -1,4 +1,5 @@
-// Fast Track page: the person who received a released document signs for it on a canvas (mouse, finger or stylus).
+// Release signing on a canvas (mouse, finger or stylus): on the staff document page and workspace, and on the kiosk
+// laptop outside the Records Unit (kiosk.blade.php).
 // Strokes are kept in CSS pixels so a resize redraws them; the hidden field holds a PNG data URL of the signature, or
 // nothing until a real stroke exists.
 class SignaturePad extends HTMLElement {
@@ -38,6 +39,10 @@ class SignaturePad extends HTMLElement {
     start(event) {
         if (event.button > 0) return;
         event.preventDefault();
+        if (this.received) {
+            this.received = null;
+            this.querySelector('.dts-signature-received')?.remove();
+        }
         this.canvas.setPointerCapture(event.pointerId);
         this.stroke = [this.point(event)];
         this.strokes.push(this.stroke);
@@ -59,7 +64,26 @@ class SignaturePad extends HTMLElement {
 
     clear() {
         this.strokes = [];
+        this.received = null;
+        this.querySelector('.dts-signature-received')?.remove();
         this.redraw();
+        this.syncValue();
+    }
+
+    // A signature drawn somewhere else (the kiosk outside the Records Unit): shown as an image and sent as is. Drawing
+    // on the pad, or Clear, replaces it.
+    loadSignature(dataUrl) {
+        this.strokes = [];
+        this.redraw();
+        this.received = dataUrl;
+        let image = this.querySelector('.dts-signature-received');
+        if (!image) {
+            image = document.createElement('img');
+            image.className = 'dts-signature-received';
+            image.alt = 'Signature received from the kiosk';
+            this.querySelector('.dts-signature-box').append(image);
+        }
+        image.src = dataUrl;
         this.syncValue();
     }
 
@@ -95,6 +119,7 @@ class SignaturePad extends HTMLElement {
     }
 
     hasSignature() {
+        if (this.received) return true;
         // A tap is not a signature: at least one stroke has to actually move.
         return this.strokes.some((stroke) => stroke.length > 1
             && stroke.some((point) => Math.hypot(point.x - stroke[0].x, point.y - stroke[0].y) > 4));
@@ -129,9 +154,9 @@ class SignaturePad extends HTMLElement {
 
     syncValue(notify = true) {
         const signed = this.hasSignature();
-        this.input.value = signed ? this.exportPng() : '';
+        this.input.value = signed ? (this.received ?? this.exportPng()) : '';
         this.input.setCustomValidity(signed || !this.input.required ? '' : (this.dataset.requiredMessage || 'Sign inside the box first.'));
-        if (this.clearButton) this.clearButton.disabled = !this.strokes.length;
+        if (this.clearButton) this.clearButton.disabled = !this.strokes.length && !this.received;
         this.classList.toggle('is-signed', signed);
         if (signed) this.resetHint();
         if (notify) this.input.dispatchEvent(new Event('input', { bubbles: true }));

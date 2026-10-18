@@ -131,6 +131,10 @@ class PlatformScreen extends Screen
 
         $documents = Document::query()
             ->with('officeAssignments')
+            ->when($section === 'outgoing', fn (Builder $query): Builder => $query->with([
+                'officeAssignments.movement',
+                'forwardMovements:id,document_id,from_office',
+            ]))
             ->visibleTo($user)
             ->when($needsAction, function (Builder $query) use ($user): Builder {
                 if ($user->isReadOnlySupervisor()) {
@@ -328,7 +332,10 @@ class PlatformScreen extends Screen
 
         $assignments = (clone $officeQueueQuery)
             ->whereIn('document_office_assignments.document_id', $documentIds)
-            ->with('document')
+            ->with([
+                'document.officeAssignments.movement',
+                'document.forwardMovements:id,document_id,from_office',
+            ])
             ->orderBy('document_office_assignments.id')
             ->get()
             ->groupBy('document_id');

@@ -1086,7 +1086,7 @@ class DepEdDashboardTest extends TestCase
             ->assertOk()
             ->assertSee('<turbo-frame id="admin-roles-table"', false)
             ->assertSee('Rows per page')
-            ->assertSee('Displayed records: 1-12 of 12');
+            ->assertSee('Displayed records: 1-13 of 13'); // includes the Kiosk role from the 2026_10_18 migration
     }
 
     public function test_document_queue_pages_only_show_their_status(): void
