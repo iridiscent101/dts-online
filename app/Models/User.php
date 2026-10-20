@@ -2,9 +2,14 @@
 
 namespace App\Models;
 
+use App\Notifications\DocumentAssignedMailNotification;
+use App\Notifications\VerifyNotificationEmail;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Illuminate\Support\Str;
 use Orchid\Filters\Types\Like;
 use Orchid\Filters\Types\Where;
 use Orchid\Filters\Types\WhereDateStartEnd;
@@ -32,6 +37,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'notification_email',
         'password',
     ];
 
@@ -54,6 +60,7 @@ class User extends Authenticatable
     protected $casts = [
         'permissions' => 'array',
         'email_verified_at' => 'datetime',
+        'notification_email_verified_at' => 'datetime',
     ];
 
     /**
@@ -85,6 +92,39 @@ class User extends Authenticatable
     public function isAdministrator(): bool
     {
         return $this->inRole(self::ADMIN_ROLE_SLUG);
+    }
+
+    public function routeNotificationForMail(Notification $notification): ?string
+    {
+        return $notification instanceof DocumentAssignedMailNotification
+            ? $this->notification_email
+            : $this->email;
+    }
+
+    public function setNotificationEmail(?string $address): bool
+    {
+        $address = filled($address) ? Str::lower(trim($address)) : null;
+
+        if ($this->notification_email !== $address) {
+            $this->notification_email = $address;
+            $this->notification_email_verified_at = null;
+        }
+
+        return $address !== null && $this->notification_email_verified_at === null;
+    }
+
+    public function sendNotificationEmailVerification(): void
+    {
+        $email = $this->notification_email;
+        $verification = new VerifyNotificationEmail($this->getKey(), hash('sha256', $email));
+
+        if (config('queue.default') === 'sync') {
+            DB::afterCommit(fn () => rescue(fn () => NotificationFacade::route('mail', $email)->notify($verification)));
+
+            return;
+        }
+
+        NotificationFacade::route('mail', $email)->notify($verification);
     }
 
     public function canManageRole(Role $role): bool

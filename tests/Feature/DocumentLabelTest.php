@@ -213,6 +213,32 @@ class DocumentLabelTest extends TestCase
             ->assertDontSee("Recipient's signature", false);
     }
 
+    public function test_labels_print_on_a_label_printer_or_as_an_a4_sheet_with_copies(): void
+    {
+        $document = Document::factory()->received()->create(['tracking_number' => 'SDONV12345678913']);
+        $url = route('tracking.label', $document->tracking_number);
+
+        // Default: one 60 x 30 mm label per page.
+        $default = $this->get($url)->assertOk()->assertSee('@page { size: 60mm 30mm; margin: 0; }', false);
+        $this->assertSame(1, substr_count($default->getContent(), 'class="dts-tracking-label"'));
+
+        // A4: 4 x 10 smaller labels per sheet; copies repeat the label, at most one full sheet.
+        $sheet = $this->get($url.'?paper=a4&copies=40')->assertOk()
+            ->assertSee('@page { size: A4; margin: 0; }', false)
+            ->assertSee('padding: 0.2in;', false)
+            ->assertSee('<body class="is-a4">', false)
+            ->assertSee('grid-template-columns: repeat(4, 49.5mm)', false);
+        $this->assertSame(40, substr_count($sheet->getContent(), 'class="dts-tracking-label"'));
+        $this->assertSame(40, substr_count($this->get($url.'?paper=a4&copies=99')->getContent(), 'class="dts-tracking-label"'));
+        // A part-used sheet: start at space 11 leaves the first 10 spaces blank; the label printer ignores it.
+        $reused = $this->get($url.'?paper=a4&copies=2&start=11')->getContent();
+        $this->assertSame(10, substr_count($reused, 'class="label-slot-used"'));
+        $this->assertSame(2, substr_count($reused, 'class="dts-tracking-label"'));
+        $this->assertSame(0, substr_count($this->get($url.'?start=11')->getContent(), 'class="label-slot-used"'));
+        // The label printer stays at one sheet's worth of copies of the 60 x 30 mm label.
+        $this->assertSame(27, substr_count($this->get($url.'?copies=99')->getContent(), 'class="dts-tracking-label"'));
+    }
+
     public function test_fast_track_result_links_to_a_public_label_without_the_signature(): void
     {
         $staff = User::factory()->create(['name' => 'Rosa Reyes', 'office' => 'Records Unit']);

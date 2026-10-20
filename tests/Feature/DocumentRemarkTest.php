@@ -14,7 +14,7 @@ class DocumentRemarkTest extends TestCase
 
     public function test_received_office_can_add_an_append_only_remark_without_changing_its_route(): void
     {
-        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $staff = User::factory()->create(['name' => 'Rosa Reyes', 'office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
 
         $this->actingAs($staff)
@@ -32,8 +32,11 @@ class DocumentRemarkTest extends TestCase
         $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
         $this->assertDatabaseCount('document_movements', 0);
 
+        // Each remark names who wrote it first: "Name: remark".
         $this->get(route('platform.documents.workspace', $document))
-            ->assertSee('Please review the revised figures.');
+            ->assertSee('<p><strong>'.$staff->name.':</strong> Please review the revised figures.</p>', false);
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertSee($staff->name.':</strong> Please review the revised figures.', false);
     }
 
     public function test_administrator_can_add_a_remark_for_any_received_office(): void

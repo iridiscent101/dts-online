@@ -7,6 +7,7 @@ namespace App\Orchid\Layouts\User;
 use App\Models\User;
 use Orchid\Screen\Field;
 use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Fields\ViewField;
 use Orchid\Screen\Layouts\Rows;
 
 class UserEditLayout extends Rows
@@ -39,6 +40,12 @@ class UserEditLayout extends Rows
                 ->placeholder(__('Email'))
                 ->autocomplete('off')
                 ->when($isCreating, fn (Input $field): Input => $field->value('')),
+
+            ViewField::make('user.notification_email')
+                ->view('orchid.partials.email-alerts')
+                ->set('savedAddress', $isCreating ? null : $user?->notification_email)
+                ->set('confirmed', ! $isCreating && $user?->notification_email_verified_at !== null)
+                ->when($isCreating, fn (ViewField $field): ViewField => $field->value('')),
         ];
     }
 }

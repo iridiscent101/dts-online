@@ -109,11 +109,18 @@ class UserProfileScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($request->user()),
             ],
+            'user.notification_email' => ['nullable', 'email', 'max:255'],
         ]);
 
-        $request->user()
-            ->fill($request->collect('user')->only(['name', 'email'])->toArray())
-            ->save();
+        $user = $request->user();
+        $sendVerification = $request->has('user.notification_email')
+            && $user->setNotificationEmail($request->input('user.notification_email'));
+
+        $user->fill($request->collect('user')->only(['name', 'email'])->toArray())->save();
+
+        if ($sendVerification) {
+            $user->sendNotificationEmailVerification();
+        }
 
         Toast::success(__('Profile updated.'));
     }

@@ -84,7 +84,8 @@
                 @endif
             </dl>
             @if (filled($eventRemark))
-                <div class="dts-workspace-history-remarks"><strong>{{ $eventRemarkLabel }}</strong><p>{{ $eventRemark }}</p></div>
+                {{-- An added remark reads "Name: remark"; other steps keep a heading (Remarks, Reason, Instructions). --}}
+                <div class="dts-workspace-history-remarks">@if ($eventKind === 'remark')<p><strong>{{ $eventBy ?? 'Staff' }}:</strong> {{ $eventRemark }}</p>@else<strong>{{ $eventRemarkLabel }}</strong><p>{{ $eventRemark }}</p>@endif</div>
             @endif
             @if (! $isMovement && $event->description === 'Document details updated')
                 @include('orchid.partials.document-change-details', ['activity' => $event])

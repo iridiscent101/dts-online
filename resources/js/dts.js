@@ -3211,3 +3211,33 @@ document.addEventListener('click', async (event) => {
         setKioskStatus(block, error.message || 'Could not reach the kiosk. Try again, or let the recipient sign here.', { tone: 'error' });
     }
 });
+
+// User/profile form: "Receive email notifications". Off submits an empty address (clears it); the typed address is
+// kept in memory so switching back on restores it before saving.
+document.addEventListener('change', (event) => {
+    const toggle = event.target.closest('[data-email-alerts-toggle]');
+    if (!toggle) return;
+    const block = toggle.closest('[data-email-alerts]');
+    const field = block?.querySelector('[data-email-alerts-field]');
+    const input = field?.querySelector('input[type="email"]');
+    if (!input) return;
+
+    if (toggle.checked) {
+        if (!input.value && block.dataset.savedAddress) input.value = block.dataset.savedAddress;
+        input.required = true;
+        toggleRevealed(field, true);
+        input.focus();
+    } else {
+        block.dataset.savedAddress = input.value;
+        input.value = '';
+        input.required = false;
+        toggleRevealed(field, false);
+    }
+});
+
+// The confirmation status describes the saved address, so hide it while a different one is typed.
+document.addEventListener('input', (event) => {
+    const input = event.target.closest('[data-email-alerts-field] input[type="email"]');
+    const status = input?.closest('[data-email-alerts]')?.querySelector('[data-email-alerts-status]');
+    if (status) status.hidden = input.value.trim() !== status.dataset.savedAddress;
+});

@@ -3,6 +3,9 @@
     "regions": [
         "bom1"
     ],
+    "env": {
+        "QUEUE_CONNECTION": "sync"
+    },
     "functions": {
         "api/index.php": {
             "runtime": "vercel-php@0.8.0"

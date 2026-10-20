@@ -295,6 +295,17 @@ class KioskSigningTest extends TestCase
         $this->getJson(route('kiosk.current'))->assertOk()->assertJsonPath('request', null);
     }
 
+    public function test_an_administrator_can_open_the_kiosk_and_still_use_the_staff_pages(): void
+    {
+        $admin = User::factory()->create();
+        $admin->replaceRoles([Role::query()->firstOrCreate(['slug' => User::ADMIN_ROLE_SLUG], ['name' => 'Admin', 'permissions' => []])->id]);
+
+        $this->actingAs($admin->fresh())->get(route('kiosk'))->assertOk()->assertSee('Please wait');
+        $this->getJson(route('kiosk.current'))->assertOk();
+        // Not sent to /kiosk like the kiosk account: the dashboard still opens.
+        $this->get(route('platform.main'))->assertOk();
+    }
+
     public function test_release_form_offers_send_to_kiosk(): void
     {
         [$records, $document] = $this->releasableDocument();

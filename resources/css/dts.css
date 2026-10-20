@@ -7984,3 +7984,29 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 .dts-kiosk-status .dts-workspace-spinner[hidden] {
     display: none;
 }
+
+/* Email alerts switch on the user/profile form: status of the saved alert address. */
+.dts-email-alerts-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0.5rem 0 0.25rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.dts-email-alerts-status[hidden] {
+    display: none;
+}
+
+.dts-email-alerts-status.is-pending {
+    background: var(--dts-warning-soft, #fff4d9);
+    color: var(--dts-warning-text, #866314);
+}
+
+.dts-email-alerts-status.is-active {
+    background: var(--dts-green-soft);
+    color: var(--dts-green-dark);
+}

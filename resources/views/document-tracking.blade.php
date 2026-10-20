@@ -375,7 +375,8 @@
                                                             <strong class="text-base font-semibold text-slate-900">{{ $isSigning ? ($remark['by'] ?: 'The recipient').' signed for the document/s' : ($remark['office'] ?: 'The office').' added a remark' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
                                                         </div>
                                                         @unless ($isSigning)
-                                                            <p class="mt-2 whitespace-pre-line rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $remark['remark'] }}</p>
+                                                            {{-- Who wrote it comes first, as "Name: remark". --}}
+                                                            <p class="mt-2 whitespace-pre-line rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><strong class="font-semibold text-[#216E39]">{{ $remark['by'] ?: ($remark['office'] ?: 'Staff') }}:</strong> {{ $remark['remark'] }}</p>
                                                         @endunless
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $remark['at']->toIso8601String() }}">{{ $remark['at']->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $remark['at']->timezone('Asia/Manila')->format('g:i A') }}</time></dd>

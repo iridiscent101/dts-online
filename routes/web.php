@@ -3,6 +3,7 @@
 use App\Http\Controllers\ClientDocumentSubmissionController;
 use App\Http\Controllers\DocumentReceiptController;
 use App\Http\Controllers\KioskController;
+use App\Http\Controllers\NotificationEmailVerificationController;
 use App\Http\Controllers\PublicDocumentLabelController;
 use App\Http\Controllers\PublicDocumentTrackingController;
 use Illuminate\Support\Facades\Route;
@@ -10,6 +11,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', PublicDocumentTrackingController::class)
     ->middleware('throttle:30,1')
     ->name('tracking.index');
+
+Route::get('/notification-email/verify/{user}/{hash}', NotificationEmailVerificationController::class)
+    ->middleware(['signed:relative', 'throttle:6,1'])
+    ->name('notification-email.verify');
 
 // Printable receipt with the tracking number and QR code (Fast Track "Print receipt").
 Route::get('/receipt/{tracking}', DocumentReceiptController::class)

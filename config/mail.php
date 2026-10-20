@@ -16,6 +16,8 @@ return [
 
     'default' => env('MAIL_MAILER', 'log'),
 
+    'document_assignment_notifications_enabled' => (bool) env('DOCUMENT_ASSIGNMENT_EMAIL_ENABLED', false),
+
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations

@@ -130,6 +130,7 @@ class UserEditScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
+            'user.notification_email' => ['nullable', 'email', 'max:255'],
             'user.password' => [Rule::requiredIf(! $user->exists), 'nullable', 'string'],
             'user.office_ids' => ['nullable', 'array'],
             'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
@@ -156,14 +157,21 @@ class UserEditScreen extends Screen
         }
 
         DB::transaction(function () use ($request, $user): void {
+            $sendVerification = $request->has('user.notification_email')
+                && $user->setNotificationEmail($request->input('user.notification_email'));
+
             $user->when($request->filled('user.password'), function (Builder $builder) use ($request) {
                 $builder->getModel()->password = Hash::make($request->input('user.password'));
             });
 
             $user
-                ->fill($request->collect('user')->except(['office', 'office_ids', 'offices_submitted', 'password', 'permissions', 'roles'])->toArray())
+                ->fill($request->collect('user')->except(['office', 'office_ids', 'offices_submitted', 'password', 'permissions', 'roles', 'notification_email'])->toArray())
                 ->forceFill(['permissions' => []])
                 ->save();
+
+            if ($sendVerification) {
+                $user->sendNotificationEmailVerification();
+            }
 
             if ($request->user()->isAdministrator() && $request->boolean('user.offices_submitted')) {
                 $officeIds = $this->officeIdsFromRequest($request);

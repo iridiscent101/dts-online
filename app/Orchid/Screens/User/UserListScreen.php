@@ -114,6 +114,7 @@ class UserListScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
+            'user.notification_email' => ['nullable', 'email', 'max:255'],
             'user.office_ids' => ['nullable', 'array'],
             'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
         ]);
@@ -125,9 +126,16 @@ class UserListScreen extends Screen
         }
 
         DB::transaction(function () use ($request, $user): void {
+            $sendVerification = $request->has('user.notification_email')
+                && $user->setNotificationEmail($request->input('user.notification_email'));
+
             $user
                 ->fill($request->collect('user')->only(['name', 'email'])->toArray())
                 ->save();
+
+            if ($sendVerification) {
+                $user->sendNotificationEmailVerification();
+            }
 
             if ($request->user()->isAdministrator() && $request->boolean('user.offices_submitted')) {
                 $officeIds = $this->officeIdsFromRequest($request);
