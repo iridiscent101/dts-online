@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Auth\AccountActivity;
 use App\Models\User;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Orchid\Access\Impersonation;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
@@ -74,6 +77,24 @@ class UserProfileScreen extends Screen
      */
     public function layout(): iterable
     {
+        $passwordBlock = Layout::block(ProfilePasswordLayout::class)
+            ->title(__('Update Password'))
+            ->description(__('Ensure your account is using a long, random password to stay secure.'))
+            ->commands(
+                Button::make(__('Update password'))
+                    ->class('btn dts-button dts-button-primary')
+                    ->icon('bs.check-circle')
+                    ->method('changePassword')
+            );
+
+        // Sent here by RequirePasswordChange: the notice and the password form come first, nothing else is shown.
+        if (request()->user()?->must_change_password) {
+            return [
+                Layout::view('orchid.password-change-required'),
+                $passwordBlock,
+            ];
+        }
+
         return [
             Layout::block(UserEditLayout::class)
                 ->title(__('Profile Information'))
@@ -89,15 +110,7 @@ class UserProfileScreen extends Screen
                 ->title(__('Account access'))
                 ->description(__('Your offices and roles decide which documents you see and what you can do. An administrator sets them.')),
 
-            Layout::block(ProfilePasswordLayout::class)
-                ->title(__('Update Password'))
-                ->description(__('Ensure your account is using a long, random password to stay secure.'))
-                ->commands(
-                    Button::make(__('Update password'))
-                        ->class('btn dts-button dts-button-primary')
-                        ->icon('bs.check-circle')
-                        ->method('changePassword')
-                ),
+            $passwordBlock,
         ];
     }
 
@@ -125,18 +138,26 @@ class UserProfileScreen extends Screen
         Toast::success(__('Profile updated.'));
     }
 
-    public function changePassword(Request $request): void
+    public function changePassword(Request $request): ?RedirectResponse
     {
         $guard = config('platform.guard', 'web');
         $request->validate([
             'old_password' => 'required|current_password:'.$guard,
-            'password' => 'required|confirmed|different:old_password',
+            'password' => ['required', 'confirmed', 'different:old_password', Password::defaults()],
         ]);
 
-        tap($request->user(), function ($user) use ($request) {
-            $user->password = Hash::make($request->get('password'));
-        })->save();
+        // Sessions on other computers end on their next request: 'auth.session' compares the stored password hash.
+        $user = $request->user();
+        $wasRequired = $user->must_change_password;
+        $user->forceFill([
+            'password' => Hash::make($request->get('password')),
+            'must_change_password' => false,
+        ])->save();
+        AccountActivity::record(AccountActivity::PASSWORD_CHANGED, $user, $user);
 
         Toast::success(__('Password changed.'));
+
+        // Someone who had to change it goes on to the dashboard they were kept from.
+        return $wasRequired ? redirect()->route(config('platform.index')) : null;
     }
 }

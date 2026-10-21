@@ -46,6 +46,11 @@ class UserListLayout extends Table
             TD::make('office', __('Office'))
                 ->render(fn (User $user): string => e($user->assignedOfficeNames()->join(', ') ?: __('Not assigned'))),
 
+            TD::make('deactivated_at', __('Status'))
+                ->render(fn (User $user): string => $user->isDeactivated()
+                    ? '<strong>'.e(__('Deactivated')).'</strong>'
+                    : e(__('Active'))),
+
             TD::make('created_at', __('Date created'))
                 ->usingComponent(DateTimeSplit::class)
                 ->align(TD::ALIGN_RIGHT)
@@ -66,13 +71,24 @@ class UserListLayout extends Table
                         ->route('platform.systems.users.edit', $user->id)
                         ->rawClick(false)
                         ->icon('bs.pencil'),
-                    'deleteAction' => Button::make(__('Delete'))
-                        ->class('btn dts-row-action dts-row-action-delete')
-                        ->icon('bs.trash3')
-                        ->confirm(__('Once the account is deleted, all of its resources and data will be permanently deleted.'))
-                        ->method('remove', [
-                            'id' => $user->id,
-                        ]),
+                    // Accounts are deactivated, not deleted, so their names stay on the documents they handled.
+                    'deleteAction' => $user->id === auth()->id() || $user->isAdministrator()
+                        ? null
+                        : ($user->isDeactivated()
+                            ? Button::make(__('Reactivate'))
+                                ->class('btn dts-row-action dts-row-action-edit')
+                                ->icon('bs.person-check')
+                                ->confirm(__('Reactivate :name? They can sign in again with their current password.', ['name' => $user->name]))
+                                ->set('data-confirm-title', __('Reactivate account'))
+                                ->set('data-confirm-label', __('Reactivate'))
+                                ->method('reactivate', ['id' => $user->id])
+                            : Button::make(__('Deactivate'))
+                                ->class('btn dts-row-action dts-row-action-delete')
+                                ->icon('bs.person-slash')
+                                ->confirm(__('Deactivate :name? They are signed out now and cannot sign in until reactivated. Their document history stays.', ['name' => $user->name]))
+                                ->set('data-confirm-title', __('Deactivate account'))
+                                ->set('data-confirm-label', __('Deactivate'))
+                                ->method('deactivate', ['id' => $user->id])),
                 ])),
         ];
     }

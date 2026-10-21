@@ -24,15 +24,17 @@ class DocumentMovementController extends Controller
         $user = $request->user();
 
         $transition = DB::transaction(function () use ($routing, $document, $user, $workflow, $notifications): array {
-            $wasAwaitingPaper = $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT;
             $transition = $routing->route($document, $user, $workflow);
 
             $document->refresh();
             KioskSigningRequest::query()
                 ->where('document_id', $document->id)
-                ->where('status', KioskSigningRequest::STATUS_PENDING)
+                ->whereIn('status', $transition['action'] === DocumentMovement::ACTION_RELEASED
+                    ? [KioskSigningRequest::STATUS_PENDING]
+                    : [KioskSigningRequest::STATUS_PENDING, KioskSigningRequest::STATUS_SIGNED])
                 ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
-            if ($wasAwaitingPaper && $transition['action'] === DocumentMovement::ACTION_RECEIVED) {
+            if ($transition['from_status'] === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
+                && $transition['action'] === DocumentMovement::ACTION_RECEIVED) {
                 $document->update([
                     'received_at' => today('Asia/Manila')->toDateString(),
                     'registered_by' => $user->getAuthIdentifier(),

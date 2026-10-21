@@ -378,7 +378,7 @@
                                                             {{-- Who wrote it comes first, as "Name: remark". --}}
                                                             <p class="mt-2 whitespace-pre-line rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><strong class="font-semibold text-[#216E39]">{{ $remark['by'] ?: ($remark['office'] ?: 'Staff') }}:</strong> {{ $remark['remark'] }}</p>
                                                         @endunless
-                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $remark['at']->toIso8601String() }}">{{ $remark['at']->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $remark['at']->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                             @if ($isSigning)
                                                                 <dt class="font-medium text-slate-500">Status</dt><dd class="text-slate-800">Signature received</dd>
@@ -397,7 +397,7 @@
                                                             <strong class="text-base font-semibold text-slate-900">{{ $document->client_submission_key ? 'Document submitted' : 'Document registered' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
                                                         </div>
                                                         <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting document/s at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
-                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                         </dl>
                                                         @php($clientInstructions = $document->clientInstructions())
@@ -418,7 +418,7 @@
                                                             <strong class="text-base font-semibold text-slate-900">{{ $movement->publicSummary() }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
                                                         </div>
                                                         {{-- Originating office, destination office, status, remarks, date and time, and who processed it. --}}
-                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[9rem_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                                                        <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
                                                             {{-- A step an office takes on its own copy (received, completed…) is already named in the title. --}}
                                                             @if (filled($movement->from_office) && $movement->from_office !== $movement->to_office)
                                                                 <dt class="font-medium text-slate-500">From</dt><dd class="text-slate-800">{{ $movement->from_office }}</dd>

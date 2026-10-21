@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\User;
+use App\Services\DocumentRoutingService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -57,6 +58,68 @@ class DocumentIntakeTest extends TestCase
             ->assertOk();
 
         $this->assertSame('2026-10-14', $document->fresh()->received_at->toDateString());
+    }
+
+    public function test_receiving_a_new_office_arrival_does_not_replace_the_records_clerk_on_a_stale_request(): void
+    {
+        $recordsClerk = User::factory()->create(['office' => 'SDO-Records Unit']);
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $administrator = User::factory()->create(['office' => null, 'permissions' => ['platform.index' => true]]);
+        $administrator->replaceRoles([$adminRole->id]);
+        $document = Document::factory()->create([
+            'current_office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+            'received_at' => null,
+            'registered_by' => null,
+        ]);
+
+        $routing = $this->mock(DocumentRoutingService::class)->makePartial();
+        $routing->shouldReceive('route')->once()->andReturnUsing(function (Document $staleDocument, User $actor, array $workflow) use ($recordsClerk): array {
+            $staleDocument->movements()->create([
+                'action' => DocumentMovement::ACTION_RECEIVED,
+                'from_office' => 'SDO-Records Unit',
+                'to_office' => 'SDO-Records Unit',
+                'from_status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+                'to_status' => DocumentMovement::STATUS_RECEIVED,
+                'acted_by' => $recordsClerk->id,
+            ]);
+            $forward = $staleDocument->movements()->create([
+                'action' => DocumentMovement::ACTION_FORWARDED,
+                'from_office' => 'SDO-Records Unit',
+                'to_office' => 'SDO-Budget Unit',
+                'from_status' => DocumentMovement::STATUS_RECEIVED,
+                'to_status' => DocumentMovement::STATUS_FORWARDED,
+                'acted_by' => $recordsClerk->id,
+            ]);
+            $staleDocument->officeAssignments()->where('office', 'SDO-Records Unit')->delete();
+            $staleDocument->officeAssignments()->create([
+                'office' => 'SDO-Budget Unit',
+                'status' => DocumentMovement::STATUS_FORWARDED,
+                'movement_id' => $forward->id,
+            ]);
+            Document::query()->whereKey($staleDocument->id)->update([
+                'current_office' => 'SDO-Budget Unit',
+                'status' => DocumentMovement::STATUS_FORWARDED,
+                'received_at' => today('Asia/Manila')->toDateString(),
+                'registered_by' => $recordsClerk->id,
+                'registered_office' => 'SDO-Records Unit',
+            ]);
+
+            return (new DocumentRoutingService)->route($staleDocument, $actor, $workflow);
+        });
+
+        $this->actingAs($administrator)
+            ->postJson(route('platform.documents.movements.store', $document), [
+                'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+            ])
+            ->assertOk()
+            ->assertJsonPath('message', "{$document->tracking_number} was received.");
+
+        $this->assertSame($recordsClerk->id, $document->fresh()->registered_by);
+        $this->assertSame(1, $document->movements()
+            ->where('action', DocumentMovement::ACTION_RECEIVED)
+            ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
+            ->count());
     }
 
     public function test_lookup_reports_a_received_paper_copy(): void

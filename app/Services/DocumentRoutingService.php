@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\DocumentOfficeAssignment;
+use App\Models\KioskSigningRequest;
 use App\Models\User;
 use App\Support\StatusLabel;
 use Illuminate\Support\Collection;
@@ -110,7 +111,7 @@ class DocumentRoutingService
                     'source_office' => 'This office has finished its route. Restore it before sending to another office.',
                 ]);
             }
-            if (in_array($sourceStatus, [DocumentMovement::STATUS_AWAITING_RECEIPT, DocumentMovement::STATUS_FORWARDED], true)) {
+            if (DocumentMovement::requiresAcknowledgement((string) $sourceStatus)) {
                 throw ValidationException::withMessages([
                     'source_office' => 'Receive the document in this office before sending it to another office.',
                 ]);
@@ -153,6 +154,10 @@ class DocumentRoutingService
                 'assigned_by' => $user->id,
                 'movement_id' => $movement->id,
             ]);
+            KioskSigningRequest::query()
+                ->where('document_id', $currentDocument->id)
+                ->whereIn('status', [KioskSigningRequest::STATUS_PENDING, KioskSigningRequest::STATUS_SIGNED])
+                ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
             $currentDocument->recordActivity('Document route added', $user, [
                 'office' => $sourceOffice,
                 'from_office' => $sourceOffice,
@@ -164,7 +169,7 @@ class DocumentRoutingService
 
     /**
      * @param  array{action: string, source_office?: string|null, destination?: string|null, destinations?: list<string>, remarks?: string|null, released_to?: string|null, recipient_signature?: string|null, destination_remarks?: list<string|null>}  $workflow
-     * @return array{action: string, office: string, offices: list<string>}
+     * @return array{action: string, office: string, offices: list<string>, from_status: string}
      */
     public function route(Document $document, User $user, array $workflow): array
     {
@@ -281,6 +286,7 @@ class DocumentRoutingService
                 'action' => $action,
                 'office' => $primaryOffice,
                 'offices' => $targetOffices,
+                'from_status' => $workflowState['status'],
             ], fn (mixed $value): bool => $value !== null);
         });
     }

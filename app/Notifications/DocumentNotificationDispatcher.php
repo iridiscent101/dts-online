@@ -57,6 +57,7 @@ class DocumentNotificationDispatcher
                 $query->whereHas('offices', fn (Builder $offices): Builder => $offices->whereIn('name', $officeNames))
                     ->orWhereHas('roles', fn (Builder $roles): Builder => $roles->where('slug', User::ADMIN_ROLE_SLUG));
             })
+            ->active()
             ->whereNotNull('notification_email')
             ->where('notification_email', '!=', '')
             ->whereNotNull('notification_email_verified_at')
@@ -95,6 +96,7 @@ class DocumentNotificationDispatcher
                 $query->whereHas('offices', fn (Builder $offices): Builder => $offices->whereIn('name', $officeNames))
                     ->orWhereHas('roles', fn (Builder $roles): Builder => $roles->where('slug', User::ADMIN_ROLE_SLUG));
             })
+            ->active()
             ->get();
     }
 }

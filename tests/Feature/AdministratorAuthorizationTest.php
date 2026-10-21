@@ -296,7 +296,7 @@ class AdministratorAuthorizationTest extends TestCase
     {
         $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
         $office = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
-        $userDetails = ['name' => 'New clerk', 'email' => 'new-clerk@example.test', 'password' => 'secure-password', 'roles' => []];
+        $userDetails = ['name' => 'New clerk', 'email' => 'new-clerk@example.test', 'password' => 'Secure-Password-1!', 'roles' => []];
 
         $this->actingAs($manager)
             ->post(route('platform.systems.users.create').'/save', [

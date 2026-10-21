@@ -2,12 +2,18 @@
 
 namespace App\Providers;
 
+use App\Auth\AccountActivity;
+use App\Http\Middleware\EnsureAccountIsActive;
+use App\Models\User;
 use App\View\Components\OrchidIcon;
+use Illuminate\Auth\Events\Validated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 use Orchid\Icons\IconComponent;
 
 class AppServiceProvider extends ServiceProvider
@@ -34,5 +40,16 @@ class AppServiceProvider extends ServiceProvider
         // it only stops a runaway script or tab. Page loads are left out because Turbo prefetches links on hover.
         RateLimiter::for('staff-requests', fn (Request $request): Limit => Limit::perMinute(120)
             ->by((string) ($request->user()?->getAuthIdentifier() ?? $request->ip())));
+
+        Event::subscribe(AccountActivity::class);
+        Event::listen(Validated::class, [EnsureAccountIsActive::class, 'refuseSignIn']);
+
+        // Every new or changed staff password: at least 13 characters with a capital letter, a small letter, a number
+        // and a symbol. Passwords set before this rule keep working until they are next changed.
+        Password::defaults(fn (): Password => Password::min(User::PASSWORD_MIN_LENGTH)
+            ->mixedCase()
+            ->letters()
+            ->numbers()
+            ->symbols());
     }
 }

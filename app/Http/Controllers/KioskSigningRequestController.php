@@ -39,7 +39,7 @@ class KioskSigningRequestController extends Controller
 
             KioskSigningRequest::query()
                 ->where('document_id', $currentDocument->id)
-                ->where('status', KioskSigningRequest::STATUS_PENDING)
+                ->whereIn('status', [KioskSigningRequest::STATUS_PENDING, KioskSigningRequest::STATUS_SIGNED])
                 ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
 
             $recipientName = trim((string) ($data['recipient_name'] ?? ''));

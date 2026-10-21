@@ -147,7 +147,7 @@ class DepEdDashboardTest extends TestCase
             ->assertSee('Records Officer')
             ->assertSee('Date created')
             ->assertSee('Edit')
-            ->assertSee('Delete')
+            ->assertSee('Deactivate')
             ->assertSeeInOrder(['Alex Zulu', 'Alex Alpha'])
             ->assertDontSee('Unrelated Person');
     }
@@ -279,14 +279,15 @@ class DepEdDashboardTest extends TestCase
                 ->assertSee('dts-button-primary', false);
         }
 
+        // User accounts are deactivated rather than deleted.
         foreach ([
-            route('platform.systems.users.edit', $user),
-            route('platform.systems.roles.edit', $role),
-        ] as $editUrl) {
+            [route('platform.systems.users.edit', $user), 'Deactivate'],
+            [route('platform.systems.roles.edit', $role), 'Delete'],
+        ] as [$editUrl, $destructiveLabel]) {
             $this->actingAs($admin)
                 ->get($editUrl)
                 ->assertOk()
-                ->assertSee('Delete')
+                ->assertSee($destructiveLabel)
                 ->assertSee('dts-button-danger', false)
                 ->assertDontSee('>Remove<', false);
         }
@@ -302,7 +303,7 @@ class DepEdDashboardTest extends TestCase
             ->assertSeeInOrder(['Delete', 'Save']);
     }
 
-    public function test_user_list_bulk_deletes_selected_accounts_only(): void
+    public function test_user_list_bulk_deactivates_selected_accounts_only(): void
     {
         $manager = User::factory()->create(['permissions' => [
             'platform.index' => true,
@@ -319,18 +320,18 @@ class DepEdDashboardTest extends TestCase
             ->assertSeeInOrder(['<dts-column-menu>', 'Rows per page', 'data-table-select-all'], false)
             ->assertSee('data-table-row-select', false);
 
-        $this->post(route('platform.systems.users').'/bulkRemove', [
+        $this->post(route('platform.systems.users').'/bulkDeactivate', [
             'selected' => $selected->modelKeys(),
         ])->assertRedirect();
 
         foreach ($selected as $user) {
-            $this->assertDatabaseMissing('users', ['id' => $user->id]);
+            $this->assertTrue($user->fresh()->isDeactivated());
         }
-        $this->assertDatabaseHas('users', ['id' => $manager->id]);
-        $this->assertDatabaseHas('users', ['id' => $unselected->id]);
+        $this->assertFalse($manager->fresh()->isDeactivated());
+        $this->assertFalse($unselected->fresh()->isDeactivated());
     }
 
-    public function test_user_bulk_delete_rejects_self_and_administrator_accounts(): void
+    public function test_user_bulk_deactivate_rejects_self_and_administrator_accounts(): void
     {
         $manager = User::factory()->create(['permissions' => [
             'platform.index' => true,
@@ -348,14 +349,14 @@ class DepEdDashboardTest extends TestCase
         foreach ([$manager->id, $administrator->id] as $protectedId) {
             $this->actingAs($manager)
                 ->from(route('platform.systems.users'))
-                ->post(route('platform.systems.users').'/bulkRemove', [
+                ->post(route('platform.systems.users').'/bulkDeactivate', [
                     'selected' => [$selected->id, $protectedId],
                 ])
                 ->assertRedirect(route('platform.systems.users'))
                 ->assertSessionHasErrors('selected');
 
-            $this->assertDatabaseHas('users', ['id' => $selected->id]);
-            $this->assertDatabaseHas('users', ['id' => $protectedId]);
+            $this->assertFalse($selected->fresh()->isDeactivated());
+            $this->assertFalse(User::find($protectedId)->isDeactivated());
         }
     }
 
@@ -394,7 +395,7 @@ class DepEdDashboardTest extends TestCase
         $this->assertTrue($administrator->fresh()->isAdministrator());
     }
 
-    public function test_single_user_delete_rejects_self_and_administrator_accounts(): void
+    public function test_single_user_deactivate_rejects_self_and_administrator_accounts(): void
     {
         $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
         $administrator = User::factory()->create();
@@ -403,28 +404,37 @@ class DepEdDashboardTest extends TestCase
 
         foreach ([$manager, $administrator] as $protectedUser) {
             $this->actingAs($manager)
-                ->post(route('platform.systems.users').'/remove', ['id' => $protectedUser->id])
+                ->post(route('platform.systems.users').'/deactivate', ['id' => $protectedUser->id])
                 ->assertForbidden();
-            $this->post(route('platform.systems.users.edit', $protectedUser).'/remove')
+            $this->post(route('platform.systems.users.edit', $protectedUser).'/deactivate')
                 ->assertForbidden();
 
-            $this->assertModelExists($protectedUser);
+            $this->assertFalse($protectedUser->fresh()->isDeactivated());
         }
     }
 
-    public function test_single_user_delete_still_removes_an_ordinary_account(): void
+    public function test_an_ordinary_account_can_be_deactivated_and_reactivated(): void
     {
         $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
         $user = User::factory()->create();
 
         $this->actingAs($manager)
-            ->post(route('platform.systems.users').'/remove', ['id' => $user->id])
+            ->post(route('platform.systems.users').'/deactivate', ['id' => $user->id])
             ->assertRedirect();
+        $this->assertTrue($user->fresh()->isDeactivated());
 
-        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->actingAs($manager)
+            ->get(route('platform.systems.users', ['user_account' => 'deactivated']))
+            ->assertSee($user->email)
+            ->assertDontSee($manager->email)
+            ->assertSee('Reactivate');
+
+        $this->post(route('platform.systems.users.edit', $user).'/reactivate')
+            ->assertRedirect(route('platform.systems.users.edit', $user));
+        $this->assertFalse($user->fresh()->isDeactivated());
     }
 
-    public function test_deleting_user_clears_private_account_data_but_keeps_document_history(): void
+    public function test_deactivating_user_ends_their_sessions_but_keeps_document_history(): void
     {
         $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
         $user = User::factory()->create();
@@ -451,21 +461,20 @@ class DepEdDashboardTest extends TestCase
             'created_at' => now(),
         ]);
 
+        $rememberToken = $user->remember_token;
+
         $this->actingAs($manager)
-            ->post(route('platform.systems.users').'/remove', ['id' => $user->id])
+            ->post(route('platform.systems.users').'/deactivate', ['id' => $user->id])
             ->assertRedirect();
 
-        $this->assertModelMissing($user);
-        $this->assertDatabaseMissing('notifications', ['notifiable_type' => User::class, 'notifiable_id' => $user->id]);
+        $this->assertModelExists($user);
         $this->assertDatabaseMissing('sessions', ['user_id' => $user->id]);
-        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
-        $this->assertModelExists($document);
-        $this->assertModelExists($movement);
-        $this->assertNull($document->fresh()->registered_by);
-        $this->assertNull($movement->fresh()->acted_by);
+        $this->assertNotSame($rememberToken, $user->fresh()->remember_token);
+        $this->assertSame($user->id, $document->fresh()->registered_by);
+        $this->assertSame($user->id, $movement->fresh()->acted_by);
     }
 
-    public function test_user_bulk_delete_requires_permission_and_valid_selection(): void
+    public function test_user_bulk_deactivate_requires_permission_and_valid_selection(): void
     {
         $manager = User::factory()->create(['permissions' => [
             'platform.index' => true,
@@ -473,7 +482,7 @@ class DepEdDashboardTest extends TestCase
         ]]);
         $unprivileged = User::factory()->create(['permissions' => ['platform.index' => true]]);
         $selected = User::factory()->create();
-        $url = route('platform.systems.users').'/bulkRemove';
+        $url = route('platform.systems.users').'/bulkDeactivate';
 
         $this->actingAs($unprivileged)
             ->post($url, ['selected' => [$selected->id]])

@@ -61,6 +61,11 @@ class PlatformProvider extends OrchidServiceProvider
                 ->route('platform.systems.schools')
                 ->permission('platform.systems.schools'),
 
+            Menu::make(__('Sign-in activity'))
+                ->icon('bs.shield-lock')
+                ->route('platform.systems.sign-in-activity')
+                ->permission('platform.systems.sign-in-activity'),
+
             Menu::make(__('System health'))
                 ->icon('bs.activity')
                 ->route('platform.systems.health')
@@ -92,7 +97,8 @@ class PlatformProvider extends OrchidServiceProvider
                 ->addPermission('platform.systems.users', __('Users'))
                 ->addPermission('platform.systems.offices', __('Offices'))
                 ->addPermission('platform.systems.schools', __('Schools'))
-                ->addPermission('platform.systems.health', __('View system health')),
+                ->addPermission('platform.systems.health', __('View system health'))
+                ->addPermission('platform.systems.sign-in-activity', __('View sign-in activity')),
         ];
     }
 }

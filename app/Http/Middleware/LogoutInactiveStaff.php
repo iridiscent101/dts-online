@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Auth\AccountActivity;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -46,6 +47,7 @@ class LogoutInactiveStaff
 
     public static function signOut(Request $request): Response
     {
+        $request->attributes->set(AccountActivity::SIGN_OUT_REASON, 'inactivity');
         Auth::guard(config('platform.guard'))->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

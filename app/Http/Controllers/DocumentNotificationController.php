@@ -21,9 +21,15 @@ class DocumentNotificationController extends Controller
 
         $databaseNotification->markAsRead();
 
-        if (($databaseNotification->data['route'] ?? null) === 'platform.systems.health'
-            && $request->user()->hasAccess('platform.systems.health')) {
-            return redirect()->route('platform.systems.health');
+        // System alerts open their own screen when the reader may see it (route => required permission).
+        $systemScreens = [
+            'platform.systems.health' => 'platform.systems.health',
+            'platform.systems.sign-in-activity' => 'platform.systems.sign-in-activity',
+        ];
+        $route = $databaseNotification->data['route'] ?? null;
+
+        if (is_string($route) && isset($systemScreens[$route]) && $request->user()->hasAccess($systemScreens[$route])) {
+            return redirect()->route($route);
         }
 
         $documentId = $databaseNotification->data['document_id'] ?? null;

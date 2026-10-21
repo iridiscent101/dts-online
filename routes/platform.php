@@ -24,6 +24,7 @@ use App\Orchid\Screens\PlatformScreen;
 use App\Orchid\Screens\Role\RoleEditScreen;
 use App\Orchid\Screens\Role\RoleListScreen;
 use App\Orchid\Screens\School\SchoolListScreen;
+use App\Orchid\Screens\SignInActivityScreen;
 use App\Orchid\Screens\SystemHealthScreen;
 use App\Orchid\Screens\User\UserEditScreen;
 use App\Orchid\Screens\User\UserListScreen;
@@ -52,6 +53,12 @@ Route::screen('system/health', SystemHealthScreen::class)
     ->breadcrumbs(fn (Trail $trail) => $trail
         ->parent('platform.index')
         ->push(__('System Health'), route('platform.systems.health')));
+
+Route::screen('system/sign-in-activity', SignInActivityScreen::class)
+    ->name('platform.systems.sign-in-activity')
+    ->breadcrumbs(fn (Trail $trail) => $trail
+        ->parent('platform.index')
+        ->push(__('Sign-in activity'), route('platform.systems.sign-in-activity')));
 
 Route::screen('documents/create', DocumentRegistrationScreen::class)
     ->name('platform.documents.create');

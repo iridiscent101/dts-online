@@ -2630,7 +2630,8 @@ function updateTableSelection(table) {
             deleteButton.dataset.deleteKind = adminFrame.dataset.adminBulkDeleteKind;
             deleteButton.dataset.url = adminFrame.dataset.adminBulkDeleteUrl;
         }
-        deleteButton.textContent = 'Delete selected';
+        // User accounts are deactivated rather than deleted.
+        deleteButton.textContent = adminFrame?.dataset.adminBulkDeleteKind === 'user' ? 'Deactivate selected' : 'Delete selected';
         summary.querySelector('.dts-table-selection-actions').insertBefore(deleteButton, summary.querySelector('[data-clear-table-selection]'));
     }
 }
@@ -2724,13 +2725,14 @@ document.addEventListener('click', async (event) => {
     const kind = button.matches('[data-document-bulk-delete]') ? 'document' : button.dataset.deleteKind;
     const message = {
         document: `Remove ${selected.length} selected document(s) from active records? Their routing history and attachments will be kept.`,
-        user: `Delete ${selected.length} selected user account(s)? Document records will remain, but user attribution may be cleared. This cannot be undone.`,
+        user: `Deactivate ${selected.length} selected user account(s)? They are signed out now and cannot sign in until reactivated. Their document history stays.`,
         role: `Delete ${selected.length} selected role(s)? Users assigned these roles will lose their permissions. This cannot be undone.`,
         office: `Delete ${selected.length} selected unused office(s)? This cannot be undone.`,
         school: `Delete ${selected.length} selected school(s)? They will no longer appear in origin suggestions. Existing documents will retain their recorded origins. This cannot be undone.`,
     }[kind];
     if (selected.length === 0) return;
-    if (!await dtsDialog.confirm(message, { title: 'Delete selected', confirmLabel: 'Delete', danger: true })) return;
+    const verb = kind === 'user' ? 'Deactivate' : 'Delete';
+    if (!await dtsDialog.confirm(message, { title: `${verb} selected`, confirmLabel: verb, danger: true })) return;
 
     const token = document.querySelector('meta[name="csrf_token"]')?.content;
     if (!token) return;

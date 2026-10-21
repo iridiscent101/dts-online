@@ -26,10 +26,10 @@ class LoginAttemptLimitTest extends TestCase
             ->post(route('platform.login.auth'), ['email' => 'CLERK@deped.local', 'password' => 'password'])
             ->assertRedirect(route('platform.login'))
             ->assertSessionHasErrors('email');
-        $this->assertMatchesRegularExpression('/^Too many failed sign-in attempts\. Please wait \d+ seconds? and try again\.$/', session('errors')->first('email'));
+        $this->assertSame(LimitLoginAttempts::lockedMessage(LimitLoginAttempts::LOCKOUT_STEPS[0]), session('errors')->first('email'));
         $this->assertGuest();
 
-        $this->travel(LimitLoginAttempts::LOCKOUT_SECONDS + 1)->seconds();
+        $this->travel(LimitLoginAttempts::LOCKOUT_STEPS[0] + 1)->seconds();
 
         $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => 'password'])
             ->assertSessionHasNoErrors();

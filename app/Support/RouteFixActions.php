@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\DocumentOfficeAssignment;
 use App\Models\User;
 
 /**
@@ -73,11 +74,8 @@ class RouteFixActions
                 ->pluck('from_office');
 
         $unavailableOffices = $document->officeAssignments
-            ->whereIn('status', [
-                ...DocumentMovement::FINISHED_STATUSES,
-                DocumentMovement::STATUS_AWAITING_RECEIPT,
-                DocumentMovement::STATUS_FORWARDED,
-            ])
+            ->filter(fn (DocumentOfficeAssignment $assignment): bool => in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true)
+                || DocumentMovement::requiresAcknowledgement($assignment->status))
             ->pluck('office');
         $sendingOffices = $sendingOffices->diff($unavailableOffices)->values();
 

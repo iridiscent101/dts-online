@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Auth\AccountActivity;
 use App\Notifications\DocumentAssignedMailNotification;
 use App\Notifications\VerifyNotificationEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
@@ -19,6 +21,11 @@ use Orchid\Platform\Models\User as Authenticatable;
 class User extends Authenticatable
 {
     public const ADMIN_ROLE_SLUG = 'Admin';
+
+    // The password rule itself is Password::defaults() in AppServiceProvider.
+    public const PASSWORD_MIN_LENGTH = 13;
+
+    public const PASSWORD_HINT = 'At least 13 characters, with a capital letter, a small letter, a number and a symbol (for example ! @ # $).';
 
     protected static function booted(): void
     {
@@ -61,6 +68,8 @@ class User extends Authenticatable
         'permissions' => 'array',
         'email_verified_at' => 'datetime',
         'notification_email_verified_at' => 'datetime',
+        'deactivated_at' => 'datetime',
+        'must_change_password' => 'boolean',
     ];
 
     /**
@@ -88,6 +97,46 @@ class User extends Authenticatable
         'updated_at',
         'created_at',
     ];
+
+    /**
+     * The kiosk laptop's account (only "Signing kiosk") never reaches My Account, so it is not asked to change its
+     * password; an administrator sets that one.
+     */
+    public function canChangeOwnPassword(): bool
+    {
+        return $this->hasAccess('platform.index') || ! $this->hasAccess('platform.kiosk');
+    }
+
+    public function isDeactivated(): bool
+    {
+        return $this->deactivated_at !== null;
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull($query->qualifyColumn('deactivated_at'));
+    }
+
+    /**
+     * Blocks sign-in and ends every open session (including "Remember me") at once. Documents, history and office
+     * memberships stay as they are, so the account can be reactivated later.
+     */
+    public function deactivate(User $by): void
+    {
+        DB::transaction(function () use ($by): void {
+            $this->forceFill(['deactivated_at' => now(), 'remember_token' => Str::random(60)])->save();
+            DB::table('sessions')->where('user_id', $this->id)->delete();
+            AccountActivity::record(AccountActivity::DEACTIVATED, $this, $by);
+        });
+    }
+
+    public function reactivate(User $by): void
+    {
+        DB::transaction(function () use ($by): void {
+            $this->forceFill(['deactivated_at' => null])->save();
+            AccountActivity::record(AccountActivity::REACTIVATED, $this, $by);
+        });
+    }
 
     public function isAdministrator(): bool
     {

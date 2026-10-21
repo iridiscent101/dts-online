@@ -9,13 +9,16 @@ use Orchid\Filters\Filter;
 use Orchid\Screen\Fields\Select;
 
 /**
- * Finds incomplete accounts for access reviews: users without a role or an office cannot work in the system.
+ * Finds accounts for access reviews: users without a role or an office cannot work in the system, and deactivated
+ * accounts cannot sign in.
  */
 class UserAccountFilter extends Filter
 {
     private const OPTIONS = [
         'no_role' => 'No role',
         'no_office' => 'No office assigned',
+        'active' => 'Active accounts',
+        'deactivated' => 'Deactivated accounts',
     ];
 
     public function name(): string
@@ -33,6 +36,8 @@ class UserAccountFilter extends Filter
         return match ($this->request->string('user_account')->toString()) {
             'no_role' => $builder->doesntHave('roles'),
             'no_office' => $builder->doesntHave('offices'),
+            'active' => $builder->whereNull('deactivated_at'),
+            'deactivated' => $builder->whereNotNull('deactivated_at'),
             default => $builder,
         };
     }

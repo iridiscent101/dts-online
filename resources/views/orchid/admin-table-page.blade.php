@@ -7,7 +7,7 @@
         default => 'admin-table',
     };
     $bulkDelete = match ($frameId) {
-        'admin-users-table' => ['user', route('platform.systems.users').'/bulkRemove'],
+        'admin-users-table' => ['user', route('platform.systems.users').'/bulkDeactivate'],
         'admin-roles-table' => ['role', route('platform.systems.roles').'/bulkRemove'],
         'admin-offices-table' => ['office', route('platform.systems.offices').'/bulkRemove'],
         'admin-schools-table' => ['school', route('platform.systems.schools').'/bulkRemove'],

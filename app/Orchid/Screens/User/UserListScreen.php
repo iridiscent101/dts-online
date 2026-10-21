@@ -146,17 +146,34 @@ class UserListScreen extends Screen
         Toast::success(__('User was saved.'));
     }
 
-    public function remove(Request $request): void
+    public function deactivate(Request $request): void
     {
         $user = User::findOrFail($request->get('id'));
         abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
 
-        $user->delete();
+        if (! $user->isDeactivated()) {
+            $user->deactivate($request->user());
+        }
 
-        Toast::success(__('User was removed.'));
+        Toast::success(__(':name was deactivated and can no longer sign in.', ['name' => $user->name]));
     }
 
-    public function bulkRemove(Request $request): void
+    public function reactivate(Request $request): void
+    {
+        $user = User::findOrFail($request->get('id'));
+        abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
+
+        if ($user->isDeactivated()) {
+            $user->reactivate($request->user());
+        }
+
+        Toast::success(__(':name can sign in again.', ['name' => $user->name]));
+    }
+
+    /**
+     * "Deactivate selected" on the list (accounts are no longer deleted, so their document history keeps their names).
+     */
+    public function bulkDeactivate(Request $request): void
     {
         abort_unless($request->user()?->hasAccess('platform.systems.users'), 403);
 
@@ -168,17 +185,16 @@ class UserListScreen extends Screen
 
         if ($users->contains(fn (User $user): bool => $user->id === $request->user()->id || $user->isAdministrator())) {
             throw ValidationException::withMessages([
-                'selected' => 'You cannot bulk delete your own account or an administrator account.',
+                'selected' => 'You cannot deactivate your own account or an administrator account.',
             ]);
         }
 
-        DB::transaction(function () use ($users): void {
-            foreach ($users as $user) {
-                $user->delete();
-            }
+        DB::transaction(function () use ($users, $request): void {
+            $users->reject(fn (User $user): bool => $user->isDeactivated())
+                ->each(fn (User $user) => $user->deactivate($request->user()));
         });
 
-        Toast::success($users->count().' users were removed.');
+        Toast::success($users->count().' '.str('user')->plural($users->count()).' deactivated.');
     }
 
     private function perPage(): int

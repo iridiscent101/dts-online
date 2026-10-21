@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Auth\AccountActivity;
 use App\Models\Office;
 use App\Models\User;
 use App\Orchid\Layouts\User\UserEditLayout;
@@ -17,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
@@ -77,12 +79,23 @@ class UserEditScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Button::make(__('Delete'))
+            Button::make(__('Deactivate'))
                 ->class('btn dts-button dts-button-danger')
-                ->icon('bs.trash3')
-                ->confirm(__('Once the account is deleted, all of its resources and data will be permanently deleted. Before deleting your account, please download any data or information that you wish to retain.'))
-                ->method('remove')
-                ->canSee($this->user->exists),
+                ->icon('bs.person-slash')
+                ->confirm(__('Deactivate this account? The person is signed out now and cannot sign in until reactivated. Their document history stays.'))
+                ->set('data-confirm-title', __('Deactivate account'))
+                ->set('data-confirm-label', __('Deactivate'))
+                ->method('deactivate')
+                ->canSee($this->canChangeStatus() && ! $this->user->isDeactivated()),
+
+            Button::make(__('Reactivate'))
+                ->class('btn dts-button dts-button-secondary')
+                ->icon('bs.person-check')
+                ->confirm(__('Reactivate this account? The person can sign in again with their current password.'))
+                ->set('data-confirm-title', __('Reactivate account'))
+                ->set('data-confirm-label', __('Reactivate'))
+                ->method('reactivate')
+                ->canSee($this->canChangeStatus() && $this->user->isDeactivated()),
 
             Button::make(__('Save'))
                 ->class('btn dts-button dts-button-primary')
@@ -131,7 +144,7 @@ class UserEditScreen extends Screen
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
             'user.notification_email' => ['nullable', 'email', 'max:255'],
-            'user.password' => [Rule::requiredIf(! $user->exists), 'nullable', 'string'],
+            'user.password' => [Rule::requiredIf(! $user->exists), 'nullable', 'string', Password::defaults()],
             'user.office_ids' => ['nullable', 'array'],
             'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
             'user.roles' => ['sometimes', 'array'],
@@ -156,12 +169,16 @@ class UserEditScreen extends Screen
             }), 403);
         }
 
-        DB::transaction(function () use ($request, $user): void {
+        $passwordChanged = $user->exists && $request->filled('user.password');
+
+        DB::transaction(function () use ($request, $user, $passwordChanged): void {
             $sendVerification = $request->has('user.notification_email')
                 && $user->setNotificationEmail($request->input('user.notification_email'));
 
             $user->when($request->filled('user.password'), function (Builder $builder) use ($request) {
                 $builder->getModel()->password = Hash::make($request->input('user.password'));
+                // The new password meets the rule, so the person is no longer asked to change it.
+                $builder->getModel()->must_change_password = false;
             });
 
             $user
@@ -179,6 +196,10 @@ class UserEditScreen extends Screen
             }
 
             $user->replaceRoles($request->input('user.roles', []));
+
+            if ($passwordChanged) {
+                AccountActivity::record(AccountActivity::PASSWORD_CHANGED, $user, $request->user(), ['set_by_admin' => true]);
+            }
         });
 
         Toast::success(__('User was saved.'));
@@ -186,20 +207,35 @@ class UserEditScreen extends Screen
         return redirect()->route('platform.systems.users');
     }
 
-    /**
-     * @return RedirectResponse
-     *
-     * @throws \Exception
-     */
-    public function remove(User $user, Request $request)
+    public function deactivate(User $user, Request $request): RedirectResponse
     {
         abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
 
-        $user->delete();
+        if (! $user->isDeactivated()) {
+            $user->deactivate($request->user());
+        }
 
-        Toast::success(__('User was removed.'));
+        Toast::success(__(':name was deactivated and can no longer sign in.', ['name' => $user->name]));
 
         return redirect()->route('platform.systems.users');
+    }
+
+    public function reactivate(User $user, Request $request): RedirectResponse
+    {
+        abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
+
+        if ($user->isDeactivated()) {
+            $user->reactivate($request->user());
+        }
+
+        Toast::success(__(':name can sign in again.', ['name' => $user->name]));
+
+        return redirect()->route('platform.systems.users.edit', $user);
+    }
+
+    private function canChangeStatus(): bool
+    {
+        return $this->user->exists && $this->user->id !== auth()->id() && ! $this->user->isAdministrator();
     }
 
     /**

@@ -33,6 +33,7 @@ class UserPasswordLayout extends Rows
                 ->title(__('Password'))
                 ->autocomplete('new-password')
                 ->value('')
+                ->help(User::PASSWORD_HINT)
                 ->required(! $exists),
         ];
     }

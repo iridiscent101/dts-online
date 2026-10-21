@@ -387,6 +387,14 @@ select:not([multiple], [size]):disabled {
     bottom: auto;
 }
 
+/* Touch screens cannot hover, and the hidden hover text still widened rows near the right edge (a stray sideways
+   scrollbar on the dashboard queue), so phones and tablets leave it out. Buttons keep their aria-label. */
+@media (hover: none) {
+    [data-tooltip]::after {
+        display: none;
+    }
+}
+
 /* An open menu covers the tooltip's spot; hide it there. */
 details[open] > [data-tooltip]::after {
     display: none;

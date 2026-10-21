@@ -241,6 +241,45 @@ class DocumentAdditionalRouteTest extends TestCase
         $this->assertNull(RouteFixActions::for($document->fresh(), $sender)['additional']);
     }
 
+    public function test_sending_office_cannot_add_a_route_before_receiving_a_returned_or_resubmitted_arrival(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+
+        foreach ([DocumentMovement::STATUS_RETURNED, DocumentMovement::STATUS_RESUBMITTED] as $status) {
+            $document = $this->forwardedDocument();
+            $arrival = $document->movements()->create([
+                'action' => $status === DocumentMovement::STATUS_RETURNED
+                    ? DocumentMovement::ACTION_RETURNED
+                    : DocumentMovement::ACTION_RESUBMITTED,
+                'from_office' => 'SDO-Budget Unit',
+                'to_office' => 'Administrative Unit',
+                'from_status' => DocumentMovement::STATUS_RECEIVED,
+                'to_status' => $status,
+            ]);
+            $document->officeAssignments()->create([
+                'office' => 'Administrative Unit',
+                'status' => $status,
+                'movement_id' => $arrival->id,
+            ]);
+            $document->update(['current_office' => 'Administrative Unit', 'status' => $status]);
+
+            $this->actingAs($sender)
+                ->postJson(route('platform.documents.additional-routes.store', $document), [
+                    'source_office' => 'Administrative Unit',
+                    'destination_office' => 'SDO-Legal Unit',
+                    'reason' => 'An additional office was missed.',
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('source_office');
+
+            $this->assertDatabaseMissing('document_office_assignments', [
+                'document_id' => $document->id,
+                'office' => 'SDO-Legal Unit',
+            ]);
+            $this->assertNull(RouteFixActions::for($document->fresh(), $sender)['additional']);
+        }
+    }
+
     private function forwardedDocument(): Document
     {
         $document = Document::factory()->create([

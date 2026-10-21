@@ -79,6 +79,7 @@ class SystemHealthAlerter
     {
         return User::query()
             ->whereHas('roles', fn (Builder $query) => $query->where('slug', User::ADMIN_ROLE_SLUG))
+            ->active()
             ->get();
     }
 

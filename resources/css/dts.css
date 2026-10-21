@@ -3422,6 +3422,13 @@ a.dts-record-status:hover,
     background: var(--dts-surface);
 }
 
+/* My Account when a new password is required (RequirePasswordChange). */
+.dts-password-change-required {
+    margin-bottom: 20px;
+    border-left-color: var(--dts-warning-text);
+    background: var(--dts-warning-soft);
+}
+
 .dts-workflow-notice .dts-icon {
     flex: 0 0 auto;
     color: var(--dts-text-muted);
@@ -5442,6 +5449,21 @@ select:focus-visible,
         width: min(245px, calc(100vw - 44px));
     }
 
+    /* Admin lists: the columns button sits mid-row, so a menu opened from its left edge ran off the screen. Hang
+       the menu from the toolbar's right edge instead. */
+    .dts-registry-table-toolbar {
+        position: relative;
+    }
+
+    .dts-registry-table-toolbar .dts-column-menu {
+        position: static;
+    }
+
+    .dts-registry-table-toolbar .dts-column-options {
+        right: 0;
+        left: auto;
+    }
+
     .dts-registry-pagination {
         align-items: flex-start;
         flex-direction: column;
@@ -5620,12 +5642,12 @@ select:focus-visible,
 /* Phones: each row becomes a block of "label | value" lines so nobody scrolls sideways to read a record.
    Labels are copied from the column headings into data-label by labelTableCells() in dts.js. */
 @media (max-width: 575px) {
-    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) [data-controller="table"] .table-responsive,
+    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived, .page-platform-systems-sign-in-activity) [data-controller="table"] .table-responsive,
     .dts-table-scroll {
         overflow: visible;
     }
 
-    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) [data-controller="table"] .table,
+    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived, .page-platform-systems-sign-in-activity) [data-controller="table"] .table,
     .dts-table-frame .dts-table {
         display: block;
         width: 100%;
@@ -5693,6 +5715,11 @@ select:focus-visible,
         & tbody td:first-child {
             border-top: 0;
         }
+    }
+
+    /* Sign-in activity has nothing to sort, so its headings are left out: each line already carries its label. */
+    .page-platform-systems-sign-in-activity [data-controller="table"] .table thead {
+        display: none;
     }
 
     /* Admin and registry tables: checkbox, record and actions share the first line; headings become sort buttons. */

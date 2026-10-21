@@ -9,4 +9,4 @@
         default => 'border-slate-300 bg-slate-100 text-slate-700',
     };
 @endphp
-<span class="inline-flex min-h-7 items-center whitespace-nowrap rounded-sm border px-2.5 py-0.5 text-sm font-semibold uppercase tracking-wide {{ $badgeTone }} {{ $class ?? '' }}" {{ \App\Support\StatusLabel::titleAttribute($status) }}>{{ \App\Support\StatusLabel::for($status) }}</span>
+<span class="inline-flex min-h-7 max-w-full items-center whitespace-normal sm:whitespace-nowrap rounded-sm border px-2.5 py-0.5 text-sm font-semibold uppercase tracking-wide {{ $badgeTone }} {{ $class ?? '' }}" {{ \App\Support\StatusLabel::titleAttribute($status) }}>{{ \App\Support\StatusLabel::for($status) }}</span>

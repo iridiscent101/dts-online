@@ -6,6 +6,7 @@ use App\Http\Controllers\KioskController;
 use App\Http\Controllers\NotificationEmailVerificationController;
 use App\Http\Controllers\PublicDocumentLabelController;
 use App\Http\Controllers\PublicDocumentTrackingController;
+use App\Http\Middleware\EnsureAccountIsActive;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', PublicDocumentTrackingController::class)
@@ -28,7 +29,7 @@ Route::get('/label/{tracking}', PublicDocumentLabelController::class)
 
 // Signing kiosk outside the Records Unit, for an account with only the "Signing kiosk" permission. It checks for the
 // clerk's request every few seconds, so it gets a higher limit than the public pages.
-Route::middleware(['auth', 'throttle:120,1'])->group(function (): void {
+Route::middleware(['auth', EnsureAccountIsActive::class, 'throttle:120,1'])->group(function (): void {
     Route::get('/kiosk', [KioskController::class, 'show'])->name('kiosk');
     Route::get('/kiosk/current', [KioskController::class, 'current'])->name('kiosk.current');
     Route::post('/kiosk/{signing}/sign', [KioskController::class, 'sign'])->name('kiosk.sign');
