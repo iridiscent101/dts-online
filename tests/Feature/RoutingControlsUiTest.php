@@ -104,8 +104,9 @@ class RoutingControlsUiTest extends TestCase
         }
 
         $page = $this->actingAs($admin)->get(route('platform.documents.workspace', $document))->assertOk();
-        $this->assertMatchesRegularExpression('/Received [^<]+ by Laura C\. Bergonia</', $page->getContent());
-        $this->assertMatchesRegularExpression('/Received [^<]+ by Ramon Dizon</', $page->getContent());
+        // "Received", then when and by whom.
+        $this->assertMatchesRegularExpression('/<span class="dts-route-label">Received<\/span><span class="dts-route-when">[^<]+ by <span class="dts-route-who">Laura C\. Bergonia<\/span>/', $page->getContent());
+        $this->assertMatchesRegularExpression('/<span class="dts-route-label">Received<\/span><span class="dts-route-when">[^<]+ by <span class="dts-route-who">Ramon Dizon<\/span>/', $page->getContent());
     }
 
     public function test_administrator_sends_to_another_office_from_the_office_that_forwarded_it(): void

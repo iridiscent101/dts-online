@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Orchid\Platform\Models\Role;
 use Tests\TestCase;
@@ -696,10 +697,15 @@ class DocumentWorkspaceTest extends TestCase
             ]);
         }
 
-        $this->actingAs($user)
+        $page = $this->actingAs($user)
             ->get(route('platform.documents.workspace', $document))
-            ->assertSee('Sent Oct 09, 2026 · 8:00 AM')
-            ->assertSee('Received Oct 10, 2026 · 10:00 AM');
+            ->getContent();
+        // Short dates on the card (the year only for another year); the times are the first send and the last receipt.
+        $sent = Carbon::parse('2026-10-09 08:00', 'Asia/Manila');
+        $received = Carbon::parse('2026-10-10 10:00', 'Asia/Manila');
+        $format = fn ($at): string => $at->format($at->isCurrentYear() ? 'M j, g:i A' : 'M j, Y, g:i A');
+        $this->assertStringContainsString('<span class="dts-route-label">Sent</span><span class="dts-route-when">'.$format($sent).'</span>', $page);
+        $this->assertStringContainsString('<span class="dts-route-label">Received</span><span class="dts-route-when">'.$format($received), $page);
     }
 
     /**

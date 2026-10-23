@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\DocumentMovement;
 use App\Models\User;
 use App\Notifications\DocumentChangedNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -283,6 +284,56 @@ class DocumentAttachmentManagementTest extends TestCase
         ])->assertOk();
 
         $this->assertSame('admin-note.pdf', $document->attachments()->sole()->original_name);
+    }
+
+    public function test_attachments_of_a_closed_record_are_locked_for_office_staff(): void
+    {
+        Storage::fake('local');
+        Notification::fake();
+        $user = $this->attachmentManager('SDO-Budget Unit');
+        $document = Document::factory()->create(['current_office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+        $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Budget Unit'], ['status' => DocumentMovement::STATUS_COMPLETED]);
+        $first = $this->createAttachment('signed.pdf');
+        $second = $this->createAttachment('memo.pdf');
+        $document->attachments()->attach([$first->id, $second->id]);
+
+        $this->actingAs($user)->postJson(route('platform.documents.attachments.store', $document), [
+            'attachments' => [UploadedFile::fake()->createWithContent('extra.pdf', '%PDF-1.4 extra')],
+        ])->assertForbidden();
+        $this->postJson(route('platform.documents.attachments.replace', [$document, $first->id]), [
+            'replacement' => UploadedFile::fake()->createWithContent('swapped.pdf', '%PDF-1.4 swapped'),
+        ])->assertForbidden();
+        $this->postJson(route('platform.documents.attachments.destroy', [$document, $second->id]))->assertForbidden();
+
+        $this->assertEqualsCanonicalizing([$first->id, $second->id], $document->attachments()->pluck('attachments.id')->all());
+        $this->assertDatabaseMissing('activity_log', ['subject_id' => $document->id, 'description' => 'Attachment replaced']);
+    }
+
+    public function test_an_office_that_finished_its_part_cannot_change_attachments_while_others_work(): void
+    {
+        $budget = $this->attachmentManager('SDO-Budget Unit');
+        $legal = $this->attachmentManager('SDO-Legal Unit');
+        $document = Document::factory()->create(['current_office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Legal Unit'], ['status' => DocumentMovement::STATUS_RECEIVED]);
+        $document->officeAssignments()->create(['office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+
+        $this->assertFalse($document->canHaveAttachmentsManagedBy($budget));
+        $this->assertTrue($document->canHaveAttachmentsManagedBy($legal));
+    }
+
+    public function test_administrator_can_still_correct_attachments_of_a_closed_record(): void
+    {
+        Storage::fake('local');
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG, 'permissions' => []]);
+        $administrator = User::factory()->create(['office' => null]);
+        $administrator->replaceRoles([$adminRole->id]);
+        $document = Document::factory()->archived()->create(['current_office' => 'SDO-Budget Unit']);
+
+        $this->actingAs($administrator)->postJson(route('platform.documents.attachments.store', $document), [
+            'attachments' => [UploadedFile::fake()->create('corrected-scan.pdf', 20, 'application/pdf')],
+        ])->assertOk();
+
+        $this->assertSame('corrected-scan.pdf', $document->attachments()->sole()->original_name);
     }
 
     private function attachmentManager(string $office = 'Records Unit'): User

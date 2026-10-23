@@ -68,6 +68,11 @@ class KioskSigningTest extends TestCase
         $this->assertSame(DocumentMovement::ACTION_RELEASED, $release->action);
         $this->assertSame('Juan Dela Cruz', $release->released_to);
         $this->assertSame(self::SIGNATURE, $release->recipient_signature);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertSee('Released to</dt><dd class="text-slate-800">Juan Dela Cruz</dd>', false)
+            ->assertSee('Recipient signature</dt><dd class="text-slate-800">Signature received</dd>', false)
+            ->assertDontSee(self::SIGNATURE);
     }
 
     public function test_only_a_clerk_who_may_release_can_send_and_only_they_can_read_it(): void
@@ -171,6 +176,40 @@ class KioskSigningTest extends TestCase
         $this->assertSame(1, KioskSigningRequest::query()->where('status', KioskSigningRequest::STATUS_PENDING)->count());
     }
 
+    public function test_replacing_then_cancelling_a_signed_request_cannot_release_without_a_signature(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $kiosk = $this->kioskAccount();
+        $storeUrl = route('platform.kiosk-signing.store', $document);
+        $this->postJson($storeUrl, ['source_office' => 'SDO-Records Unit'])->assertCreated();
+        $firstSigning = KioskSigningRequest::query()->sole();
+        $this->actingAs($kiosk)->postJson(route('kiosk.sign', $firstSigning), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+
+        $replacement = $this->actingAs($records)->postJson($storeUrl, ['source_office' => 'SDO-Records Unit'])->assertCreated();
+        $this->postJson($replacement->json('cancel_url'))->assertOk();
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.recipient_signature');
+
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+        $this->assertSame(KioskSigningRequest::STATUS_CANCELLED, $firstSigning->fresh()->status);
+        $this->assertSame(1, $document->movements()->count());
+
+        $this->postJson($storeUrl, ['source_office' => 'SDO-Records Unit'])->assertCreated();
+        $newSigning = KioskSigningRequest::query()->latest('id')->firstOrFail();
+        $this->actingAs($kiosk)->postJson(route('kiosk.sign', $newSigning), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+        $this->actingAs($records)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'recipient_signature' => self::SIGNATURE],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame(self::SIGNATURE, $document->movements()->latest('id')->firstOrFail()->recipient_signature);
+    }
+
     public function test_failed_replacement_keeps_the_original_kiosk_request_pending(): void
     {
         [$records, $document] = $this->releasableDocument();
@@ -187,13 +226,21 @@ class KioskSigningTest extends TestCase
         $this->assertSame(1, KioskSigningRequest::query()->count());
     }
 
-    public function test_releasing_a_document_cancels_its_pending_kiosk_request(): void
+    public function test_release_waits_for_a_pending_kiosk_signature_or_its_cancellation(): void
     {
         [$records, $document] = $this->releasableDocument();
         $sent = $this->postJson(route('platform.kiosk-signing.store', $document), [
             'source_office' => 'SDO-Records Unit',
         ])->assertCreated();
 
+        $this->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.recipient_signature');
+
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+        $this->assertSame(KioskSigningRequest::STATUS_PENDING, KioskSigningRequest::query()->sole()->status);
+
+        $this->postJson($sent->json('cancel_url'))->assertOk()->assertJsonPath('status', 'cancelled');
         $this->postJson(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
         ])->assertOk();
@@ -205,6 +252,31 @@ class KioskSigningTest extends TestCase
             'recipient_signature' => self::SIGNATURE,
         ])->assertStatus(409);
         $this->actingAs($records)->getJson($sent->json('status_url'))->assertJsonPath('status', 'cancelled');
+    }
+
+    public function test_release_cannot_discard_or_replace_a_signed_kiosk_signature(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $sent = $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $signing = KioskSigningRequest::query()->sole();
+        $this->actingAs($this->kioskAccount())->postJson(route('kiosk.sign', $signing), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+
+        $url = route('platform.documents.movements.store', $document);
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.recipient_signature');
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+        $this->assertSame(KioskSigningRequest::STATUS_SIGNED, $signing->fresh()->status);
+
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'recipient_signature' => self::SIGNATURE],
+        ])->assertOk();
+
+        $this->assertSame(self::SIGNATURE, $document->movements()->latest('id')->firstOrFail()->recipient_signature);
     }
 
     public function test_forwarding_a_document_cancels_its_pending_kiosk_request(): void
@@ -229,7 +301,7 @@ class KioskSigningTest extends TestCase
         $this->actingAs($records)->getJson($sent->json('status_url'))->assertJsonPath('status', 'cancelled');
     }
 
-    public function test_adding_another_route_cancels_a_pending_release_signature_request(): void
+    public function test_adding_another_route_invalidates_a_signed_release_request(): void
     {
         [$records, $document] = $this->releasableDocument();
         $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
@@ -250,6 +322,10 @@ class KioskSigningTest extends TestCase
             'source_office' => 'SDO-Records Unit',
         ])->assertCreated();
         $signing = KioskSigningRequest::query()->sole();
+        $this->actingAs($this->kioskAccount())->postJson(route('kiosk.sign', $signing), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+        $this->actingAs($records);
 
         $this->postJson(route('platform.documents.additional-routes.store', $document), [
             'source_office' => 'SDO-Records Unit',
@@ -258,6 +334,8 @@ class KioskSigningTest extends TestCase
         ])->assertOk();
 
         $this->assertSame(KioskSigningRequest::STATUS_CANCELLED, $signing->fresh()->status);
+        $this->assertNull($signing->fresh()->signed_at);
+        $this->assertNull($signing->fresh()->recipient_signature);
         $this->actingAs($this->kioskAccount())->getJson(route('kiosk.current'))->assertJsonPath('request', null);
         $this->postJson(route('kiosk.sign', $signing), ['recipient_signature' => self::SIGNATURE])->assertStatus(409);
     }
@@ -278,9 +356,44 @@ class KioskSigningTest extends TestCase
         ])->assertOk();
 
         $this->assertSame(KioskSigningRequest::STATUS_CANCELLED, $signing->fresh()->status);
+        $this->assertNull($signing->fresh()->signed_at);
+        $this->assertNull($signing->fresh()->recipient_signature);
         $this->getJson($sent->json('status_url'))
             ->assertJsonPath('status', 'cancelled')
             ->assertJsonPath('recipient_signature', null);
+    }
+
+    public function test_cancelled_signature_does_not_block_a_later_release(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $this->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $signing = KioskSigningRequest::query()->sole();
+        $this->actingAs($this->kioskAccount())->postJson(route('kiosk.sign', $signing), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+
+        $legal = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $movementUrl = route('platform.documents.movements.store', $document);
+        $this->actingAs($records)->postJson($movementUrl, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Records Unit', 'destination' => 'SDO-Legal Unit'],
+        ])->assertOk();
+        $this->assertSame(KioskSigningRequest::STATUS_CANCELLED, $signing->fresh()->status);
+        $this->actingAs($legal)->postJson($movementUrl, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Legal Unit'],
+        ])->assertOk();
+        $this->postJson($movementUrl, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Legal Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->actingAs($records)->postJson($movementUrl, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson($movementUrl, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+
+        $this->assertNull($document->movements()->latest('id')->firstOrFail()->recipient_signature);
     }
 
     public function test_removing_a_document_cancels_its_pending_kiosk_request(): void

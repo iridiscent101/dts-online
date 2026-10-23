@@ -1,0 +1,335 @@
+/* DTS email theme: the system's green, gold and cream (resources/css/dts.css). Inlined into each email when sent. */
+
+/* Base */
+
+body,
+body *:not(html):not(style):not(br):not(tr):not(code) {
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+    position: relative;
+}
+
+body {
+    -webkit-text-size-adjust: none;
+    background-color: #f8f4e7;
+    color: #26332b;
+    height: 100%;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0;
+    width: 100% !important;
+}
+
+p,
+ul,
+ol,
+blockquote {
+    line-height: 1.5;
+    text-align: start;
+}
+
+a {
+    color: #216e39;
+}
+
+a img {
+    border: none;
+}
+
+/* Typography */
+
+h1 {
+    color: #18542b;
+    font-size: 20px;
+    font-weight: bold;
+    margin-top: 0;
+    text-align: start;
+}
+
+h2 {
+    color: #18542b;
+    font-size: 17px;
+    font-weight: bold;
+    margin-top: 0;
+    text-align: start;
+}
+
+h3 {
+    color: #18542b;
+    font-size: 15px;
+    font-weight: bold;
+    margin-top: 0;
+    text-align: left;
+}
+
+/* 17px body text: easier to read for staff and clients on phones. */
+p {
+    color: #26332b;
+    font-size: 17px;
+    line-height: 1.55em;
+    margin-top: 0;
+    text-align: left;
+}
+
+p.sub {
+    font-size: 13px;
+}
+
+img {
+    max-width: 100%;
+}
+
+/* Layout */
+
+.wrapper {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    background-color: #f8f4e7;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.content {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+/* Header: green band with the SDO seal and the office name, then the gold and brown stripe. */
+
+.header {
+    background-color: #216e39;
+    padding: 22px 16px;
+    text-align: center;
+}
+
+.header a {
+    color: #ffffff;
+    font-size: 19px;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.header-seal {
+    background-color: #ffffff;
+    border-radius: 50%;
+    display: block;
+    height: 64px;
+    margin: 0 auto 10px;
+    padding: 2px;
+    width: 64px;
+}
+
+.header-title {
+    color: #ffffff;
+    display: block;
+    font-size: 19px;
+    font-weight: bold;
+    line-height: 1.3;
+}
+
+.header-subtitle {
+    color: #f2e9c9;
+    display: block;
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+    text-transform: uppercase;
+}
+
+.header-stripe {
+    background-color: #f2c230;
+    border-right: 190px solid #86562d;
+    font-size: 0;
+    height: 6px;
+    line-height: 0;
+}
+
+/* Logo */
+
+.logo {
+    height: 75px;
+    margin-top: 15px;
+    margin-bottom: 10px;
+    max-height: 75px;
+    width: 75px;
+}
+
+/* Body */
+
+.body {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    background-color: #f8f4e7;
+    border-bottom: 1px solid #f8f4e7;
+    border-top: 1px solid #f8f4e7;
+    margin: 0;
+    padding: 24px 0 0;
+    width: 100%;
+}
+
+.inner-body {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 570px;
+    background-color: #ffffff;
+    border: 1px solid #d9cfb4;
+    border-radius: 4px;
+    border-top: 4px solid #216e39;
+    margin: 0 auto;
+    padding: 0;
+    width: 570px;
+}
+
+.inner-body a {
+    word-break: break-all;
+}
+
+/* Subcopy */
+
+.subcopy {
+    border-top: 1px solid #e7dfc8;
+    margin-top: 25px;
+    padding-top: 25px;
+}
+
+.subcopy p {
+    color: #4b5563;
+    font-size: 14px;
+}
+
+/* Footer */
+
+.footer {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 570px;
+    margin: 0 auto;
+    padding: 0;
+    text-align: center;
+    width: 570px;
+}
+
+.footer p {
+    color: #6b6457;
+    font-size: 12px;
+    text-align: center;
+}
+
+.footer a {
+    color: #6b6457;
+    text-decoration: underline;
+}
+
+/* Tables */
+
+.table table {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 30px auto;
+    width: 100%;
+}
+
+.table th {
+    border-bottom: 1px solid #e7dfc8;
+    margin: 0;
+    padding-bottom: 8px;
+}
+
+.table td {
+    color: #26332b;
+    font-size: 15px;
+    line-height: 18px;
+    margin: 0;
+    padding: 10px 0;
+}
+
+.content-cell {
+    max-width: 100vw;
+    padding: 32px;
+}
+
+/* Buttons: the system green, large enough to tap easily. */
+
+.action {
+    -premailer-cellpadding: 0;
+    -premailer-cellspacing: 0;
+    -premailer-width: 100%;
+    margin: 30px auto;
+    padding: 0;
+    text-align: center;
+    width: 100%;
+    float: unset;
+}
+
+.button {
+    -webkit-text-size-adjust: none;
+    border-radius: 4px;
+    color: #fff;
+    display: inline-block;
+    font-size: 17px;
+    font-weight: bold;
+    overflow: hidden;
+    text-decoration: none;
+}
+
+.button-blue,
+.button-primary,
+.button-green,
+.button-success {
+    background-color: #216e39;
+    border-bottom: 12px solid #216e39;
+    border-left: 24px solid #216e39;
+    border-right: 24px solid #216e39;
+    border-top: 12px solid #216e39;
+}
+
+.button-red,
+.button-error {
+    background-color: #b42318;
+    border-bottom: 12px solid #b42318;
+    border-left: 24px solid #b42318;
+    border-right: 24px solid #b42318;
+    border-top: 12px solid #b42318;
+}
+
+/* Panels */
+
+.panel {
+    border-left: #216e39 solid 4px;
+    margin: 21px 0;
+}
+
+.panel-content {
+    background-color: #f8f4e7;
+    color: #26332b;
+    padding: 16px;
+}
+
+.panel-content p {
+    color: #26332b;
+}
+
+.panel-item {
+    padding: 0;
+}
+
+.panel-item p:last-of-type {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Utilities */
+
+.break-all {
+    word-break: break-all;
+}

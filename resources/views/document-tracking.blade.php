@@ -383,8 +383,9 @@
                                                             @if ($isSigning)
                                                                 <dt class="font-medium text-slate-500">Status</dt><dd class="text-slate-800">Signature received</dd>
                                                             @endif
-                                                            @if (filled($remark['by']))
-                                                                <dt class="font-medium text-slate-500">{{ $isSigning ? 'Signed by' : 'Added by' }}</dt><dd class="text-slate-800">{{ $remark['by'] }}</dd>
+                                                            {{-- A remark already names its writer ("Name: remark"), so only a signing lists who signed. --}}
+                                                            @if ($isSigning && filled($remark['by']))
+                                                                <dt class="font-medium text-slate-500">Signed by</dt><dd class="text-slate-800">{{ $remark['by'] }}</dd>
                                                             @endif
                                                         </dl>
                                                     </div>
@@ -439,6 +440,9 @@
                                                             @if ($movement->released_to)
                                                                 <dt class="font-medium text-slate-500">Released to</dt><dd class="text-slate-800">{{ $movement->released_to }}</dd>
                                                             @endif
+                                                            @if ($movement->action === \App\Models\DocumentMovement::ACTION_RELEASED && $movement->has_recipient_signature)
+                                                                <dt class="font-medium text-slate-500">Recipient signature</dt><dd class="text-slate-800">Signature received</dd>
+                                                            @endif
                                                         </dl>
                                                         @if (filled($movement->remarks) && ! $document->isClientSubmissionStep($movement))
                                                             {{-- Shown in full, not folded away: the remarks are often the instruction the reader needs. --}}
@@ -479,7 +483,9 @@
 
     <footer class="border-t border-slate-200 bg-white">
         {{-- "Contact us" in the header jumps here. --}}
-        <section id="contact" class="mx-auto grid w-full max-w-6xl scroll-mt-4 gap-4 px-5 py-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-8" aria-labelledby="contact-heading">
+        <section id="contact" class="mx-auto grid w-full max-w-6xl scroll-mt-4 gap-4 px-5 py-6 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start sm:px-8" aria-labelledby="contact-heading">
+            {{-- SDO Nueva Vizcaya seal, left of the contact details. --}}
+            <img src="{{ asset('images/SDO_NV.png') }}" alt="Schools Division Office of Nueva Vizcaya seal" width="64" height="64" decoding="async" class="size-14 shrink-0 sm:size-16 sm:self-center" data-footer-logo>
             <div>
                 <h2 id="contact-heading" class="text-base font-semibold text-slate-900">Contact us</h2>
                 <p class="mt-1 text-sm font-medium text-slate-700">{{ $contact['office'] }}</p>
@@ -503,18 +509,9 @@
                     @endif
                 </ul>
             </div>
-            {{-- One footer: contact details on the left; links and the system line on the right. --}}
-            <div class="grid content-between gap-3 sm:justify-items-end">
-                @if (filled($contact['facebook']) || filled($contact['website']))
-                    <ul class="flex flex-wrap items-start gap-2 text-sm">
-                        @if (filled($contact['facebook']))
-                            <li><a href="{{ $contact['facebook'] }}" target="_blank" rel="noopener" class="inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] px-3 font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7]"><x-orchid-icon path="bs.facebook" class="size-4" /> Facebook</a></li>
-                        @endif
-                        @if (filled($contact['website']))
-                            <li><a href="{{ $contact['website'] }}" target="_blank" rel="noopener" class="inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] px-3 font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7]"><x-orchid-icon path="bs.globe" class="size-4" /> Website</a></li>
-                        @endif
-                    </ul>
-                @endif
+            {{-- One footer: seal and contact details on the left; the system line on the right. The Facebook and website
+                 links stay in the header only. --}}
+            <div class="grid content-end gap-3 self-stretch sm:justify-items-end">
                 <p class="text-sm text-slate-500">Department of Education &middot; Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</p>
             </div>
         </section>

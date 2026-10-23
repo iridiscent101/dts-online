@@ -11,6 +11,7 @@ use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Orchid\Attachment\File;
 use Orchid\Attachment\Models\Attachment;
 use Orchid\Screen\Action;
@@ -71,6 +72,7 @@ class DocumentRegistrationScreen extends Screen
                     'description' => $data['description'] ?? null,
                     'origin' => $data['origin'],
                     'sender' => $data['sender'],
+                    'client_email' => filled($data['client_email'] ?? null) ? Str::lower(trim($data['client_email'])) : null,
                     'current_office' => $destinations[0],
                     'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
                     'received_at' => $data['received'],

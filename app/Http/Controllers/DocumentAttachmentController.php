@@ -224,7 +224,8 @@ class DocumentAttachmentController extends Controller
                 'message' => $message,
                 'html' => view('orchid.partials.document-attachments', [
                     'document' => $document,
-                    'canManageAttachments' => true,
+                    // An office adding a file after finishing (short grace period) gets no Replace or Delete buttons.
+                    'canManageAttachments' => $document->canHaveAttachmentsManagedBy($request->user()),
                 ])->render(),
             ]);
         }

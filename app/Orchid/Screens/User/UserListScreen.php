@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Orchid\Layouts\User\UserEditLayout;
 use App\Orchid\Layouts\User\UserFiltersLayout;
 use App\Orchid\Layouts\User\UserListLayout;
+use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -114,7 +115,7 @@ class UserListScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
-            'user.notification_email' => ['nullable', 'email', 'max:255'],
+            'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($user->notification_email)],
             'user.office_ids' => ['nullable', 'array'],
             'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
         ]);

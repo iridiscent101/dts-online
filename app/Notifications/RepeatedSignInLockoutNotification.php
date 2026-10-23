@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\EmailLink;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -38,7 +39,7 @@ class RepeatedSignInLockoutNotification extends Notification
         return (new MailMessage)
             ->subject($data['title'])
             ->line($data['message'])
-            ->action('Open sign-in activity', route('platform.systems.sign-in-activity'));
+            ->action('Open sign-in activity', EmailLink::route('platform.systems.sign-in-activity'));
     }
 
     /**

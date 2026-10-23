@@ -30,8 +30,9 @@
 
 <label class="form-check dts-remember mb-4">
     <input type="hidden" name="remember">
-    <input type="checkbox" name="remember" value="true" class="form-check-input" {{ !old('remember') || old('remember') === 'true' ? 'checked' : '' }}>
-    <span class="form-check-label">{{ __('Keep me signed in on this computer') }}</span>
+    {{-- Off unless the person ticks it (shared office computers); it lasts 12 hours (config/auth.php). --}}
+    <input type="checkbox" name="remember" value="true" class="form-check-input" @checked(old('remember') === 'true')>
+    <span class="form-check-label">{{ __('Keep me signed in on this computer for 12 hours') }}</span>
 </label>
 
 <button id="button-login" type="submit" class="btn btn-default dts-auth-submit">
@@ -41,5 +42,5 @@
 
 <p class="dts-auth-help">
     <x-orchid-icon path="bs.question-circle"/>
-    <span>{{ __('Forgot your password or locked out? Ask your system administrator to reset it.') }}</span>
+    <span><a href="{{ route('password.forgot') }}">{{ __('Forgot your password?') }}</a> {{ __('We can email a temporary password to your recovery email.') }}</span>
 </p>

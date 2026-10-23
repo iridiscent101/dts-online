@@ -880,7 +880,8 @@ document.addEventListener('close', (event) => {
     }
     // Reload so the list behind the dialog shows the saved change; the row is highlighted after load.
     if (savedWorkspaceUrl) {
-        window.location.reload();
+        if (window.Turbo) window.Turbo.visit(window.location.href, { action: 'replace' });
+        else window.location.reload();
         return;
     }
     if (workspaceOrigin?.isConnected) workspaceOrigin.focus();

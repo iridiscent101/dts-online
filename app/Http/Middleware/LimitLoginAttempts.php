@@ -25,6 +25,8 @@ class LimitLoginAttempts
 {
     public const MAX_ATTEMPTS = 5;
 
+    public const MAX_IP_ATTEMPTS = 100;
+
     // How long the 1st, 2nd and 3rd (and every later) lockout of the day lasts.
     public const LOCKOUT_STEPS = [60, 300, 900];
 
@@ -47,6 +49,11 @@ class LimitLoginAttempts
 
         $email = Str::lower(trim((string) $request->input('email')));
         $key = 'login:'.$email.'|'.$request->ip();
+        $ipKey = 'login-ip:'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($ipKey, self::MAX_IP_ATTEMPTS)) {
+            throw ValidationException::withMessages(['email' => self::lockedMessage(RateLimiter::availableIn($ipKey))]);
+        }
 
         $lockedUntil = (int) Cache::get($key.':locked-until', 0);
         if ($lockedUntil > now()->getTimestamp()) {
@@ -70,6 +77,7 @@ class LimitLoginAttempts
         }
 
         RateLimiter::hit($key, self::ATTEMPT_WINDOW_SECONDS);
+        RateLimiter::hit($ipKey, self::ATTEMPT_WINDOW_SECONDS);
 
         if (RateLimiter::attempts($key) >= self::MAX_ATTEMPTS) {
             $this->lockOut($key, $email);
@@ -84,7 +92,7 @@ class LimitLoginAttempts
             ? (int) ceil($seconds / 60).' minutes'
             : $seconds.' '.Str::plural('second', $seconds);
 
-        return "Too many failed sign-in attempts. Please wait {$wait} and try again. If you forgot your password, ask the administrator to set a new one.";
+        return "Too many failed sign-in attempts. Please wait {$wait} and try again. If you forgot your password, use \"Forgot your password?\" below or ask the administrator to set a new one.";
     }
 
     private function lockOut(string $key, string $email): void
@@ -104,7 +112,7 @@ class LimitLoginAttempts
             'minutes' => (int) ceil($seconds / 60),
         ]);
 
-        if ($lockouts === self::ALERT_AFTER_LOCKOUTS) {
+        if ($account !== null && $lockouts === self::ALERT_AFTER_LOCKOUTS) {
             $administrators = User::query()
                 ->whereHas('roles', fn (Builder $roles): Builder => $roles->where('slug', User::ADMIN_ROLE_SLUG))
                 ->active()

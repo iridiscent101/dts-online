@@ -80,6 +80,12 @@
                             <label for="document-sender">Sender <span aria-hidden="true">*</span></label>
                             <input id="document-sender" name="document[sender]" data-field="sender" required maxlength="180" value="{{ old('document.sender') }}" placeholder="Full name" autocomplete="off">
                         </div>
+                        {{-- Optional: the sender is emailed each time the document is routed to an office. --}}
+                        <div class="dts-field">
+                            <label for="document-client-email">Sender email <span class="dts-muted">(optional)</span></label>
+                            <input id="document-client-email" name="document[client_email]" data-field="client_email" type="email" maxlength="255" value="{{ old('document.client_email') }}" placeholder="For routing updates" autocomplete="off" aria-describedby="document-client-email-hint">
+                            <small id="document-client-email-hint" class="dts-muted">Tell the sender to check their Spam folder if the email is not in their Inbox.</small>
+                        </div>
                         <div class="dts-field">
                             <label for="document-received">Date received <span aria-hidden="true">*</span></label>
                             <input id="document-received" name="document[received]" data-field="received" type="date" required value="{{ old('document.received', now()->timezone('Asia/Manila')->toDateString()) }}">

@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use App\Auth\AccountActivity;
-use App\Notifications\DocumentAssignedMailNotification;
+use App\Notifications\TemporaryPasswordNotification;
 use App\Notifications\VerifyNotificationEmail;
+use App\Support\SendAfterResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Notifications\Notification;
@@ -17,6 +18,7 @@ use Orchid\Filters\Types\Where;
 use Orchid\Filters\Types\WhereDateStartEnd;
 use Orchid\Platform\Models\Role;
 use Orchid\Platform\Models\User as Authenticatable;
+use Spatie\Activitylog\Models\Activity;
 
 class User extends Authenticatable
 {
@@ -107,6 +109,40 @@ class User extends Authenticatable
         return $this->hasAccess('platform.index') || ! $this->hasAccess('platform.kiosk');
     }
 
+    /**
+     * Whether the forced password change comes from a temporary password (forgot password) rather than the stricter
+     * password rule: the latest of those account events decides.
+     */
+    public function isUsingTemporaryPassword(): bool
+    {
+        return $this->passwordChangeReason() === 'temporary';
+    }
+
+    /**
+     * Why the person must set a new password, from the latest of those account events: 'temporary' (forgot password),
+     * 'administrator' (an administrator set it), 'rule' (the stricter password rule), or null when no change is due.
+     */
+    public function passwordChangeReason(): ?string
+    {
+        if (! $this->must_change_password) {
+            return null;
+        }
+
+        $latest = Activity::query()
+            ->where('log_name', AccountActivity::LOG_NAME)
+            ->where('subject_type', $this->getMorphClass())
+            ->where('subject_id', $this->getKey())
+            ->whereIn('event', [AccountActivity::TEMPORARY_PASSWORD_SENT, AccountActivity::PASSWORD_CHANGE_REQUIRED, AccountActivity::PASSWORD_CHANGED])
+            ->latest('id')
+            ->first();
+
+        return match (true) {
+            $latest?->event === AccountActivity::TEMPORARY_PASSWORD_SENT => 'temporary',
+            $latest?->event === AccountActivity::PASSWORD_CHANGED && (bool) data_get($latest->properties, 'set_by_admin') => 'administrator',
+            default => 'rule',
+        };
+    }
+
     public function isDeactivated(): bool
     {
         return $this->deactivated_at !== null;
@@ -145,7 +181,8 @@ class User extends Authenticatable
 
     public function routeNotificationForMail(Notification $notification): ?string
     {
-        return $notification instanceof DocumentAssignedMailNotification
+        // A temporary password goes only to the address the staff member confirmed, never to an unchecked one.
+        return $notification instanceof TemporaryPasswordNotification
             ? $this->notification_email
             : $this->email;
     }
@@ -167,13 +204,8 @@ class User extends Authenticatable
         $email = $this->notification_email;
         $verification = new VerifyNotificationEmail($this->getKey(), hash('sha256', $email));
 
-        if (config('queue.default') === 'sync') {
-            DB::afterCommit(fn () => rescue(fn () => NotificationFacade::route('mail', $email)->notify($verification)));
-
-            return;
-        }
-
-        NotificationFacade::route('mail', $email)->notify($verification);
+        // Sent after the profile is saved and the page has answered; no queue worker needed.
+        SendAfterResponse::mail(fn () => NotificationFacade::route('mail', $email)->notifyNow($verification));
     }
 
     public function canManageRole(Role $role): bool

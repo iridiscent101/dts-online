@@ -65,6 +65,7 @@
                     'Document type' => $document->document_type,
                     'Originating office' => $document->origin,
                     'Sender' => $document->sender,
+                    'Sender email' => $document->client_email,
                 ] as $label => $value)
                     <div><dt>{{ $label }}</dt><dd>{{ filled($value) ? $value : '—' }}</dd></div>
                 @endforeach
@@ -126,6 +127,8 @@
                             <datalist id="workspace-origin-units">@foreach (\App\Models\Document::originOptions() as $originOption)<option value="{{ $originOption }}"></option>@endforeach</datalist>
                         </div>
                         <label><span>Sender <span aria-hidden="true">*</span></span><input name="document[sender]" value="{{ $document->sender }}" required maxlength="180" @readonly($detailsLocked)></label>
+                        {{-- Contact only: editable even while the details are locked. --}}
+                        <label><span>Sender email (optional)</span><input type="email" name="document[client_email]" value="{{ $document->client_email }}" maxlength="255" placeholder="For routing updates" autocomplete="off"></label>
                         {{-- A paper submission has no received date until Records confirms the paper copy. --}}
                         <label><span>Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</span><input type="date" name="document[received]" value="{{ $document->received_at?->toDateString() }}" @readonly($detailsLocked) @required($document->received_at !== null) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
                         @if ($document->received_at === null)
@@ -155,9 +158,16 @@
                     @php($canViewRouteHistory = $canViewAllHistory || $historyOfficeNames->contains($assignment->office))
                     <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $assignment->office }}" data-workspace-route-history-access="{{ $canViewRouteHistory ? 'true' : 'false' }}" aria-pressed="false">
                         <span class="dts-workspace-entry-heading"><strong>{{ $assignment->office }}</strong><span class="dts-record-status" data-status="{{ str($assignment->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($assignment->status) }}>{{ \App\Support\StatusLabel::for($assignment->status) }}</span></span>
+                        {{-- Kept short: when it was sent and received (and by whom). The full story is in the history timeline.
+                             The year shows only for another year. --}}
                         @if ($canViewRouteHistory)
-                            <span class="dts-muted">Sent {{ ($sentDates->get($assignment->office) ?? $assignment->created_at)?->timezone('Asia/Manila')->format('M d, Y · g:i A') }}</span>
-                            @if ($receivedDates->has($assignment->office))<span class="dts-muted">Received {{ $receivedDates->get($assignment->office)->timezone('Asia/Manila')->format('M d, Y · g:i A') }}@if (filled($receivedBy[$assignment->office] ?? null)) by {{ $receivedBy[$assignment->office] }}@endif</span>@endif
+                            @php($routeWhen = fn ($at) => $at?->timezone('Asia/Manila')->format($at?->timezone('Asia/Manila')->isCurrentYear() ? 'M j, g:i A' : 'M j, Y, g:i A'))
+                            <span class="dts-route-steps">
+                                <span class="dts-route-label">Sent</span><span class="dts-route-when">{{ $routeWhen($sentDates->get($assignment->office) ?? $assignment->created_at) }}</span>
+                                @if ($receivedDates->has($assignment->office))
+                                    <span class="dts-route-label">Received</span><span class="dts-route-when">{{ $routeWhen($receivedDates->get($assignment->office)) }}@if (filled($receivedBy[$assignment->office] ?? null)) by <span class="dts-route-who">{{ $receivedBy[$assignment->office] }}</span>@endif</span>
+                                @endif
+                            </span>
                         @endif
                     </button>
                 @empty
@@ -175,7 +185,7 @@
             </div>
             {{-- Correct route: swap an office the user's office sent this to by mistake, before it receives it (dts.js). --}}
             @php($correctableRoutes = $document->correctableRoutesFor(request()->user()))
-            @php($routeCorrection = ['url' => route('platform.documents.routes.correct', $document), 'tracking' => $document->tracking_number, 'subject' => $document->subject, 'routes' => $correctableRoutes, 'assigned' => $document->officeAssignments->pluck('office')->values(), 'list' => 'workspace-route-correction-offices'])
+            @php($routeCorrection = ['url' => route('platform.documents.routes.correct', $document), 'tracking' => $document->tracking_number, 'subject' => $document->subject, 'routes' => $correctableRoutes, 'assigned' => $document->officeAssignments->whereNotIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)->pluck('office')->values(), 'list' => 'workspace-route-correction-offices'])
             @if ($correctableRoutes->isNotEmpty())
                 <div class="dts-workspace-route-correction">
                     <button type="button" class="dts-button dts-button-secondary" data-route-correction='@json($routeCorrection)'><x-orchid-icon path="bs.arrow-left-right" /> Correct route</button>

@@ -23,6 +23,7 @@
                     <div><dt>Document type</dt><dd>{{ $document->document_type }}</dd></div>
                     <div><dt>Originating office / school{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->origin }}</dd></div>
                     <div><dt>Sender{{ $document->client_submission_key ? ' (self-reported)' : '' }}</dt><dd>{{ $document->sender }}</dd></div>
+                    <div><dt>Sender email</dt><dd>{{ filled($document->client_email) ? $document->client_email : '—' }}</dd></div>
                     @if (filled($document->delivery_method))
                         <div><dt>Mode of submission</dt><dd>{{ $document->delivery_method }}</dd></div>
                     @endif

@@ -223,6 +223,7 @@ class Document extends Model
         'origin',
         'delivery_method',
         'sender',
+        'client_email',
         'current_office',
         'status',
         'received_at',
@@ -254,7 +255,11 @@ class Document extends Model
     public function scopeForSection(Builder $query, string $section, ?Collection $offices = null): Builder
     {
         if ($section === 'outgoing') {
-            return $query->sentOnBy($offices);
+            return $query->sentOnBy($offices)->whereNotIn('documents.status', [
+                DocumentMovement::STATUS_COMPLETED,
+                DocumentMovement::STATUS_RELEASED,
+                DocumentMovement::STATUS_ARCHIVED,
+            ]);
         }
 
         $statuses = match ($section) {
@@ -273,9 +278,17 @@ class Document extends Model
         }
 
         if ($offices !== null) {
-            return $query->whereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments
-                ->whereIn('office', $offices)
-                ->whereIn('status', $statuses));
+            return $query->where(function (Builder $query) use ($offices, $section, $statuses): void {
+                $query->whereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments
+                    ->whereIn('office', $offices)
+                    ->whereIn('status', $statuses));
+
+                if ($section === 'archived') {
+                    $query->orWhere(fn (Builder $sent): Builder => $sent
+                        ->whereIn('documents.status', $statuses)
+                        ->sentOnBy($offices));
+                }
+            });
         }
 
         return $query->where(function (Builder $query) use ($statuses): void {
@@ -313,7 +326,9 @@ class Document extends Model
         }
 
         return $query->where(function (Builder $query) use ($offices): void {
-            $query->whereIn('current_office', $offices)
+            $query->where(fn (Builder $legacy): Builder => $legacy
+                ->whereIn('current_office', $offices)
+                ->doesntHave('officeAssignments'))
                 ->orWhereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments->whereIn('office', $offices))
                 ->orWhereIn('registered_office', $offices)
                 // An office keeps read access to what it sent on, so its Outgoing tab can list it.
@@ -359,25 +374,11 @@ class Document extends Model
 
     private function isAssignedToUserOffice(User $user): bool
     {
-        if ($user->isAdministrator() || $user->isAssignedToOffice($this->current_office)) {
+        if ($user->isAdministrator()) {
             return true;
         }
 
-        $offices = $user->assignedOfficeNames();
-
-        if ($offices->isEmpty()) {
-            return false;
-        }
-
-        if ($this->relationLoaded('officeAssignments')) {
-            return $this->officeAssignments->contains(
-                fn (DocumentOfficeAssignment $assignment): bool => $offices->contains($assignment->office),
-            );
-        }
-
-        return $this->officeAssignments()
-            ->whereIn('office', $offices)
-            ->exists();
+        return $this->assignedOfficeNames()->intersect($user->assignedOfficeNames())->isNotEmpty();
     }
 
     public function canBeEditedBy(User $user): bool
@@ -527,11 +528,64 @@ class Document extends Model
         ], true);
     }
 
+    /**
+     * Files can only change while the user's office is still working on the document. A closed record's files are
+     * locked like its details: only an administrator may change them.
+     */
     public function canHaveAttachmentsManagedBy(User $user): bool
     {
-        return ! $user->isReadOnlySupervisor()
-            && $user->hasAccess('platform.documents.attachments.manage')
-            && $this->isAssignedToUserOffice($user);
+        if ($user->isReadOnlySupervisor() || ! $user->hasAccess('platform.documents.attachments.manage')) {
+            return false;
+        }
+
+        if ($user->isAdministrator()) {
+            return true;
+        }
+
+        if ($this->isClosedRecord()) {
+            return false;
+        }
+
+        $offices = $user->assignedOfficeNames();
+        $assignments = $this->relationLoaded('officeAssignments')
+            ? $this->officeAssignments
+            : $this->officeAssignments()->get(['office', 'status']);
+
+        // Legacy documents without route rows fall back to the current office.
+        if ($assignments->isEmpty()) {
+            return $offices->contains($this->current_office);
+        }
+
+        return $assignments->contains(fn (DocumentOfficeAssignment $assignment): bool => $offices->contains($assignment->office)
+            && ! in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true));
+    }
+
+    /**
+     * Adding files is a little wider than changing them: the office that released or completed the document may still
+     * add files for a short time afterwards (config dts.attachment_grace_hours), such as the scanned signed receipt.
+     * Replacing or deleting files stays with canHaveAttachmentsManagedBy.
+     */
+    public function canHaveAttachmentsAddedBy(User $user): bool
+    {
+        if ($this->canHaveAttachmentsManagedBy($user)) {
+            return true;
+        }
+
+        if ($user->isReadOnlySupervisor() || ! $user->hasAccess('platform.documents.attachments.manage')) {
+            return false;
+        }
+
+        $offices = $user->assignedOfficeNames();
+        $since = now()->subHours((int) config('dts.attachment_grace_hours'));
+
+        return $this->officeAssignments()
+            ->with('movement')
+            ->whereIn('office', $offices)
+            ->whereIn('status', [DocumentMovement::STATUS_RELEASED, DocumentMovement::STATUS_COMPLETED])
+            ->get()
+            ->contains(fn (DocumentOfficeAssignment $assignment): bool => $assignment->movement !== null
+                && $assignment->movement->to_status === $assignment->status
+                && $assignment->movement->created_at->greaterThanOrEqualTo($since));
     }
 
     public function registeredBy(): BelongsTo
@@ -588,6 +642,7 @@ class Document extends Model
             'description',
             'origin',
             'sender',
+            'client_email',
             'received_at',
             'priority',
         ]), JSON_THROW_ON_ERROR));
@@ -603,7 +658,7 @@ class Document extends Model
             : $this->officeAssignments()->pluck('office');
 
         return $offices
-            ->when(filled($this->current_office), fn (Collection $officeNames): Collection => $officeNames->push($this->current_office))
+            ->when($offices->isEmpty() && filled($this->current_office), fn (Collection $officeNames): Collection => $officeNames->push($this->current_office))
             ->filter()
             ->unique()
             ->values();
@@ -788,7 +843,8 @@ class Document extends Model
                         ->orWhere('subject', 'like', "%{$search}%")
                         ->orWhere('sender', 'like', "%{$search}%")
                         ->orWhere('origin', 'like', "%{$search}%")
-                        ->orWhere('external_reference', 'like', "%{$search}%");
+                        ->orWhere('external_reference', 'like', "%{$search}%")
+                        ->orWhere('client_email', 'like', "%{$search}%");
                 });
             })
             ->when($filters['type'], fn (Builder $query, string $type): Builder => $query->where('document_type', $type))

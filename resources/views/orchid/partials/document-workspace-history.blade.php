@@ -68,9 +68,12 @@
                     <dt>Mode of submission</dt><dd>{{ $document->delivery_method }}</dd>
                 @endif
                 <dt>Date / time</dt><dd><time datetime="{{ $event->created_at?->toIso8601String() }}">{{ $eventAt?->format('M d, Y') }}<span class="dts-step-time-separator" aria-hidden="true">|</span>{{ $eventAt?->format('g:i A') }}</time></dd>
-                <dt>{{ match ($eventKind) { 'remark' => 'Added by', 'signed' => 'Signed by', default => 'Processed by' } }}</dt><dd>{{ $eventBy ?? ($eventKind === 'signed' ? 'The recipient' : 'System') }}</dd>
+                {{-- A remark already names its writer ("Name: remark") below, so it gets no "Added by" row. --}}
+                @unless ($eventKind === 'remark')
+                    <dt>{{ $eventKind === 'signed' ? 'Signed by' : 'Processed by' }}</dt><dd>{{ $eventBy ?? ($eventKind === 'signed' ? 'The recipient' : 'System') }}</dd>
+                @endunless
                 @if ($eventKind === 'signed')
-                    <dt>Signed on</dt><dd>Fast Track page</dd>
+                    <dt>Signed on</dt><dd>{{ data_get($event->properties, 'signed_on', 'Fast Track page') }}</dd>
                 @endif
                 @if ($isMovement && $event->released_to)
                     <dt>Released to</dt><dd>{{ $event->released_to }}</dd>

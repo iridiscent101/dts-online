@@ -23,4 +23,31 @@ return [
         'website' => env('DTS_CONTACT_WEBSITE', 'https://sdonuevavizcaya.com'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Client email limits
+    |--------------------------------------------------------------------------
+    |
+    | Clients may give an email for routing updates. To keep the public form from being used to flood someone's inbox
+    | (or to use up the Gmail account's daily sending limit, about 500 for a regular account), one address can be given
+    | on only so many online submissions a day, and all client emails together stop for the day at the daily limit.
+    |
+    */
+
+    // After an office releases or completes a document, it may still add files (not replace or delete them) for this
+    // many hours, for example the scanned signed receipt. Administrators can always change files.
+    'attachment_grace_hours' => (int) env('DTS_ATTACHMENT_GRACE_HOURS', 24),
+
+    // On Vercel every Forgot password answer takes at least this long, longer than sending the email, so the answer time
+    // never shows which sign-in emails have a recovery email. Other servers answer at once and send afterwards.
+    'forgot_password_answer_seconds' => (float) env('DTS_FORGOT_PASSWORD_ANSWER_SECONDS', 10),
+
+    // Shown under "Regards," at the end of every email.
+    'mail_sign_off' => env('DTS_MAIL_SIGN_OFF', 'Deped SDO Records Unit'),
+
+    'client_email' => [
+        'submissions_per_address_per_day' => (int) env('DTS_CLIENT_EMAIL_PER_ADDRESS', 5),
+        'daily_limit' => (int) env('DTS_CLIENT_EMAIL_DAILY_LIMIT', 300),
+    ],
+
 ];

@@ -163,6 +163,19 @@ class AccountSecurityTest extends TestCase
             ->assertSessionHasErrors(['email' => LimitLoginAttempts::lockedMessage(LimitLoginAttempts::LOCKOUT_STEPS[0])]);
     }
 
+    public function test_unknown_email_lockouts_do_not_alert_administrators(): void
+    {
+        Notification::fake();
+        $this->administrator();
+
+        foreach (LimitLoginAttempts::LOCKOUT_STEPS as $seconds) {
+            $this->failSignInFiveTimes('missing@deped.local');
+            $this->travel($seconds + 1)->seconds();
+        }
+
+        Notification::assertNothingSent();
+    }
+
     public function test_a_deactivated_account_cannot_sign_in(): void
     {
         $staff = User::factory()->create(['email' => 'clerk@deped.local', 'permissions' => ['platform.index' => true]]);
@@ -324,10 +337,10 @@ class AccountSecurityTest extends TestCase
         $this->get(route('kiosk'))->assertOk();
     }
 
-    public function test_a_new_password_from_an_administrator_clears_the_requirement(): void
+    public function test_a_password_an_administrator_sets_must_be_changed_at_the_next_sign_in(): void
     {
         $admin = $this->administrator();
-        $staff = User::factory()->create(['must_change_password' => true]);
+        $staff = User::factory()->create(['must_change_password' => false, 'permissions' => ['platform.index' => true]]);
 
         $this->actingAs($admin)
             ->post(route('platform.systems.users.edit', $staff).'/save', [
@@ -335,7 +348,26 @@ class AccountSecurityTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $this->assertFalse($staff->fresh()->must_change_password);
+        // The administrator knows this password, so the staff member must replace it.
+        $this->assertTrue($staff->fresh()->must_change_password);
+        // Saving on this screen resets direct permissions (access comes from roles); give the test account access again.
+        $staff->fresh()->forceFill(['permissions' => ['platform.index' => true]])->save();
+        $this->post(route('platform.logout'));
+        $this->post(route('platform.login.auth'), ['email' => $staff->email, 'password' => self::STRONG_PASSWORD]);
+        $this->get(route('platform.profile'))->assertOk()->assertSee('An administrator set this password for you.');
+    }
+
+    public function test_an_administrator_changing_their_own_password_is_not_asked_again(): void
+    {
+        $admin = $this->administrator();
+
+        $this->actingAs($admin)
+            ->post(route('platform.systems.users.edit', $admin).'/save', [
+                'user' => ['name' => $admin->name, 'email' => $admin->email, 'password' => self::STRONG_PASSWORD],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertFalse((bool) $admin->fresh()->must_change_password);
     }
 
     private function failSignInFiveTimes(string $email): void

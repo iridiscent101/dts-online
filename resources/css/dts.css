@@ -2519,12 +2519,38 @@ a.dts-record-status:hover,
     margin-bottom: 0;
 }
 
+/* A route card is a button, and buttons center their content vertically; a column from the top keeps every card's
+   heading and lines in the same place, whatever the neighbouring card holds. */
 .dts-workspace-route {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
     width: 100%;
     color: inherit;
     text-align: left;
     cursor: pointer;
+}
+
+/* Route steps as a small two-column table: the step on the left at a fixed width, when and who on the right. A long
+   name wraps inside the right column, so every row still lines up with the others. */
+.dts-route-steps {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 4px 12px;
+    margin-top: 8px;
+    color: var(--dts-text-muted);
+    line-height: 1.35;
+}
+
+.dts-route-label {
+    min-width: 4.5rem;
+    color: var(--dts-ink);
+    font-weight: 600;
+}
+
+.dts-route-who {
+    color: var(--dts-ink);
 }
 
 .dts-workspace-route:hover,
@@ -7756,41 +7782,10 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     color: rgb(255 255 255 / 0.9);
 }
 
-.dts-auth-hero__public {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 12px;
-}
 
-.dts-auth-hero__public p {
-    flex-basis: 100%;
-    margin: 0;
-    font-size: 1rem;
-    color: rgb(255 255 255 / 0.85);
-}
 
-.dts-auth-hero__public a {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 8px 16px;
-    border: 1px solid rgb(255 255 255 / 0.55);
-    border-radius: var(--dts-radius);
-    color: #fff;
-    font-weight: 600;
-    text-decoration: none;
-}
 
-.dts-auth-hero__public a:hover {
-    background: rgb(255 255 255 / 0.12);
-    color: #fff;
-}
 
-.dts-auth-hero__public a:focus-visible {
-    outline-color: var(--dts-gold);
-}
 
 .dts-auth-main {
     display: flex;
@@ -7900,23 +7895,9 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     text-align: center;
 }
 
-.dts-auth-public-mobile {
-    margin: 20px 0 0;
-    color: var(--dts-text-muted);
-    font-size: 1rem;
-    text-align: center;
-}
 
-.dts-auth-public-mobile a {
-    color: var(--dts-green-dark);
-    font-weight: 600;
-}
 
 @media (min-width: 992px) {
-    .dts-auth-public-mobile {
-        display: none;
-    }
-
     .dts-auth {
         grid-template-columns: minmax(420px, 5fr) 6fr;
     }

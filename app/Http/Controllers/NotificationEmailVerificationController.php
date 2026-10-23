@@ -19,6 +19,6 @@ class NotificationEmailVerificationController extends Controller
             $user->forceFill(['notification_email_verified_at' => now()])->save();
         }
 
-        return response('Email notifications enabled. You may close this page.');
+        return response('Recovery email confirmed. You may close this page.');
     }
 }

@@ -9,7 +9,7 @@
             <label for="registry-search">Search documents</label>
             <div class="dts-input-icon">
                 <span class="dts-search-icon" aria-hidden="true"><x-orchid-icon path="bs.search" /></span>
-                <input id="registry-search" data-filter="search" type="search" value="{{ $filterValues['search'] }}" placeholder="Tracking no., subject, sender or school" autocomplete="off">
+                <input id="registry-search" data-filter="search" type="search" value="{{ $filterValues['search'] }}" placeholder="Tracking no., subject, sender, school or email" autocomplete="off">
             </div>
         </div>
         <button type="button" class="dts-button dts-button-primary" data-filter-action="apply">Search</button>

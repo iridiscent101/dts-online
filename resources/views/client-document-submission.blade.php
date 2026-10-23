@@ -48,6 +48,13 @@
             </div>
 @endif
 
+        {{-- The same form was sent again after the Records Unit removed that submission. --}}
+        @if (session('submission_notice'))
+            <div class="mt-6 rounded-sm border border-amber-300 bg-amber-50 px-5 py-4 text-amber-950" role="status">
+                {{ session('submission_notice') }}
+            </div>
+        @endif
+
         @if ($errors->any())
             <div class="mt-6 rounded-sm border border-red-300 bg-red-50 px-5 py-4 text-red-900" role="alert">
                 <strong>Please check your submission.</strong>
@@ -84,6 +91,14 @@
                         <option value="{{ $originOption }}"></option>
                     @endforeach
                 </datalist>
+            </div>
+
+            {{-- Optional: the sender gets an email each time the document is routed to an office. --}}
+            <div class="sm:col-span-2">
+                <label for="client-email" class="block text-sm font-semibold text-slate-800">Email for updates <span class="font-normal text-slate-600">(optional)</span></label>
+                <input id="client-email" name="email" type="email" value="{{ old('email') }}" maxlength="255" autocomplete="email" inputmode="email" aria-describedby="client-email-hint @error('email') client-email-error @enderror" @error('email') aria-invalid="true" @enderror @class(['mt-2 min-h-11 w-full rounded-sm border px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]', 'border-slate-300' => ! $errors->has('email'), 'border-2 border-red-700' => $errors->has('email')])>
+                <p id="client-email-hint" class="mt-2 text-sm text-slate-600">We will email you each time your document is routed to an office. If our email is not in your Inbox, check your Spam folder and mark it "Report not spam".</p>
+                @error('email')<p id="client-email-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
             </div>
 
             <div class="sm:col-span-2">

@@ -47,7 +47,12 @@ class DocumentRoutingService
                 ]);
             }
 
-            if ($replacementOffice === $sourceOffice || $currentDocument->officeAssignments()->where('office', $replacementOffice)->exists()) {
+            // Like Forward, an office that finished its part can take the document again; only offices still working on
+            // it count as already assigned.
+            if ($replacementOffice === $sourceOffice || $currentDocument->officeAssignments()
+                ->where('office', $replacementOffice)
+                ->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
+                ->exists()) {
                 throw ValidationException::withMessages([
                     'replacement_office' => 'Choose a different office that is not already assigned.',
                 ]);
@@ -73,8 +78,8 @@ class DocumentRoutingService
                 'remarks' => $originalMovement->remarks,
                 'acted_by' => $user->id,
             ]);
-            $currentDocument->officeAssignments()->create([
-                'office' => $replacementOffice,
+            // A finished office's row is reopened rather than duplicated.
+            $currentDocument->officeAssignments()->updateOrCreate(['office' => $replacementOffice], [
                 'status' => $pendingStatus,
                 'assigned_by' => $user->id,
                 'movement_id' => $replacementMovement->id,
@@ -128,7 +133,11 @@ class DocumentRoutingService
                 throw ValidationException::withMessages(['destination_office' => 'Restore the document before adding another office.']);
             }
 
-            if ($sourceOffice === $destinationOffice || $currentDocument->officeAssignments()->where('office', $destinationOffice)->exists()) {
+            // A finished office may be added again; only offices still working on the document are refused.
+            if ($sourceOffice === $destinationOffice || $currentDocument->officeAssignments()
+                ->where('office', $destinationOffice)
+                ->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
+                ->exists()) {
                 throw ValidationException::withMessages(['destination_office' => 'Choose a different office that is not already assigned.']);
             }
 
@@ -148,8 +157,7 @@ class DocumentRoutingService
                 'remarks' => $remarks,
                 'acted_by' => $user->id,
             ]);
-            $currentDocument->officeAssignments()->create([
-                'office' => $destinationOffice,
+            $currentDocument->officeAssignments()->updateOrCreate(['office' => $destinationOffice], [
                 'status' => DocumentMovement::STATUS_FORWARDED,
                 'assigned_by' => $user->id,
                 'movement_id' => $movement->id,
@@ -157,7 +165,7 @@ class DocumentRoutingService
             KioskSigningRequest::query()
                 ->where('document_id', $currentDocument->id)
                 ->whereIn('status', [KioskSigningRequest::STATUS_PENDING, KioskSigningRequest::STATUS_SIGNED])
-                ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
+                ->update(['status' => KioskSigningRequest::STATUS_CANCELLED, 'recipient_signature' => null, 'signed_at' => null]);
             $currentDocument->recordActivity('Document route added', $user, [
                 'office' => $sourceOffice,
                 'from_office' => $sourceOffice,
@@ -180,12 +188,40 @@ class DocumentRoutingService
                 ->findOrFail($document->getKey());
 
             $sourceOffice = filled($workflow['source_office'] ?? null) ? trim((string) $workflow['source_office']) : null;
+            if ($sourceOffice === null && $this->workflowStates($user, $currentDocument)->count() > 1) {
+                throw ValidationException::withMessages([
+                    'workflow.source_office' => 'Select the acting office for this routing action.',
+                ]);
+            }
             $workflowState = $this->workflowState($user, $currentDocument, $sourceOffice);
             abort_unless($workflowState !== null, 403, 'This document is assigned to another office.');
 
             $action = $this->normalizeAction($workflow['action']);
             abort_if($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestore($user), 403);
             $this->ensureTransitionIsAllowed($user, $currentDocument, $workflowState, $action);
+
+            if ($action === DocumentMovement::ACTION_RELEASED) {
+                $signingRequests = KioskSigningRequest::query()
+                    ->where('document_id', $currentDocument->id)
+                    ->where('office', $workflowState['office']);
+                $pendingSigning = (clone $signingRequests)
+                    ->waiting()
+                    ->lockForUpdate()
+                    ->first();
+                $signedRequest = (clone $signingRequests)
+                    ->whereNotNull('signed_at')
+                    ->latest('id')
+                    ->lockForUpdate()
+                    ->first();
+                $signature = $workflow['recipient_signature'] ?? null;
+                if ($pendingSigning !== null || ($signedRequest !== null
+                    && (blank($signature) || ($signedRequest->status === KioskSigningRequest::STATUS_SIGNED
+                        && ! hash_equals((string) $signedRequest->recipient_signature, (string) $signature))))) {
+                    throw ValidationException::withMessages([
+                        'workflow.recipient_signature' => 'Finish or cancel the pending kiosk request, and include the recipient signature before releasing.',
+                    ]);
+                }
+            }
 
             if ($action === DocumentMovement::ACTION_COMPLETED
                 && in_array($workflowState['office'], self::RECORDS_OFFICES, true)
@@ -212,9 +248,10 @@ class DocumentRoutingService
                     ]);
                 }
 
+                // An office that finished its part can be sent the document again (e.g. to re-check something); its row
+                // is reopened below. Only offices still working on it count as already assigned.
                 $alreadyAssigned = $currentDocument->officeAssignments->first(fn (DocumentOfficeAssignment $assignment): bool => in_array($assignment->office, $targetOffices, true)
-                    && ($action !== DocumentMovement::ACTION_RESTORED
-                        || ! in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true)));
+                    && ! in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true));
 
                 $isPaperReturningToRecords = $alreadyAssigned !== null
                     && $action === DocumentMovement::ACTION_FORWARDED
@@ -422,7 +459,7 @@ class DocumentRoutingService
                 'status' => $assignment->status,
             ]);
 
-        if ($states->isEmpty() && $offices->contains($document->current_office)) {
+        if ($assignments->isEmpty() && $offices->contains($document->current_office)) {
             $states->push([
                 'office' => $document->current_office,
                 'status' => $document->status,

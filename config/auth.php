@@ -41,6 +41,9 @@ return [
         'web' => [
             'driver' => 'session',
             'provider' => 'users',
+            // "Keep me signed in" lasts one working day (minutes), not Laravel's default 400 days: office computers are
+            // shared, and the next person must not open the site as the last one.
+            'remember' => (int) env('AUTH_REMEMBER_MINUTES', 720),
         ],
     ],
 

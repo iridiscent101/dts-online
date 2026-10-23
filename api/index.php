@@ -17,10 +17,23 @@ if ($path === '/up') {
     return;
 }
 
+// Which commit is live. Anyone may ask whether the site is up, but the commit, branch and environment are shown only to
+// a request carrying the cron secret ("Authorization: Bearer <CRON_SECRET>"), so they do not help an attacker.
 if ($path === '/_deploy-check') {
     header('Content-Type: application/json; charset=UTF-8');
+    header('Cache-Control: no-store');
+
+    $secret = (string) ($_ENV['CRON_SECRET'] ?? $_SERVER['CRON_SECRET'] ?? getenv('CRON_SECRET') ?: '');
+    $given = (string) ($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+
+    if ($secret === '' || ! hash_equals('Bearer '.$secret, $given)) {
+        echo json_encode(['ok' => true]);
+
+        return;
+    }
 
     echo json_encode([
+        'ok' => true,
         'commit' => $_ENV['VERCEL_GIT_COMMIT_SHA'] ?? $_SERVER['VERCEL_GIT_COMMIT_SHA'] ?? null,
         'branch' => $_ENV['VERCEL_GIT_COMMIT_REF'] ?? $_SERVER['VERCEL_GIT_COMMIT_REF'] ?? null,
         'environment' => $_ENV['VERCEL_ENV'] ?? $_SERVER['VERCEL_ENV'] ?? null,
@@ -126,7 +139,8 @@ if ($path === '/_cron/daily') {
     $kernel = $app->make(Illuminate\Contracts\Console\Kernel::class);
     $results = [];
 
-    foreach (['notifications:prune-read'] as $command) {
+    // Keep in step with the daily jobs in routes/console.php.
+    foreach (['notifications:prune-read', 'accounts:prune-activity'] as $command) {
         $results[$command] = $kernel->call($command) === 0;
         error_log(sprintf('VERCEL_CRON %s: %s', $command, trim($kernel->output())));
     }

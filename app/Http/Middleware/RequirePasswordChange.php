@@ -17,7 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class RequirePasswordChange
 {
-    public const MESSAGE = 'Please set a new password before you continue. The password rules have changed, and your current password does not meet them.';
+    public const MESSAGE = 'Please set a new password before you continue.';
 
     // My Account (to change it), signing out, and the idle timer's own background requests stay open.
     private const ALLOWED_ROUTES = [

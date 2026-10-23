@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Middleware\LimitLoginAttempts;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class LoginAttemptLimitTest extends TestCase
@@ -51,5 +52,22 @@ class LoginAttemptLimitTest extends TestCase
             $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => 'wrong-password'])
                 ->assertSessionHasErrors(['email' => 'The details you entered did not match our records. Please double-check and try again.']);
         }
+    }
+
+    public function test_many_failed_emails_from_one_ip_block_a_further_sign_in(): void
+    {
+        User::factory()->create(['email' => 'clerk@deped.local', 'permissions' => ['platform.index' => true]]);
+        $ip = '10.0.0.99';
+        for ($attempt = 1; $attempt < 100; $attempt++) {
+            RateLimiter::hit('login-ip:'.$ip, LimitLoginAttempts::ATTEMPT_WINDOW_SECONDS);
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->post(route('platform.login.auth'), ['email' => 'missing@deped.local', 'password' => 'wrong-password'])
+            ->assertSessionHasErrors();
+        $this->withServerVariables(['REMOTE_ADDR' => $ip])
+            ->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => 'password'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
     }
 }

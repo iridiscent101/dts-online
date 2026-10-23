@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -48,6 +49,7 @@ class UpdateDocumentRequest extends FormRequest
             'document.description' => ['nullable', 'string', 'max:3000'],
             'document.origin' => ['required', 'string', 'max:180'],
             'document.sender' => ['required', 'string', 'max:180'],
+            'document.client_email' => ['bail', 'nullable', 'string', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($document instanceof Document ? $document->client_email : null)],
             'document.received' => $document instanceof Document && $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                 ? ['nullable', Rule::prohibitedIf(true)]
                 : ['required', 'date', 'before_or_equal:'.today('Asia/Manila')->toDateString()],

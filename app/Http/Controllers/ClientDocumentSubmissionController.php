@@ -29,14 +29,30 @@ class ClientDocumentSubmissionController extends Controller
         ]);
     }
 
+    /**
+     * The same form arrived again (back button, refresh, double click). A submission still on file opens its tracking
+     * page; one the Records Unit removed gets a fresh, empty form and a short note instead of an error.
+     */
+    private function alreadySent(Document $document): RedirectResponse
+    {
+        if ($document->trashed()) {
+            return redirect()->route('submission.create')->with(
+                'submission_notice',
+                'This form was already sent, and that submission was removed by the Records Unit. To send a document, fill in this new form.',
+            );
+        }
+
+        return redirect()->route('tracking.index', ['tracking' => $document->tracking_number])
+            ->with('submitted', true);
+    }
+
     public function store(StoreClientDocumentSubmissionRequest $request, DocumentNotificationDispatcher $notifications): RedirectResponse
     {
         $data = $request->validated();
-        $existingDocument = Document::query()->where('client_submission_key', $data['submission_key'])->first();
+        $existingDocument = Document::withTrashed()->where('client_submission_key', $data['submission_key'])->first();
 
         if ($existingDocument !== null) {
-            return redirect()->route('tracking.index', ['tracking' => $existingDocument->tracking_number])
-                ->with('submitted', true);
+            return $this->alreadySent($existingDocument);
         }
 
         $attachment = null;
@@ -48,6 +64,7 @@ class ClientDocumentSubmissionController extends Controller
                     'subject' => $data['title'],
                     'document_type' => $data['type'],
                     'sender' => $data['name'],
+                    'client_email' => filled($data['email'] ?? null) ? Str::lower(trim($data['email'])) : null,
                     'origin' => $data['office'],
                     'delivery_method' => $data['delivery_method'],
                     'current_office' => self::RECORDS_OFFICE,
@@ -96,10 +113,9 @@ class ClientDocumentSubmissionController extends Controller
                 Storage::disk($attachment->disk)->delete($attachment->physicalPath());
             }
 
-            $existingDocument = Document::query()->where('client_submission_key', $data['submission_key'])->first();
+            $existingDocument = Document::withTrashed()->where('client_submission_key', $data['submission_key'])->first();
             if ($existingDocument !== null) {
-                return redirect()->route('tracking.index', ['tracking' => $existingDocument->tracking_number])
-                    ->with('submitted', true);
+                return $this->alreadySent($existingDocument);
             }
 
             report($exception);

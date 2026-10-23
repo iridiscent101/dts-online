@@ -11,6 +11,7 @@ use App\Orchid\Layouts\User\UserEditLayout;
 use App\Orchid\Layouts\User\UserOfficeLayout;
 use App\Orchid\Layouts\User\UserPasswordLayout;
 use App\Orchid\Layouts\User\UserRoleLayout;
+use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -143,7 +144,7 @@ class UserEditScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
-            'user.notification_email' => ['nullable', 'email', 'max:255'],
+            'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($user->notification_email)],
             'user.password' => [Rule::requiredIf(! $user->exists), 'nullable', 'string', Password::defaults()],
             'user.office_ids' => ['nullable', 'array'],
             'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
@@ -177,8 +178,9 @@ class UserEditScreen extends Screen
 
             $user->when($request->filled('user.password'), function (Builder $builder) use ($request) {
                 $builder->getModel()->password = Hash::make($request->input('user.password'));
-                // The new password meets the rule, so the person is no longer asked to change it.
-                $builder->getModel()->must_change_password = false;
+                // A password someone else chose is known to them, so the person must pick their own at the next sign-in.
+                // Administrators setting their own password on this screen chose it themselves.
+                $builder->getModel()->must_change_password = $builder->getModel()->getKey() !== $request->user()?->getKey();
             });
 
             $user

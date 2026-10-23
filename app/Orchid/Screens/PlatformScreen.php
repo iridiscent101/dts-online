@@ -192,7 +192,14 @@ class PlatformScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'Department of Education | Records Management';
+        // Each tab says in plain words what it lists.
+        return match ($this->section()) {
+            'documents' => 'Every document your office is working on or has handled.',
+            'incoming' => 'Documents sent to your office that are waiting to be received.',
+            'outgoing' => 'Documents your office sent on to other offices that are still being processed.',
+            'archived' => 'Documents that are completed, released or archived.',
+            default => 'Your office\'s documents and what needs attention today.',
+        };
     }
 
     /**
@@ -285,6 +292,7 @@ class PlatformScreen extends Screen
             ->whereHas('document')
             ->whereExists(fn ($movements) => $movements->selectRaw('1')
                 ->from('document_movements')
+                ->whereColumn('document_movements.id', 'document_office_assignments.movement_id')
                 ->whereColumn('document_movements.document_id', 'document_office_assignments.document_id')
                 ->whereColumn('document_movements.to_office', 'document_office_assignments.office')
                 ->whereNotNull('document_movements.from_office')

@@ -36,7 +36,7 @@ class SignInActivityScreen extends Screen
 
     public function description(): ?string
     {
-        return 'Sign-ins, failed attempts, lockouts, password changes and deactivated accounts, newest first.';
+        return 'Sign-ins, failed attempts, lockouts, password changes and deactivated accounts, newest first. Entries are deleted automatically after 3 months.';
     }
 
     public function permission(): ?iterable

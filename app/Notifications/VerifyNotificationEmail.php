@@ -2,22 +2,17 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Support\EmailLink;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\URL;
 
-class VerifyNotificationEmail extends Notification implements ShouldQueue
+class VerifyNotificationEmail extends Notification
 {
-    use Queueable;
-
     public function __construct(
         public int $userId,
         public string $addressHash,
-    ) {
-        $this->afterCommit();
-    }
+    ) {}
 
     /**
      * Get the notification's delivery channels.
@@ -35,13 +30,14 @@ class VerifyNotificationEmail extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Confirm your DocuTrackS email alerts')
-            ->line('Confirm this address to receive document assignment emails. This link expires in 24 hours.')
-            ->action('Confirm email alerts', url(URL::temporarySignedRoute(
+            ->subject('Confirm your recovery email')
+            ->line('Confirm this address so a temporary password can be sent here if you forget yours. This link expires in 24 hours.')
+            ->action('Confirm recovery email', EmailLink::to(URL::temporarySignedRoute(
                 'notification-email.verify',
                 now()->addDay(),
                 ['user' => $this->userId, 'hash' => $this->addressHash],
                 absolute: false,
-            )));
+            )))
+            ->line(DocumentRoutedClientNotification::SPAM_NOTE);
     }
 }

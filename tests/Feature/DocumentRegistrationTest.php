@@ -6,10 +6,12 @@ use App\Models\Document;
 use App\Models\DocumentType;
 use App\Models\Office;
 use App\Models\User;
+use App\Notifications\DocumentRoutedClientNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Orchid\Attachment\File;
 use Tests\TestCase;
@@ -69,6 +71,28 @@ class DocumentRegistrationTest extends TestCase
         ])->assertSessionHasErrors('document.received');
 
         $this->assertDatabaseCount('documents', 0);
+    }
+
+    public function test_staff_can_record_an_optional_sender_email_that_receives_routing_updates(): void
+    {
+        config()->set('mail.document_assignment_notifications_enabled', true);
+        Notification::fake();
+        $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+
+        $this->actingAs($user)->get(route('platform.documents.create'))
+            ->assertOk()->assertSee('Sender email');
+
+        $this->post(route('platform.documents.create').'/save', [
+            'document' => [...$this->validDocumentData(), 'client_email' => 'not-an-email'],
+        ])->assertSessionHasErrors('document.client_email');
+        $this->assertDatabaseCount('documents', 0);
+
+        $this->post(route('platform.documents.create').'/save', [
+            'document' => [...$this->validDocumentData(), 'client_email' => 'Sender@Gmail.com'],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('sender@gmail.com', Document::query()->sole()->client_email);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
     }
 
     public function test_deactivated_catalog_entries_are_not_restored_as_registration_fallbacks(): void

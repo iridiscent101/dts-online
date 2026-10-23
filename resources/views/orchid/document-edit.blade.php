@@ -72,6 +72,12 @@
                     <label for="document-sender">Sender <span aria-hidden="true">*</span></label>
                     <input id="document-sender" name="document[sender]" required maxlength="180" value="{{ old('document.sender', $document->sender) }}" @readonly($fieldsLocked) autocomplete="off">
                 </div>
+                {{-- Contact only, so it stays editable after the details lock (a typo can be fixed without unlocking). --}}
+                <div class="dts-field">
+                    <label for="document-client-email">Sender email <span class="dts-muted">(optional)</span></label>
+                    <input id="document-client-email" name="document[client_email]" type="email" maxlength="255" value="{{ old('document.client_email', $document->client_email) }}" placeholder="For routing updates" autocomplete="off" aria-describedby="document-client-email-hint">
+                    <small id="document-client-email-hint" class="dts-field-hint">The sender is emailed each time the document is routed to an office.</small>
+                </div>
                 <div class="dts-field">
                     <label for="document-received">Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</label>
                     <input id="document-received" name="document[received]" type="date" @required($document->received_at !== null) value="{{ old('document.received', $document->received_at?->toDateString()) }}" @readonly($fieldsLocked) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="document-dates-pending" @endif>

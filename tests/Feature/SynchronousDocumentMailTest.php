@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Document;
 use App\Models\User;
-use App\Notifications\DocumentAssignedMailNotification;
 use App\Notifications\DocumentNotificationDispatcher;
+use App\Notifications\DocumentRoutedClientNotification;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
@@ -28,35 +28,29 @@ class SynchronousDocumentMailTest extends TestCase
         RefreshDatabaseState::$migrated = false;
     }
 
-    public function test_vercel_style_sync_mail_sends_after_commit_but_not_after_rollback(): void
+    public function test_client_mail_sends_after_commit_but_not_after_rollback(): void
     {
-        config()->set('queue.default', 'sync');
+        // Deferred work runs straight away here; in a request it runs after the response.
+        $this->withoutDefer();
         config()->set('mail.document_assignment_notifications_enabled', true);
         Notification::fake();
         $actor = User::factory()->create(['office' => 'Records Unit']);
-        $recipient = User::factory()->create([
-            'office' => 'Administrative Unit',
-            'notification_email' => 'staff@gmail.com',
-            'notification_email_verified_at' => now(),
-        ]);
-        $document = Document::factory()->received()->create();
+        $document = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
 
         DB::beginTransaction();
         app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
-        Notification::assertNotSentTo($recipient, DocumentAssignedMailNotification::class);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 0);
         DB::rollBack();
-        Notification::assertNotSentTo($recipient, DocumentAssignedMailNotification::class);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 0);
 
         DB::transaction(fn () => app(DocumentNotificationDispatcher::class)
             ->assigned($document, 'forward', $actor, ['Administrative Unit']));
 
-        Notification::assertSentTo($recipient, DocumentAssignedMailNotification::class);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
 
-        Notification::shouldReceive('send')->twice()->andReturnUsing(function (mixed $notifiables, mixed $notification): void {
-            if ($notification instanceof DocumentAssignedMailNotification) {
-                throw new \RuntimeException('SMTP unavailable');
-            }
-        });
+        // A mail failure after the commit never undoes the routing.
+        Notification::shouldReceive('send')->andReturnNull();
+        Notification::shouldReceive('route')->andThrow(new \RuntimeException('SMTP unavailable'));
 
         $committed = DB::transaction(function () use ($document, $actor): bool {
             app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
@@ -65,5 +59,23 @@ class SynchronousDocumentMailTest extends TestCase
         });
 
         $this->assertTrue($committed);
+    }
+
+    public function test_vercel_sends_before_the_response_and_other_servers_after_it(): void
+    {
+        config()->set('mail.document_assignment_notifications_enabled', true);
+        Notification::fake();
+        $actor = User::factory()->create(['office' => 'Records Unit']);
+        $document = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
+
+        // A normal server leaves the email for after the response (nothing is sent yet at this point).
+        config()->set('queue.default', 'database');
+        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 0);
+
+        // Vercel (sync queue) sends it straight away, before its function can be frozen.
+        config()->set('queue.default', 'sync');
+        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
     }
 }

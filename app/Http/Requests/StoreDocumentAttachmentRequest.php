@@ -24,7 +24,7 @@ class StoreDocumentAttachmentRequest extends FormRequest
 
         abort_unless($document->isVisibleTo($user), 404);
 
-        return $document->canHaveAttachmentsManagedBy($user);
+        return $document->canHaveAttachmentsAddedBy($user);
     }
 
     /**

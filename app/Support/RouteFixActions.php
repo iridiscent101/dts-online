@@ -33,7 +33,8 @@ class RouteFixActions
                 'tracking' => $document->tracking_number,
                 'subject' => $document->subject,
                 'routes' => $correctable,
-                'assigned' => $document->officeAssignments->pluck('office')->values(),
+                // Offices that finished their part can be chosen again, as with Forward.
+                'assigned' => $document->officeAssignments->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)->pluck('office')->values(),
             ];
         }
 
@@ -84,7 +85,8 @@ class RouteFixActions
             'tracking' => $document->tracking_number,
             'subject' => $document->subject,
             'sources' => $sendingOffices->values(),
-            'assigned' => $document->officeAssignments->pluck('office')->values(),
+            // Offices that finished their part can be added again, so only those still working on it are refused.
+            'assigned' => $document->officeAssignments->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)->pluck('office')->values(),
         ];
     }
 }

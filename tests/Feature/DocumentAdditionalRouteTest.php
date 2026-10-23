@@ -280,6 +280,45 @@ class DocumentAdditionalRouteTest extends TestCase
         }
     }
 
+    public function test_sending_office_can_add_back_an_office_that_finished_its_part(): void
+    {
+        Notification::fake();
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+
+        $this->assertNotContains('SDO-Legal Unit', RouteFixActions::for($document->fresh(), $sender)['additional']['assigned']->all());
+
+        $this->actingAs($sender)
+            ->postJson(route('platform.documents.additional-routes.store', $document), [
+                'source_office' => 'Administrative Unit',
+                'destination_office' => 'SDO-Legal Unit',
+                'reason' => 'Legal must check the revised contract.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(1, $document->officeAssignments()->where('office', 'SDO-Legal Unit')->count());
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id, 'office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+    }
+
+    public function test_additional_route_still_refuses_an_office_that_is_working_on_it(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+
+        $this->actingAs($sender)
+            ->postJson(route('platform.documents.additional-routes.store', $document), [
+                'source_office' => 'Administrative Unit',
+                'destination_office' => 'SDO-Legal Unit',
+                'reason' => 'Duplicate.',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('destination_office');
+    }
+
     private function forwardedDocument(): Document
     {
         $document = Document::factory()->create([

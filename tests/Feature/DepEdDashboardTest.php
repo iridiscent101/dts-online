@@ -1147,6 +1147,70 @@ class DepEdDashboardTest extends TestCase
             ->assertSee('Action unavailable');
     }
 
+    public function test_closed_documents_leave_outgoing_but_remain_in_archived_and_accessible(): void
+    {
+        $sender = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
+        $unrelated = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $admin = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $admin->replaceRoles([$adminRole->id]);
+
+        foreach ([
+            'RELEASED' => DocumentMovement::STATUS_RELEASED,
+            'COMPLETED' => DocumentMovement::STATUS_COMPLETED,
+            'ARCHIVED' => DocumentMovement::STATUS_ARCHIVED,
+        ] as $suffix => $status) {
+            $document = Document::factory()->create([
+                'tracking_number' => 'DTS-CLOSED-'.$suffix,
+                'current_office' => 'Administrative Unit',
+                'status' => $status,
+            ]);
+            $document->movements()->create([
+                'action' => DocumentMovement::ACTION_FORWARDED,
+                'from_office' => 'Records Unit',
+                'to_office' => 'Administrative Unit',
+                'from_status' => DocumentMovement::STATUS_RECEIVED,
+                'to_status' => DocumentMovement::STATUS_FORWARDED,
+                'acted_by' => $sender->id,
+            ]);
+        }
+
+        $active = Document::factory()->outgoing()->create([
+            'tracking_number' => 'DTS-STILL-OUTGOING',
+            'current_office' => 'Administrative Unit',
+        ]);
+        $active->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'Records Unit',
+            'to_office' => 'Administrative Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED,
+            'to_status' => DocumentMovement::STATUS_FORWARDED,
+            'acted_by' => $sender->id,
+        ]);
+
+        foreach ([$sender, $admin] as $user) {
+            $this->actingAs($user)->get(route('platform.outgoing'))
+                ->assertSee('DTS-STILL-OUTGOING')
+                ->assertDontSee('DTS-CLOSED-RELEASED')
+                ->assertDontSee('DTS-CLOSED-COMPLETED')
+                ->assertDontSee('DTS-CLOSED-ARCHIVED');
+        }
+
+        $this->actingAs($admin)->get(route('platform.archived'))
+            ->assertSee('DTS-CLOSED-RELEASED')
+            ->assertSee('DTS-CLOSED-COMPLETED')
+            ->assertSee('DTS-CLOSED-ARCHIVED');
+        $this->actingAs($sender)->get(route('platform.archived'))
+            ->assertSee('DTS-CLOSED-RELEASED')
+            ->assertSee('DTS-CLOSED-COMPLETED')
+            ->assertSee('DTS-CLOSED-ARCHIVED')
+            ->assertDontSee('DTS-STILL-OUTGOING');
+        $this->actingAs($unrelated)->get(route('platform.archived'))
+            ->assertDontSee('DTS-CLOSED-RELEASED');
+        $this->actingAs($sender)->get(route('platform.documents.view', $document))
+            ->assertOk();
+    }
+
     public function test_dashboard_uses_the_users_assigned_office_status_for_parallel_routes(): void
     {
         $user = User::factory()->create([
@@ -1231,7 +1295,7 @@ class DepEdDashboardTest extends TestCase
         $legal = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->received()->create(['current_office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
         $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Legal Unit'], ['status' => DocumentMovement::STATUS_FORWARDED]);
-        $document->movements()->create([
+        $movement = $document->movements()->create([
             'action' => DocumentMovement::ACTION_FORWARDED,
             'from_office' => 'SDO-Budget Unit',
             'to_office' => 'SDO-Legal Unit',
@@ -1239,6 +1303,7 @@ class DepEdDashboardTest extends TestCase
             'to_status' => DocumentMovement::STATUS_FORWARDED,
             'acted_by' => $budget->id,
         ]);
+        $document->officeAssignments()->where('office', 'SDO-Legal Unit')->update(['movement_id' => $movement->id]);
 
         // MySQL (online) rejects DISTINCT with ORDER BY on an unselected column; SQLite does not, so check the SQL.
         $queries = [];
@@ -1259,6 +1324,38 @@ class DepEdDashboardTest extends TestCase
             ->assertSeeInOrder(['<span>Incoming</span>', '<strong>1</strong>', '<span>Outgoing</span>', '<strong>0</strong>'], false);
 
         $this->assertEmpty(array_filter($queries, fn (string $sql): bool => str_contains($sql, 'distinct') && str_contains($sql, 'order by')));
+    }
+
+    public function test_outgoing_count_follows_the_current_hand_off_not_an_earlier_sender(): void
+    {
+        $oldSender = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $currentSender = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->outgoing()->create(['current_office' => 'SDO-Legal Unit']);
+        $document->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'SDO-Budget Unit',
+            'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED,
+            'to_status' => DocumentMovement::STATUS_FORWARDED,
+            'acted_by' => $oldSender->id,
+        ]);
+        $currentMovement = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED,
+            'to_status' => DocumentMovement::STATUS_FORWARDED,
+            'acted_by' => $currentSender->id,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Legal Unit')->update(['movement_id' => $currentMovement->id]);
+
+        $oldSenderDashboard = $this->actingAs($oldSender)->get(route('platform.main'))->assertOk();
+        preg_match('/<span>Outgoing<\/span>.*?<strong>(\d+)<\/strong>/s', $oldSenderDashboard->getContent(), $oldSenderCount);
+        $this->assertSame('0', $oldSenderCount[1] ?? null);
+
+        $currentSenderDashboard = $this->actingAs($currentSender)->get(route('platform.main'))->assertOk();
+        preg_match('/<span>Outgoing<\/span>.*?<strong>(\d+)<\/strong>/s', $currentSenderDashboard->getContent(), $currentSenderCount);
+        $this->assertSame('1', $currentSenderCount[1] ?? null);
     }
 
     public function test_supervisors_keep_recent_documents_instead_of_summary_cards(): void

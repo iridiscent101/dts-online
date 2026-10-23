@@ -37,6 +37,14 @@ class RegistryFiltersTest extends TestCase
         $this->registry(['search' => 'MEMO-2026'])->assertSee('DTS-REFERENCE')->assertDontSee('DTS-OTHER');
     }
 
+    public function test_search_matches_the_senders_email(): void
+    {
+        $this->document('DTS-EMAIL', ['client_email' => 'findme@gmail.com']);
+        $this->document('DTS-OTHER', ['client_email' => 'someone@gmail.com']);
+
+        $this->registry(['search' => 'findme@gmail.com'])->assertSee('DTS-EMAIL')->assertDontSee('DTS-OTHER');
+    }
+
     public function test_obsolete_due_filter_does_not_filter_documents(): void
     {
         $this->document('DTS-FIRST');

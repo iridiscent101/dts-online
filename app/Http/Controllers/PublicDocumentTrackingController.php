@@ -67,6 +67,7 @@ class PublicDocumentTrackingController extends Controller
                                     'acted_by',
                                     'created_at',
                                 ])
+                                ->selectRaw('recipient_signature IS NOT NULL AS has_recipient_signature')
                                 ->with('actor:id,name')
                                 ->reorder()
                                 ->oldest('created_at')

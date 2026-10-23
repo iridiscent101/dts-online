@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\EmailLink;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -45,7 +46,7 @@ class SystemHealthNotification extends Notification
         return (new MailMessage)
             ->subject($data['title'])
             ->line($data['message'])
-            ->action('Open System Health', route('platform.systems.health'));
+            ->action('Open System Health', EmailLink::route('platform.systems.health'));
     }
 
     /**

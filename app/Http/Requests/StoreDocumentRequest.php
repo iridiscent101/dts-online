@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Document;
+use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,7 @@ class StoreDocumentRequest extends FormRequest
             'document.description' => ['nullable', 'string', 'max:3000'],
             'document.origin' => ['required', 'string', 'max:180'],
             'document.sender' => ['required', 'string', 'max:180'],
+            'document.client_email' => ['bail', 'nullable', 'string', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail],
             'document.received' => ['required', 'date', 'before_or_equal:'.today('Asia/Manila')->toDateString()],
             'document.due' => ['exclude'],
             'document.destination' => ['nullable', 'string', 'max:180', Rule::in($officeOptions)],
@@ -77,6 +79,7 @@ class StoreDocumentRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'document.client_email.email' => 'Enter a valid sender email, or leave it blank.',
             'attachments.max' => 'You may upload up to five attachments.',
             'attachments.*.extensions' => 'Attachments must be PDF, JPG, PNG, DOCX, XLSX, XLS, or CSV files.',
             'document.destination.in' => 'Select a recognized initial destination office.',

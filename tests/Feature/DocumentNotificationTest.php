@@ -5,18 +5,20 @@ namespace Tests\Feature;
 use App\Models\Document;
 use App\Models\Office;
 use App\Models\User;
-use App\Notifications\DocumentAssignedMailNotification;
 use App\Notifications\DocumentAssignedNotification;
 use App\Notifications\DocumentChangedNotification;
 use App\Notifications\DocumentNotificationDispatcher;
-use App\Notifications\SystemHealthNotification;
+use App\Notifications\DocumentRoutedClientNotification;
 use App\Notifications\VerifyNotificationEmail;
+use App\Support\EmailLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Orchid\Platform\Models\Role;
 use Orchid\Platform\Notifications\DashboardMessage;
 use Tests\TestCase;
@@ -174,105 +176,123 @@ class DocumentNotificationTest extends TestCase
         Notification::assertNotSentTo([$actor, $unrelatedUser], DocumentAssignedNotification::class);
     }
 
-    public function test_forwarding_emails_only_the_destination_office_when_enabled(): void
+    public function test_forwarding_emails_the_client_and_never_staff(): void
     {
         config()->set('mail.document_assignment_notifications_enabled', true);
         Notification::fake();
         $actor = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
-        $recipient = User::factory()->create([
+        $staff = User::factory()->create([
             'office' => 'Administrative Unit',
-            'notification_email' => 'recipient@gmail.com',
+            'notification_email' => 'staff@gmail.com',
             'notification_email_verified_at' => now(),
         ]);
-        $unrelatedUser = User::factory()->create(['office' => 'Curriculum Implementation Division']);
-        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG, 'permissions' => []]);
-        $administrator = User::factory()->create(['office' => null]);
-        $administrator->replaceRoles([$adminRole->id]);
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit', 'client_email' => 'client@gmail.com']);
 
         $this->actingAs($actor)
             ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => [
-                    'action' => 'forward',
-                    'destination' => 'Administrative Unit',
-                    'remarks' => 'For administrative review.',
-                ],
+                'workflow' => ['action' => 'forward', 'destination' => 'Administrative Unit'],
             ])
             ->assertRedirectToRoute('platform.main');
 
-        Notification::assertSentTo($recipient, DocumentAssignedMailNotification::class);
-        Notification::assertNotSentTo([$actor, $unrelatedUser, $administrator], DocumentAssignedMailNotification::class);
+        Notification::assertSentTo($staff, DocumentAssignedNotification::class);
+        Notification::assertSentOnDemand(
+            DocumentRoutedClientNotification::class,
+            fn (DocumentRoutedClientNotification $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === 'client@gmail.com'
+                && $notification->offices === ['Administrative Unit'],
+        );
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
     }
 
-    public function test_assignment_email_is_disabled_until_mail_is_configured(): void
+    public function test_sent_emails_carry_the_seal_the_green_button_and_the_records_unit_sign_off(): void
     {
-        config()->set('mail.document_assignment_notifications_enabled', false);
-        Notification::fake();
-        $actor = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
-        $recipient = User::factory()->create(['office' => 'Administrative Unit']);
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        config()->set('mail.default', 'array');
 
-        $this->actingAs($actor)
-            ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => [
-                    'action' => 'forward',
-                    'destination' => 'Administrative Unit',
-                    'remarks' => 'For administrative review.',
-                ],
-            ])
-            ->assertRedirectToRoute('platform.main');
+        Notification::route('mail', 'client@gmail.com')
+            ->notifyNow(new DocumentRoutedClientNotification('SDONV12345678912', ['SDO-Budget Unit']));
 
-        Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
-        Notification::assertNotSentTo($recipient, DocumentAssignedMailNotification::class);
+        $email = app('mailer')->getSymfonyTransport()->messages()->sole()->getOriginalMessage();
+        $html = $email->getHtmlBody();
+        $this->assertCount(1, $email->getAttachments());
+        $this->assertStringContainsString('src="cid:', $html);
+        $this->assertStringContainsString('background-color: #216e39', $html);
+        $this->assertStringContainsString('Regards,<br>Deped SDO Records Unit', $html);
+        $this->assertSame('Deped Nueva Vizcaya Records Unit', $email->getFrom()[0]->getName());
     }
 
-    public function test_staff_without_notification_email_get_in_app_alerts_but_no_email(): void
+    public function test_client_email_is_sent_without_a_queue_worker(): void
     {
         config()->set('mail.document_assignment_notifications_enabled', true);
-        Notification::fake();
+        config()->set('queue.default', 'database');
+        config()->set('mail.default', 'array');
         $actor = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
-        $recipient = User::factory()->create(['office' => 'Administrative Unit']);
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
+        $document = Document::factory()->received()->create(['current_office' => 'Records Unit', 'client_email' => 'client@gmail.com']);
 
         $this->actingAs($actor)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'forward', 'destination' => 'Administrative Unit'],
-        ])->assertRedirectToRoute('platform.main');
+        ])->assertRedirect();
 
-        Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
-        Notification::assertNotSentTo($recipient, DocumentAssignedMailNotification::class);
+        // Nothing waits in the jobs table; the email went out once the page answered.
+        $this->assertDatabaseCount('jobs', 0);
+        $sent = app('mailer')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $sent);
+        $this->assertSame('client@gmail.com', $sent->first()->getEnvelope()->getRecipients()[0]->getAddress());
     }
 
-    public function test_client_submission_emails_records_staff_only(): void
+    public function test_no_client_email_is_sent_without_an_address_or_while_mail_is_off(): void
+    {
+        Notification::fake();
+        $actor = User::factory()->create(['office' => 'Records Unit']);
+        $withoutAddress = Document::factory()->received()->create();
+        $withAddress = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
+
+        config()->set('mail.document_assignment_notifications_enabled', true);
+        app(DocumentNotificationDispatcher::class)->assigned($withoutAddress, 'forward', $actor, ['Administrative Unit']);
+
+        config()->set('mail.document_assignment_notifications_enabled', false);
+        app(DocumentNotificationDispatcher::class)->assigned($withAddress, 'forward', $actor, ['Administrative Unit']);
+
+        Notification::assertNothingSentTo(new AnonymousNotifiable);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 0);
+    }
+
+    public function test_client_submission_with_an_email_is_told_it_reached_the_records_unit(): void
     {
         config()->set('mail.document_assignment_notifications_enabled', true);
         Notification::fake();
-        $recordsUser = User::factory()->create([
-            'office' => 'SDO-Records Unit',
-            'notification_email' => 'records@gmail.com',
-            'notification_email_verified_at' => now(),
-        ]);
-        $otherUser = User::factory()->create(['office' => 'Administrative Unit']);
-        $document = Document::factory()->create(['current_office' => 'SDO-Records Unit']);
 
-        app(DocumentNotificationDispatcher::class)->submitted($document);
+        $this->post(route('submission.store'), [
+            'submission_key' => (string) Str::uuid(),
+            'name' => 'Juan Dela Cruz',
+            'office' => 'Bayombong Central School',
+            'email' => ' Juan@Gmail.com ',
+            'delivery_method' => Document::DELIVERY_METHODS[0],
+            'title' => 'Leave application',
+            'type' => Document::typeOptions()[0],
+            'privacy_consent' => '1',
+        ])->assertSessionHasNoErrors();
 
-        Notification::assertSentTo($recordsUser, DocumentAssignedMailNotification::class);
-        Notification::assertNotSentTo($otherUser, DocumentAssignedMailNotification::class);
+        $this->assertSame('juan@gmail.com', Document::query()->sole()->client_email);
+        Notification::assertSentOnDemand(
+            DocumentRoutedClientNotification::class,
+            fn (DocumentRoutedClientNotification $notification, array $channels, object $notifiable): bool => $notifiable->routes['mail'] === 'juan@gmail.com'
+                && $notification->offices === ['SDO-Records Unit'],
+        );
     }
 
-    public function test_assignment_email_contains_tracking_number_and_secure_document_link(): void
+    public function test_client_routing_email_names_the_office_sender_and_spam_folder(): void
     {
-        $recipient = User::factory()->make();
-        $document = Document::factory()->create(['tracking_number' => 'SDONV12345678912']);
+        $message = (new DocumentRoutedClientNotification('SDONV12345678912', ['SDO-Budget Unit', 'SDO-Legal Unit']))
+            ->toMail(new AnonymousNotifiable);
+        $html = (string) $message->render();
 
-        $message = (new DocumentAssignedMailNotification($document->getKey(), $document->tracking_number))
-            ->toMail($recipient);
-
-        $this->assertSame('DocuTrackS Notification: SDONV12345678912', $message->subject);
-        $this->assertSame(route('platform.documents.view', $document), $message->actionUrl);
-        $this->assertSame('recipient@gmail.com', $recipient->forceFill(['notification_email' => 'recipient@gmail.com'])
-            ->routeNotificationForMail(new DocumentAssignedMailNotification($document->getKey(), $document->tracking_number)));
-        $this->assertSame($recipient->email, $recipient->routeNotificationForMail(new SystemHealthNotification([], SystemHealthNotification::ISSUE)));
+        $this->assertSame('Your document SDONV12345678912 was routed', $message->subject);
+        $this->assertContains('Your document has been routed to the SDO-Budget Unit and SDO-Legal Unit.', $message->introLines);
+        $this->assertContains(DocumentRoutedClientNotification::SPAM_NOTE, $message->outroLines);
+        $this->assertSame(EmailLink::route('tracking.index', ['tracking' => 'SDONV12345678912']), $message->actionUrl);
+        $this->assertStringContainsString('Regards,<br>Deped SDO Records Unit', $html);
+        $this->assertStringContainsString('Deped Nueva Vizcaya Records Unit', $html);
+        $this->assertStringNotContainsString('DocuTrackS', $html);
+        $this->assertSame('Deped Nueva Vizcaya Records Unit', config('mail.from.name'));
     }
 
     public function test_staff_can_set_and_clear_an_optional_notification_email_without_changing_login(): void
@@ -298,13 +318,10 @@ class DocumentNotificationTest extends TestCase
         Notification::assertSentOnDemandTimes(VerifyNotificationEmail::class, 1);
     }
 
-    public function test_only_a_valid_confirmation_link_enables_assignment_emails(): void
+    public function test_only_a_valid_confirmation_link_confirms_the_recovery_email(): void
     {
-        config()->set('mail.document_assignment_notifications_enabled', true);
         Notification::fake();
-        $actor = User::factory()->create(['office' => 'Records Unit', 'permissions' => ['platform.index' => true]]);
         $recipient = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
-        $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
 
         $this->actingAs($recipient)->post(route('platform.profile').'/save', [
             'user' => ['name' => $recipient->name, 'email' => $recipient->email, 'notification_email' => 'alerts@gmail.com'],
@@ -316,15 +333,10 @@ class DocumentNotificationTest extends TestCase
         $this->assertTrue(Request::create($url)->hasValidSignature(false));
         $this->get($url.'&tampered=1')->assertForbidden();
         $this->assertNull($recipient->fresh()->notification_email_verified_at);
+        $this->assertContains(DocumentRoutedClientNotification::SPAM_NOTE, $verification->toMail($recipient)->outroLines);
 
-        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
-        Notification::assertNotSentTo($recipient, DocumentAssignedMailNotification::class);
-
-        $this->get($url)->assertOk();
+        $this->get($url)->assertOk()->assertSee('Recovery email confirmed');
         $this->assertNotNull($recipient->fresh()->notification_email_verified_at);
-
-        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
-        Notification::assertSentTo($recipient, DocumentAssignedMailNotification::class);
     }
 
     public function test_changed_or_expired_confirmation_links_do_not_enable_email(): void
@@ -345,43 +357,15 @@ class DocumentNotificationTest extends TestCase
         $this->assertNull($user->fresh()->notification_email_verified_at);
     }
 
-    public function test_shared_mailbox_gets_one_copy_and_opted_in_admin_gets_assignment_email(): void
-    {
-        config()->set('mail.document_assignment_notifications_enabled', true);
-        Notification::fake();
-        $actor = User::factory()->create(['office' => 'Records Unit']);
-        $first = User::factory()->create([
-            'office' => 'Administrative Unit',
-            'notification_email' => 'shared@gmail.com',
-            'notification_email_verified_at' => now(),
-        ]);
-        $second = User::factory()->create([
-            'office' => 'Administrative Unit',
-            'notification_email' => 'shared@gmail.com',
-            'notification_email_verified_at' => now(),
-        ]);
-        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG, 'permissions' => []]);
-        $administrator = User::factory()->create([
-            'notification_email' => 'admin@gmail.com',
-            'notification_email_verified_at' => now(),
-        ]);
-        $administrator->replaceRoles([$adminRole->id]);
-        $document = Document::factory()->received()->create();
-
-        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
-
-        Notification::assertSentTo([$first, $administrator], DocumentAssignedMailNotification::class);
-        Notification::assertNotSentTo($second, DocumentAssignedMailNotification::class);
-    }
-
     public function test_profile_shows_the_email_alert_toggle_on_only_when_an_address_is_saved(): void
     {
         $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
 
         $html = $this->actingAs($user)->get(route('platform.profile'))
             ->assertOk()
-            ->assertSee('Receive email notifications')
-            ->assertSee('Gmail address for alerts')
+            ->assertSee('Add a recovery email for forgotten passwords')
+            ->assertSee('Recovery email (Gmail)')
+            ->assertSee('Report not spam')
             ->getContent();
         $this->assertDoesNotMatchRegularExpression('/data-email-alerts-toggle[^>]*checked/', $html);
         $this->assertStringNotContainsString('Check your inbox to confirm this address', $html);
@@ -392,12 +376,12 @@ class DocumentNotificationTest extends TestCase
         $this->assertMatchesRegularExpression('/data-email-alerts-toggle[^>]*checked/', $html);
         $this->assertStringContainsString('value="alerts@gmail.com"', $html);
         $this->assertStringContainsString('Check your inbox to confirm this address', $html);
-        $this->assertStringNotContainsString('Email alerts active', $html);
+        $this->assertStringNotContainsString('Recovery email confirmed', $html);
 
         $user->forceFill(['notification_email_verified_at' => now()])->save();
 
         $this->get(route('platform.profile'))->assertOk()
-            ->assertSee('Email alerts active')
+            ->assertSee('Recovery email confirmed')
             ->assertDontSee('Check your inbox to confirm this address');
     }
 

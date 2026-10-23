@@ -74,6 +74,9 @@ class KioskController extends Controller
                 'signed_at' => now(),
             ]);
 
+            // The history step for this signing is written when the clerk saves the Release with it
+            // (DocumentMovementController), so a signing that is never used for a release leaves no step.
+
             return true;
         });
 

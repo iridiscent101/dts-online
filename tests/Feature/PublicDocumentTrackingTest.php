@@ -29,6 +29,17 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertDontSee('Visit the Records Unit counter at the division office.');
     }
 
+    public function test_footer_shows_the_sdo_seal_and_no_website_or_facebook_buttons(): void
+    {
+        config(['dts.contact.facebook' => 'https://www.facebook.com/example-sdo', 'dts.contact.website' => 'https://example-sdo.test']);
+
+        $footer = str($this->get(route('tracking.index'))->assertOk()->getContent())->after('<footer')->before('</footer>');
+
+        $this->assertStringContainsString('images/SDO_NV.png', $footer);
+        $this->assertStringNotContainsString('https://www.facebook.com/example-sdo', $footer);
+        $this->assertStringNotContainsString('https://example-sdo.test', $footer);
+    }
+
     public function test_a_step_an_office_takes_on_its_own_copy_does_not_repeat_from(): void
     {
         $document = Document::factory()->create(['tracking_number' => 'SDONV12345678913', 'current_office' => 'SDO-Legal Unit', 'status' => 'Received']);
@@ -352,7 +363,9 @@ class PublicDocumentTrackingTest extends TestCase
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertSee('data-kind="remark"', false)
-            ->assertSeeInOrder(['Administrative Unit added a remark', 'Waiting for the signed annex.', 'Added by', 'Remark Author', 'Document/s forwarded to Administrative Unit', 'Document registered']);
+            // The writer is named once, before the remark ("Remark Author: ..."), with no separate "Added by" row.
+            ->assertSeeInOrder(['Administrative Unit added a remark', 'Remark Author', 'Waiting for the signed annex.', 'Document/s forwarded to Administrative Unit', 'Document registered'])
+            ->assertDontSee('Added by');
 
         // The office filter treats it as one of that office's steps.
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number, 'office' => 'Records Unit']))

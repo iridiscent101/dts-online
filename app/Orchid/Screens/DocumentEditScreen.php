@@ -10,6 +10,7 @@ use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Orchid\Screen\Action;
 use Orchid\Screen\Screen;
@@ -93,6 +94,7 @@ class DocumentEditScreen extends Screen
                 'description',
                 'origin',
                 'sender',
+                'client_email',
                 'received_at',
             ]);
 
@@ -104,13 +106,18 @@ class DocumentEditScreen extends Screen
                 'origin' => $data['origin'],
                 'sender' => $data['sender'],
                 'received_at' => $data['received'] ?? $document->received_at,
+                // Only forms that show the field change it; leaving it out keeps the saved address.
+                ...(array_key_exists('client_email', $data)
+                    ? ['client_email' => filled($data['client_email']) ? Str::lower(trim($data['client_email'])) : null]
+                    : []),
             ]);
 
             $changedFields = array_values(array_diff(array_keys($document->getChanges()), ['updated_at']));
             $correctionReason = trim((string) ($data['correction_reason'] ?? ''));
 
-            // Locked details can still be corrected, but only with a reason; the transaction undoes the update.
-            if ($changedFields !== [] && $detailsLocked && $correctionReason === '') {
+            // Locked details can still be corrected, but only with a reason; the transaction undoes the update. The
+            // sender's email is contact information, not part of the document, so fixing it needs no unlock.
+            if (array_diff($changedFields, ['client_email']) !== [] && $detailsLocked && $correctionReason === '') {
                 throw ValidationException::withMessages([
                     'document.correction_reason' => 'The details of this document are locked. Unlock them and give a reason for the correction.',
                 ]);

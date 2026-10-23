@@ -63,6 +63,48 @@ class DocumentMovementTest extends TestCase
             ->assertSee('Document received');
     }
 
+    public function test_stale_current_office_cannot_act_when_another_office_has_the_only_assignment(): void
+    {
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Budget Unit']);
+        $document->officeAssignments()->delete();
+        $document->officeAssignments()->create([
+            'office' => 'SDO-Legal Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+
+        $this->assertFalse(Document::query()->visibleTo($budget)->whereKey($document->id)->exists());
+        $this->actingAs($budget)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->actingAs($budget)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertForbidden();
+
+        $this->assertDatabaseCount('document_movements', 0);
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Legal Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+    }
+
+    public function test_legacy_document_without_assignments_still_uses_its_current_office(): void
+    {
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Budget Unit']);
+        $document->officeAssignments()->delete();
+
+        $this->assertTrue(Document::query()->visibleTo($budget)->whereKey($document->id)->exists());
+        $this->actingAs($budget)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Budget Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+    }
+
     public function test_every_assigned_office_can_acknowledge_independently(): void
     {
         $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
@@ -790,6 +832,29 @@ class DocumentMovementTest extends TestCase
         $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->fresh()->status);
     }
 
+    public function test_multi_office_action_requires_an_explicit_acting_office(): void
+    {
+        $admin = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $admin->replaceRoles([Role::query()->firstOrCreate(['slug' => User::ADMIN_ROLE_SLUG], ['name' => 'Admin', 'permissions' => []])->id]);
+        $document = Document::factory()->incoming()->create(['current_office' => 'SDO-Budget Unit']);
+        $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_AWAITING_RECEIPT]);
+
+        $url = route('platform.documents.movements.store', $document);
+        $this->actingAs($admin->fresh())->postJson($url, [
+            'workflow' => ['action' => 'received'],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.source_office');
+
+        $this->assertDatabaseCount('document_movements', 0);
+        $this->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Legal Unit'],
+        ])->assertOk();
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Legal Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+    }
+
     public function test_forwarding_to_an_already_assigned_office_preserves_its_independent_status(): void
     {
         $user = User::factory()->create([
@@ -1078,6 +1143,9 @@ class DocumentMovementTest extends TestCase
         $this->assertSame(DocumentMovement::ACTION_RELEASED, $release->action);
         $this->assertNull($release->released_to);
         $this->assertNull($release->recipient_signature);
+
+        $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
+            ->assertDontSee('Recipient signature</dt>', false);
     }
 
     public function test_release_forms_ask_for_the_counter_signature(): void
@@ -1915,5 +1983,48 @@ class DocumentMovementTest extends TestCase
             ->assertOk()
             ->assertDontSee('Suggested next office')
             ->assertDontSee('Planned route');
+    }
+
+    public function test_document_can_be_sent_back_to_an_office_that_finished_its_part(): void
+    {
+        $legal = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create(['current_office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $received = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED, 'from_office' => 'SDO-Legal Unit', 'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_FORWARDED, 'to_status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Legal Unit'], ['status' => DocumentMovement::STATUS_RECEIVED, 'movement_id' => $received->id]);
+        $document->officeAssignments()->create(['office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+
+        $this->actingAs($legal)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Legal Unit', 'destinations' => ['SDO-Budget Unit'], 'remarks' => 'Please re-check the figures.'],
+        ])->assertOk();
+
+        // Budget's finished row is reopened, not duplicated, and Budget can take the document again.
+        $this->assertSame(1, $document->officeAssignments()->where('office', 'SDO-Budget Unit')->count());
+        $this->assertSame(DocumentMovement::STATUS_FORWARDED, $document->officeAssignments()->where('office', 'SDO-Budget Unit')->value('status'));
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+
+        $this->actingAs($budget)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
+        ])->assertOk();
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->fresh()->status);
+    }
+
+    public function test_document_still_cannot_be_forwarded_to_an_office_that_is_working_on_it(): void
+    {
+        $legal = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create(['current_office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $received = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED, 'from_office' => 'SDO-Legal Unit', 'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_FORWARDED, 'to_status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Legal Unit'], ['status' => DocumentMovement::STATUS_RECEIVED, 'movement_id' => $received->id]);
+        $document->officeAssignments()->create(['office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+
+        $this->actingAs($legal)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Legal Unit', 'destinations' => ['SDO-Budget Unit']],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.destinations');
     }
 }

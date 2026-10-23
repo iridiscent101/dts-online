@@ -32,7 +32,9 @@ class DocumentMovementController extends Controller
                 ->whereIn('status', $transition['action'] === DocumentMovement::ACTION_RELEASED
                     ? [KioskSigningRequest::STATUS_PENDING]
                     : [KioskSigningRequest::STATUS_PENDING, KioskSigningRequest::STATUS_SIGNED])
-                ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
+                ->update($transition['action'] === DocumentMovement::ACTION_RELEASED
+                    ? ['status' => KioskSigningRequest::STATUS_CANCELLED]
+                    : ['status' => KioskSigningRequest::STATUS_CANCELLED, 'recipient_signature' => null, 'signed_at' => null]);
             if ($transition['from_status'] === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                 && $transition['action'] === DocumentMovement::ACTION_RECEIVED) {
                 $document->update([
@@ -75,6 +77,13 @@ class DocumentMovementController extends Controller
 
                 DB::table('document_route_steps')->where('document_id', $document->id)->delete();
             }
+            if ($transition['action'] === DocumentMovement::ACTION_RELEASED) {
+                $this->recordKioskSigning($document);
+            }
+            // The client hears when the document is released to them, or when the last office finishes its part.
+            if (in_array($transition['action'], [DocumentMovement::ACTION_RELEASED, DocumentMovement::ACTION_COMPLETED], true)) {
+                $notifications->finished($document, $transition['action'], $transition['office']);
+            }
             if (in_array($transition['action'], [
                 DocumentMovement::ACTION_SENT,
                 DocumentMovement::ACTION_FORWARDED,
@@ -105,5 +114,46 @@ class DocumentMovementController extends Controller
         }
 
         return redirect()->route('platform.documents.view', $document);
+    }
+
+    /**
+     * A Release saved with the signature the client gave at the kiosk: the signing becomes its own history step, dated
+     * when they signed (so it sits just before the Release). A kiosk signing that no release used leaves no step.
+     */
+    private function recordKioskSigning(Document $document): void
+    {
+        $release = $document->movements()
+            ->where('action', DocumentMovement::ACTION_RELEASED)
+            ->whereNotNull('recipient_signature')
+            ->reorder()
+            ->latest('id')
+            ->first();
+        if ($release === null) {
+            return;
+        }
+
+        $signing = KioskSigningRequest::query()
+            ->where('document_id', $document->id)
+            ->where('office', $release->from_office)
+            ->whereNotNull('signed_at')
+            ->latest('id')
+            ->get()
+            ->first(fn (KioskSigningRequest $candidate): bool => hash_equals((string) $candidate->recipient_signature, (string) $release->recipient_signature));
+        if ($signing === null) {
+            return;
+        }
+
+        activity('documents')
+            ->performedOn($document)
+            ->causedByAnonymous()
+            ->withProperties([
+                'office' => $signing->office,
+                'signed_by' => $signing->recipient_name,
+                'signed_on' => 'Signing kiosk',
+                'kiosk_signing_request_id' => $signing->id,
+                'movement_id' => $release->id,
+            ])
+            ->createdAt($signing->signed_at)
+            ->log('Release signed');
     }
 }

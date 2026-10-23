@@ -14,6 +14,13 @@ Schedule::command('notifications:prune-read')
     ->withoutOverlapping()
     ->onOneServer();
 
+// Sign-in history is kept for three months.
+Schedule::command('accounts:prune-activity')
+    ->dailyAt('02:15')
+    ->timezone('Asia/Manila')
+    ->withoutOverlapping()
+    ->onOneServer();
+
 Schedule::command('system:heartbeat')
     ->everyMinute()
     ->withoutOverlapping(5)

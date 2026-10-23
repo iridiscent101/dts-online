@@ -8,6 +8,7 @@ use App\Auth\AccountActivity;
 use App\Models\User;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
+use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -122,7 +123,7 @@ class UserProfileScreen extends Screen
                 'required',
                 Rule::unique(User::class, 'email')->ignore($request->user()),
             ],
-            'user.notification_email' => ['nullable', 'email', 'max:255'],
+            'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($request->user()?->notification_email)],
         ]);
 
         $user = $request->user();
