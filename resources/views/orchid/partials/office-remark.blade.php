@@ -8,7 +8,7 @@
     <div class="dts-office-remark-panel" id="{{ $id }}-panel" data-office-remark-panel hidden>
         <label for="{{ $id }}-text">Remark for <span data-office-remark-office></span></label>
         <textarea id="{{ $id }}-text" data-office-remark-text rows="3" maxlength="1000" aria-describedby="{{ $id }}-hint" autocomplete="off"></textarea>
-        <p id="{{ $id }}-hint" class="dts-field-hint">Added to this office's history, and shown to the client on the tracking page. It does not change the document's action or status.</p>
+        <p id="{{ $id }}-hint" class="dts-field-hint">Added to this office's history and shown on the public tracking page, so leave out phone numbers, addresses, ID numbers, and health or money details. It does not change the document's action or status.</p>
         <p class="dts-workspace-form-errors" data-office-remark-errors role="alert" hidden></p>
         <div class="dts-office-remark-actions">
             <button type="button" class="dts-button" data-office-remark-cancel>Cancel</button>

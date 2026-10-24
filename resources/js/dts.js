@@ -1927,7 +1927,8 @@ function additionalRouteDialog() {
             </div>
             <div class="dts-field">
                 <label for="dts-additional-route-remarks">Remarks <span class="dts-optional">Optional</span></label>
-                <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="3" maxlength="1000" autocomplete="off" placeholder="Instructions for this office"></textarea>
+                <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="3" maxlength="1000" autocomplete="off" placeholder="Instructions for this office" aria-describedby="dts-additional-route-remarks-hint"></textarea>
+                <p id="dts-additional-route-remarks-hint" class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</p>
             </div>
             <div class="dts-field">
                 <label for="dts-additional-route-reason">Why are you adding this office? <span aria-hidden="true">*</span></label>

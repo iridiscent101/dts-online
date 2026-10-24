@@ -220,6 +220,7 @@
                                         <button type="button" class="dts-button dts-button-secondary" data-remove-destination>Remove</button>
                                     </div>
                                 </div>
+                                <p class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</p>
                                 <datalist id="workspace-destination-offices">@foreach ($destinationOffices as $office)<option value="{{ $office }}"></option>@endforeach</datalist>
                                 <template data-destination-template>
                                     <div class="dts-workspace-destination" data-destination-row>
@@ -230,7 +231,7 @@
                                     </div>
                                 </template>
                             </div>
-                            <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea></label>
+                            <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea><small class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</small></label>
                             <label class="dts-workspace-shared-remarks" data-release-recipient hidden><span>Name of person receiving the document <span class="dts-optional">Optional</span></span><input name="workflow[released_to]" maxlength="255" autocomplete="name" disabled><small class="dts-field-hint">Their full name, if they give it.</small></label>
                             @include('orchid.partials.release-signature', ['id' => 'workspace-release-signature'])
                         </dts-workflow-routing>

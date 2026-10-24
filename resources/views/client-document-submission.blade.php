@@ -154,7 +154,9 @@
             {{-- Privacy notice and consent (Data Privacy Act of 2012). --}}
             <div class="sm:col-span-2 rounded-sm border border-province-line bg-slate-50 p-4">
                 <h2 class="text-sm font-semibold text-slate-800">Privacy notice</h2>
-                <p class="mt-2 text-sm text-slate-700">We use your name and office only to process and track this document. Only SDO staff handling it can see them, and they are kept as long as records rules require. To see or correct them, contact the Division's Data Protection Officer.</p>
+                <p class="mt-2 text-sm text-slate-700">We use your name, office and contact details only to process and track this document, and keep them as long as records rules require.</p>
+                <p class="mt-2 text-sm text-slate-700">Anyone who has the tracking number can see the document's history on the tracking page: the offices it went to, the status and dates, the SDO staff who handled each step, their remarks, your instructions for Records, and the name of the person who received or signed for it. Your own name, email address and signature are not shown there. Keep your tracking number private.</p>
+                <p class="mt-2 text-sm text-slate-700">To see or correct your information, contact the Division's Data Protection Officer.</p>
                 <label class="mt-3 flex items-start gap-3 text-sm font-medium text-slate-800">
                     <input type="checkbox" name="privacy_consent" value="1" required @checked(old('privacy_consent')) aria-describedby="privacy-consent-error" class="size-6 shrink-0 accent-[#216E39]">
                     <span>I have read the privacy notice and agree to the collection and use of my information for this document. <span class="text-red-700">*</span></span>
