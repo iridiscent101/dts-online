@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
 class DocumentRemarkTest extends TestCase
@@ -36,13 +37,14 @@ class DocumentRemarkTest extends TestCase
         $this->get(route('platform.documents.workspace', $document))
             ->assertSee('<p><strong>'.$staff->name.':</strong> Please review the revised figures.</p>', false);
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertSee($staff->name.':</strong> Please review the revised figures.', false);
+            ->assertDontSee($staff->name)
+            ->assertDontSee('Please review the revised figures.');
     }
 
     public function test_administrator_can_add_a_remark_for_any_received_office(): void
     {
         // Administrators route for any office on the document without being assigned to it, so they remark the same way.
-        $adminRole = \Orchid\Platform\Models\Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
         $admin = User::factory()->create(['office' => null]);
         $admin->replaceRoles([$adminRole->id]);
         $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);

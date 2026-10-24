@@ -28,20 +28,36 @@ class AdminRowActionsTest extends TestCase
     {
         $school = School::factory()->create(['source_unit_id' => 300, 'name' => 'Abaca ES']);
 
+        // Edit opens the school's own page, like Users, Offices and Roles; there is no edit dialog on the list.
         $this->actingAs($this->manager)
             ->get(route('platform.systems.schools'))
-            ->assertSee('editSchoolModal', false)
+            ->assertSee(route('platform.systems.schools.edit', $school->id), false)
+            ->assertDontSee('editSchoolModal', false)
             ->assertSee('Remove Abaca ES from the school list?');
 
-        $this->post(route('platform.systems.schools', ['method' => 'saveSchool', 'school' => $school->id]), [
+        $this->get(route('platform.systems.schools.edit', $school))
+            ->assertOk()
+            ->assertSee('Edit school')
+            ->assertSee('value="Abaca ES"', false);
+
+        $this->post(route('platform.systems.schools.edit', $school).'/save', [
             'school' => ['name' => 'Abaca Elementary School'],
-        ])->assertRedirect();
+        ])->assertRedirectToRoute('platform.systems.schools');
         $this->assertSame('Abaca Elementary School', $school->fresh()->name);
         $this->assertSame(300, $school->fresh()->source_unit_id);
 
-        $this->post(route('platform.systems.schools', ['method' => 'saveSchool', 'school' => $school->id]), [
+        $this->post(route('platform.systems.schools.edit', $school).'/save', [
             'school' => ['name' => ''],
         ])->assertSessionHasErrors('school.name');
+
+        // Renaming to another school's name is refused, but keeping its own name is fine.
+        School::factory()->create(['name' => 'Bagabag ES']);
+        $this->post(route('platform.systems.schools.edit', $school).'/save', [
+            'school' => ['name' => 'Bagabag ES'],
+        ])->assertSessionHasErrors('school.name');
+        $this->post(route('platform.systems.schools.edit', $school).'/save', [
+            'school' => ['name' => 'Abaca Elementary School'],
+        ])->assertSessionHasNoErrors();
 
         $this->post(route('platform.systems.schools', ['method' => 'remove', 'id' => $school->id]))->assertRedirect();
         $this->assertSoftDeleted($school);

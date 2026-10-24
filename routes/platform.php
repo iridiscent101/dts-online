@@ -10,6 +10,7 @@ use App\Http\Controllers\DocumentLabelController;
 use App\Http\Controllers\DocumentLabelsController;
 use App\Http\Controllers\DocumentMovementController;
 use App\Http\Controllers\DocumentNotificationController;
+use App\Http\Controllers\DocumentOpenController;
 use App\Http\Controllers\DocumentRemarkController;
 use App\Http\Controllers\DocumentRouteCorrectionController;
 use App\Http\Controllers\DocumentWorkspaceController;
@@ -17,12 +18,12 @@ use App\Http\Controllers\KioskSigningRequestController;
 use App\Http\Middleware\LogoutInactiveStaff;
 use App\Orchid\Screens\DocumentEditScreen;
 use App\Orchid\Screens\DocumentRegistrationScreen;
-use App\Orchid\Screens\DocumentViewScreen;
 use App\Orchid\Screens\Office\OfficeEditScreen;
 use App\Orchid\Screens\Office\OfficeListScreen;
 use App\Orchid\Screens\PlatformScreen;
 use App\Orchid\Screens\Role\RoleEditScreen;
 use App\Orchid\Screens\Role\RoleListScreen;
+use App\Orchid\Screens\School\SchoolEditScreen;
 use App\Orchid\Screens\School\SchoolListScreen;
 use App\Orchid\Screens\SignInActivityScreen;
 use App\Orchid\Screens\SystemHealthScreen;
@@ -126,7 +127,9 @@ Route::middleware('throttle:staff-requests')->group(function (): void {
     Route::post('kiosk-signing/{signing}/cancel', [KioskSigningRequestController::class, 'cancel'])
         ->name('platform.kiosk-signing.cancel');
 });
-Route::screen('documents/{document}', DocumentViewScreen::class)
+// A document's address opens the registry with its workspace dialog on top (DocumentOpenController).
+Route::get('documents/{document}', DocumentOpenController::class)
+    ->whereNumber('document')
     ->name('platform.documents.view');
 
 foreach (['documents', 'incoming', 'outgoing', 'archived'] as $section) {
@@ -183,6 +186,20 @@ Route::screen('offices', OfficeListScreen::class)
     ->breadcrumbs(fn (Trail $trail) => $trail
         ->parent('platform.index')
         ->push(__('Offices'), route('platform.systems.offices')));
+
+// Platform > System > Schools > Edit
+Route::screen('schools/{school}/edit', SchoolEditScreen::class)
+    ->name('platform.systems.schools.edit')
+    ->breadcrumbs(fn (Trail $trail, $school) => $trail
+        ->parent('platform.systems.schools')
+        ->push($school->name, route('platform.systems.schools.edit', $school)));
+
+// Platform > System > Schools > Create
+Route::screen('schools/create', SchoolEditScreen::class)
+    ->name('platform.systems.schools.create')
+    ->breadcrumbs(fn (Trail $trail) => $trail
+        ->parent('platform.systems.schools')
+        ->push(__('Create'), route('platform.systems.schools.create')));
 
 // Platform > System > Schools
 Route::screen('schools', SchoolListScreen::class)

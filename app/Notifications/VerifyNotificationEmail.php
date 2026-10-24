@@ -31,7 +31,7 @@ class VerifyNotificationEmail extends Notification
     {
         return (new MailMessage)
             ->subject('Confirm your recovery email')
-            ->line('Confirm this address so a temporary password can be sent here if you forget yours. This link expires in 24 hours.')
+            ->line('Confirm this address so a password reset link can be sent here if you forget yours. This link expires in 24 hours.')
             ->action('Confirm recovery email', EmailLink::to(URL::temporarySignedRoute(
                 'notification-email.verify',
                 now()->addDay(),

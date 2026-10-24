@@ -65,7 +65,7 @@ class DocumentEditingTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Edit document');
 
@@ -223,7 +223,7 @@ class DocumentEditingTest extends TestCase
         ]);
 
         $this->actingAs($staffWithoutPermission)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertDontSee('Edit document');
 

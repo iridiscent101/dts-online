@@ -9,7 +9,7 @@ use App\Orchid\Layouts\School\SchoolFiltersLayout;
 use App\Orchid\Layouts\School\SchoolListLayout;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
 use Orchid\Support\Facades\Toast;
@@ -45,6 +45,15 @@ class SchoolListScreen extends Screen
         ];
     }
 
+    public function commandBar(): iterable
+    {
+        return [
+            Link::make(__('Add'))
+                ->icon('bs.plus-circle')
+                ->route('platform.systems.schools.create'),
+        ];
+    }
+
     /**
      * @return string[]|\Orchid\Screen\Layout[]
      */
@@ -56,37 +65,7 @@ class SchoolListScreen extends Screen
                 'pageSize' => Layout::view('orchid.table-page-size'),
                 'table' => SchoolListLayout::class,
             ]),
-
-            Layout::modal('editSchoolModal', Layout::rows([
-                Input::make('school.name')
-                    ->title(__('School name'))
-                    ->required()
-                    ->maxlength(180)
-                    ->help(__('Documents already registered keep the origin name they were saved with.')),
-            ]))
-                ->title(__('Edit school'))
-                ->applyButton(__('Save'))
-                ->deferred('loadSchoolOnOpenModal'),
         ];
-    }
-
-    /**
-     * @return array<string, School>
-     */
-    public function loadSchoolOnOpenModal(School $school): iterable
-    {
-        return ['school' => $school];
-    }
-
-    public function saveSchool(Request $request, School $school): void
-    {
-        abort_unless($request->user()?->hasAccess('platform.systems.schools'), 403);
-
-        $school->update($request->validate([
-            'school.name' => ['required', 'string', 'max:180'],
-        ])['school']);
-
-        Toast::success(__(':school was saved.', ['school' => $school->name]));
     }
 
     public function remove(Request $request): void

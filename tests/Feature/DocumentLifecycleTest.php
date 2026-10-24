@@ -251,11 +251,9 @@ class DocumentLifecycleTest extends TestCase
         );
 
         $this->actingAs($administrator)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Last changed by')
-            ->assertSee($administrator->name)
-            ->assertSee('Last downloaded by')
-            ->assertSee($recordsOfficer->name);
+            ->assertSee('Document details updated')
+            ->assertSee($administrator->name);
     }
 }

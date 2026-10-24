@@ -168,8 +168,8 @@ class AdministratorAuthorizationTest extends TestCase
         $oldDocument = Document::factory()->incoming()->create(['current_office' => 'Records Unit']);
         $newDocument = Document::factory()->incoming()->create(['current_office' => 'Budget Unit']);
 
-        $this->actingAs($staff)->get(route('platform.documents.view', $oldDocument))->assertOk();
-        $this->get(route('platform.documents.view', $newDocument))->assertNotFound();
+        $this->actingAs($staff)->get(route('platform.documents.workspace', $oldDocument))->assertOk();
+        $this->get(route('platform.documents.workspace', $newDocument))->assertNotFound();
 
         $this->actingAs($admin)->post(route('platform.systems.users.edit', $staff).'/save', [
             'user' => [
@@ -182,8 +182,8 @@ class AdministratorAuthorizationTest extends TestCase
         ])->assertRedirectToRoute('platform.systems.users');
 
         $this->assertSame(['Budget Unit'], $staff->fresh()->assignedOfficeNames()->all());
-        $this->actingAs($staff->fresh())->get(route('platform.documents.view', $oldDocument))->assertNotFound();
-        $this->get(route('platform.documents.view', $newDocument))->assertOk();
+        $this->actingAs($staff->fresh())->get(route('platform.documents.workspace', $oldDocument))->assertNotFound();
+        $this->get(route('platform.documents.workspace', $newDocument))->assertOk();
     }
 
     public function test_office_memberships_control_document_access(): void
@@ -215,7 +215,7 @@ class AdministratorAuthorizationTest extends TestCase
         $this->assertSame([], $staff->assignedOfficeNames()->all());
         $this->assertFalse($document->isVisibleTo($staff));
         $this->assertFalse(Document::query()->visibleTo($staff)->whereKey($document)->exists());
-        $this->actingAs($staff)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->actingAs($staff)->get(route('platform.documents.workspace', $document))->assertNotFound();
     }
 
     public function test_password_change_ends_an_existing_dashboard_session(): void
@@ -264,7 +264,7 @@ class AdministratorAuthorizationTest extends TestCase
                     'offices_submitted' => '1',
                     'office_ids' => [$budgetOffice->id],
                 ],
-            ])->assertForbidden();
+            ])->assertNotFound(); // The list page no longer has its own edit dialog.
 
             $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
         }
@@ -311,7 +311,7 @@ class AdministratorAuthorizationTest extends TestCase
         $this->assertSame([], User::query()->where('email', 'new-clerk@example.test')->sole()->assignedOfficeNames()->all());
     }
 
-    public function test_administrator_can_assign_office_from_quick_edit(): void
+    public function test_administrator_can_assign_office_from_the_edit_page(): void
     {
         $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
         $admin = User::factory()->create(['permissions' => []]);
@@ -320,15 +320,16 @@ class AdministratorAuthorizationTest extends TestCase
         $office = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
 
         $this->actingAs($admin)
-            ->post(route('platform.systems.users').'/saveUser?user='.$target->id, [
+            ->post(route('platform.systems.users.edit', $target).'/save', [
                 'user' => [
                     'name' => $target->name,
                     'email' => $target->email,
                     'offices_submitted' => '1',
                     'office_ids' => [$office->id],
+                    'roles' => [],
                 ],
             ])
-            ->assertRedirect();
+            ->assertRedirectToRoute('platform.systems.users');
 
         $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());
         $this->assertSame(['Records Unit'], $target->fresh()->assignedOfficeNames()->all());

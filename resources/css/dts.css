@@ -6,7 +6,7 @@
 
 /* Prevent Tailwind resets and class names from conflicting with Orchid. */
 html:root {
-    font-size: 93.75%;
+    font-size: 100%; /* 16px body text: staff read these screens all day */
     --dts-green: #216e39;
     --dts-green-dark: #18542b;
     --dts-green-soft: #e8f1e6;
@@ -14,7 +14,7 @@ html:root {
     --dts-brown: #86562d;
     --dts-cream: #f8f4e7;
     --dts-charcoal: #26332b;
-    --dts-border: #cfc7ae;
+    --dts-border: #a99e7e; /* card and panel edges */
     --dts-border-strong: #b3843f;
 
     /* Density */
@@ -38,16 +38,16 @@ html:root {
     /* Warm neutrals */
     --dts-ink: #26332b;
     --dts-ink-2: #4d5a52;
-    --dts-ink-3: #6b756e;
+    --dts-ink-3: #5a645d; /* >= 5.3:1 on every surface */
     --dts-line: #e6e1d2;
-    --dts-grid: #c4bb9f; /* table gridlines: neutral, at least as visible as the old gold */
+    --dts-grid: #968a6a; /* table gridlines: >= 3:1 on white, zebra and cream rows (elderly staff rely on them) */
     --dts-surface: #faf8f2;
     /* Text, status and surface colors */
     --dts-text-muted: #526174;
     --dts-text-body: #425268;
     --dts-text-strong: #344155;
     --dts-heading: #202b3b;
-    --dts-text-subtle: #64748b;
+    --dts-text-subtle: #556274; /* >= 5.3:1 on every surface */
     --dts-text-faint: #8a99ad;
     --dts-danger: #b52e3d;
     --dts-danger-dark: #942433;
@@ -143,7 +143,7 @@ body::before {
 }
 
 .aside .profile-container {
-    background: var(--dts-surface) !important;
+    background: var(--dts-surface);
     border-top: 1px solid var(--dts-border);
     border-radius: 0 !important;
 }
@@ -207,7 +207,7 @@ body::before {
     margin-bottom: 16px;
 }
 
-.command-bar-wrapper h1 {
+.command-bar-wrapper :is(h1, .dts-page-title) {
     font-size: 1.125rem;
     font-weight: 650 !important;
 }
@@ -216,7 +216,7 @@ body::before {
     display: none;
 }
 
-:is(.page-platform-systems-users, .page-platform-systems-users-create, .page-platform-systems-users-edit, .page-platform-systems-roles, .page-platform-systems-roles-create, .page-platform-systems-roles-edit, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-offices-create, .page-platform-systems-offices-edit, .page-platform-systems-health, .page-platform-notifications, .page-platform-profile) {
+:is(.page-platform-systems-users, .page-platform-systems-users-create, .page-platform-systems-users-edit, .page-platform-systems-roles, .page-platform-systems-roles-create, .page-platform-systems-roles-edit, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity, .page-platform-systems-offices-create, .page-platform-systems-schools-create, .page-platform-systems-schools-edit, .page-platform-systems-offices-edit, .page-platform-systems-health, .page-platform-notifications, .page-platform-profile) {
     & .command-bar-wrapper {
             left: auto;
             width: fit-content;
@@ -310,7 +310,7 @@ body::before {
     cursor: not-allowed;
 }
 
-:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools) {
+:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity) {
     & .g-0:has(> .row[data-controller="filter"]) {
             background: transparent !important;
     }
@@ -327,7 +327,7 @@ body::before {
     /* Search fields get the same magnifier as the document search. */
     & .row[data-controller="filter"] input[type="search"] {
             padding-left: 38px;
-            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E") no-repeat 12px center;
+            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23556274' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E") no-repeat 12px center;
     }
 
     & .row[data-controller="filter"] .form-control {
@@ -361,7 +361,7 @@ body::before {
 
     & .row[data-controller="filter"] .btn:first-child {
             border-color: var(--dts-border) !important;
-            background: #fff !important;
+            background: #fff;
             color: var(--dts-text-body) !important;
     }
 
@@ -407,8 +407,34 @@ body::before {
     }
 }
 
+/* Orchid lets table text break at any letter, so columns get squeezed until words and emails split mid-word.
+   Break only at spaces; a column is at least as wide as its longest word and the table scrolls sideways instead. */
+[data-controller="table"] .table :is(thead th, tbody tr td) {
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+
+/* Emails and dates read as one unit: keep "admin-section@demo.local" and "Oct 23, 2026" on one line. */
+[data-controller="table"] .table tbody td:is([data-column="email"], [data-column="client-email"]),
+[data-controller="table"] .table tbody td time {
+    white-space: nowrap;
+}
+
 .page-platform-systems-users [data-controller="table"] .table {
     min-width: 1210px;
+}
+
+/* Sign-in activity: enough room for full emails and details; the table scrolls sideways on narrow screens. */
+.page-platform-systems-sign-in-activity [data-controller="table"] .table {
+    min-width: 1160px;
+}
+
+.page-platform-systems-sign-in-activity [data-controller="table"] [data-column="account"] {
+    min-width: 260px;
+}
+
+.page-platform-systems-sign-in-activity [data-controller="table"] [data-column="details"] {
+    min-width: 200px;
 }
 
 .page-platform-systems-users [data-controller="table"] [data-column="name"] {
@@ -477,12 +503,12 @@ body::before {
     text-decoration: underline;
 }
 
-:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools) {
+:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity) {
     & [data-controller="table"] thead th {
             padding: var(--dts-cell-py) var(--dts-cell-px) !important;
             border-top: 0;
             border-right: 1px solid var(--dts-grid);
-            border-bottom: 1px solid var(--dts-grid) !important;
+            border-bottom: 1px solid var(--dts-grid);
             background: var(--dts-surface);
             color: var(--dts-ink-2);
             font-size: var(--dts-text-sm);
@@ -504,7 +530,7 @@ body::before {
     }
 }
 
-:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) {
+:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) {
     & [data-column="select"],
     & [data-column="number"] {
             width: 1%;
@@ -525,8 +551,8 @@ body::before {
 }
 
 .dts-table-checkbox {
-    width: 18px;
-    height: 18px;
+    width: 22px;
+    height: 22px;
     margin: 0;
     border-color: var(--dts-border-strong);
     border-radius: 4px;
@@ -539,7 +565,7 @@ body::before {
     background-color: var(--dts-green);
 }
 
-:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools) {
+:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity) {
     & [data-controller="table"] :is(th, td):last-child {
             border-right: 0;
     }
@@ -630,9 +656,9 @@ body::before {
     }
 
     & .dts-row-action-view {
-            border: 1px solid var(--dts-border) !important;
-            background: #fff !important;
-            color: var(--dts-text-body) !important;
+            border: 1px solid var(--dts-border);
+            background: #fff;
+            color: var(--dts-text-body);
     }
 
     & .dts-row-action-view:hover {
@@ -666,7 +692,7 @@ body::before {
     }
 }
 
-:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools) {
+:is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity) {
     & [data-controller="table"] .table-responsive .dropdown .btn {
             min-width: var(--dts-control-h-sm);
             min-height: var(--dts-control-h-sm);
@@ -685,9 +711,9 @@ body::before {
     & [data-controller="table"]>.d-md-flex {
             justify-content: center;
             min-height: 160px;
-            padding: 32px 16px !important;
+            padding: 32px 16px;
             color: var(--dts-text-muted);
-            text-align: center !important;
+            text-align: center;
     }
 
     & [data-controller="table"]>.d-md-flex h3 {
@@ -794,7 +820,7 @@ body::before {
             padding: var(--dts-cell-py) var(--dts-cell-px) !important;
             border-top: 0;
             border-right: 1px solid var(--dts-grid);
-            border-bottom: 1px solid var(--dts-grid) !important;
+            border-bottom: 1px solid var(--dts-grid);
             background: var(--dts-surface);
             color: var(--dts-ink-2);
             font-size: var(--dts-text-sm);
@@ -889,9 +915,9 @@ body::before {
     & [data-controller="table"]>.d-md-flex {
             justify-content: center;
             min-height: 160px;
-            padding: 32px 16px !important;
+            padding: 32px 16px;
             color: var(--dts-text-muted);
-            text-align: center !important;
+            text-align: center;
     }
 
     & [data-controller="table"]>.d-md-flex h3 {
@@ -943,7 +969,7 @@ body::before {
             min-height: var(--dts-control-h-sm);
             padding: 4px 8px;
             border: 1px solid var(--dts-grid);
-            border-radius: 4px !important;
+            border-radius: 4px;
             color: var(--dts-text-body);
             background: #fff;
             font-size: 0.875rem;
@@ -1142,9 +1168,23 @@ body::before {
     border-bottom: 1px solid var(--dts-border);
 }
 
-/* Quick action gets a fixed width (it fits four 40px icons per line); the two text columns share the rest equally. */
+/* Date registered and Quick action get fixed widths (four 40px icons per line); the two text columns share the rest. */
 .dts-office-queue-table th:nth-child(3) {
+    width: 140px;
+}
+
+.dts-office-queue-table th:nth-child(4) {
     width: 212px;
+}
+
+/* Date on the first line, time below it, like the registry's date columns. */
+.dts-queue-registered time {
+    display: block;
+    white-space: nowrap;
+}
+
+.dts-queue-registered time span {
+    display: block;
 }
 
 .dts-recent-documents-table th:nth-child(1) {
@@ -1318,7 +1358,7 @@ body::before {
 }
 
 .dts-table.dts-office-queue-table {
-    min-width: 760px;
+    min-width: 900px;
 }
 
 .dts-office-queue-table :is(th, td):first-child {
@@ -1520,7 +1560,7 @@ dts-registry [hidden] {
 }
 
 .dts-registry-toggle-icon {
-    display: grid !important;
+    display: grid;
     flex: 0 0 36px;
     width: 36px;
     height: 36px;
@@ -4565,7 +4605,7 @@ dts-searchable [data-suggestions] p {
 
 .dts-document-summary {
     align-self: start;
-    padding-top: 0 !important;
+    padding-top: 0;
 }
 
 .dts-document-rail {
@@ -4573,7 +4613,7 @@ dts-searchable [data-suggestions] p {
 }
 
 .dts-tracking-label-section {
-    padding-top: 0 !important;
+    padding-top: 0;
 }
 
 .dts-tracking-label {
@@ -5242,13 +5282,13 @@ select:focus-visible,
     }
 
     .dts-sidebar-collapsed .aside>header {
-        padding-inline: 0 !important;
+        padding-inline: 0;
         justify-content: center;
     }
 
     .dts-sidebar-collapsed .aside .nav-item:has(> small),
     .dts-sidebar-collapsed .aside .profile-container small {
-        display: none !important;
+        display: none;
     }
 
     .dts-sidebar-collapsed .aside .dts-brand>span:last-child,
@@ -5275,14 +5315,14 @@ select:focus-visible,
         width: 21px;
         height: 21px;
         flex-shrink: 0;
-        margin: 0 !important;
+        margin: 0;
     }
 
     .dts-sidebar-collapsed .aside .profile-container {
         flex-direction: column;
-        align-items: center !important;
+        align-items: center;
         gap: 12px;
-        padding: 12px 0 !important;
+        padding: 12px 0;
     }
 
     .dts-sidebar-collapsed .aside .profile-container>a {
@@ -5344,7 +5384,7 @@ select:focus-visible,
 }
 
 @media (max-width: 991px) {
-    :is(.page-platform-systems-users, .page-platform-systems-users-create, .page-platform-systems-users-edit, .page-platform-systems-roles, .page-platform-systems-roles-create, .page-platform-systems-roles-edit, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-offices-create, .page-platform-systems-offices-edit, .page-platform-systems-health, .page-platform-notifications, .page-platform-profile) .command-bar-wrapper {
+    :is(.page-platform-systems-users, .page-platform-systems-users-create, .page-platform-systems-users-edit, .page-platform-systems-roles, .page-platform-systems-roles-create, .page-platform-systems-roles-edit, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity, .page-platform-systems-offices-create, .page-platform-systems-schools-create, .page-platform-systems-schools-edit, .page-platform-systems-offices-edit, .page-platform-systems-health, .page-platform-notifications, .page-platform-profile) .command-bar-wrapper {
         position: static;
         order: 0;
         align-self: flex-end;
@@ -5359,7 +5399,7 @@ select:focus-visible,
     }
 
     body:not(.menu-open) .aside>.aside-collapse {
-        display: none !important;
+        display: none;
     }
 
     .aside header {
@@ -5533,7 +5573,7 @@ select:focus-visible,
     border: 0;
     background: transparent;
     padding: 0;
-    color: var(--dts-charcoal) !important;
+    color: var(--dts-charcoal);
     text-align: start;
     cursor: pointer;
     min-width: 0;
@@ -5546,8 +5586,8 @@ select:focus-visible,
 .aside .profile-container > a[data-dts-notification] {
     flex: 0 0 32px;
     width: 32px;
-    height: 40px !important;
-    margin: 0 8px 0 0 !important;
+    height: 40px;
+    margin: 0 8px 0 0;
     justify-content: center;
 }
 
@@ -5607,7 +5647,7 @@ select:focus-visible,
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: var(--dts-charcoal) !important;
+    color: var(--dts-charcoal);
     font-size: .875rem;
     line-height: 1.2;
     text-align: start;
@@ -5639,7 +5679,7 @@ select:focus-visible,
     }
 
     .dts-sidebar-collapsed .aside .profile-container > a[data-dts-notification] {
-        margin: 0 !important;
+        margin: 0;
     }
 
     .dts-sidebar-collapsed .aside .profile-container .dts-profile-menu {
@@ -5651,7 +5691,7 @@ select:focus-visible,
 
 /* Tablets: drop the wide minimum widths (column min-widths still apply) and narrow the pinned subject column. */
 @media (max-width: 991px) {
-    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) [data-controller="table"] .table {
+    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity, .page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) [data-controller="table"] .table {
         min-width: 0;
     }
 
@@ -5781,10 +5821,10 @@ select:focus-visible,
             display: block;
             position: static;
             width: auto;
-            min-width: 0 !important;
+            min-width: 0;
             max-width: none;
             padding: 2px 10px !important;
-            border: 1px solid var(--dts-grid) !important;
+            border: 1px solid var(--dts-grid);
             border-radius: 999px;
             background: #fff;
             box-shadow: none;
@@ -5796,7 +5836,7 @@ select:focus-visible,
             order: -1;
             width: auto;
             padding: 0 0 4px !important;
-            border: 0 !important;
+            border: 0;
             background: transparent;
         }
 
@@ -5852,7 +5892,7 @@ select:focus-visible,
 
         & tbody td:is(:first-child, :only-child) {
             display: block;
-            padding: var(--dts-cell-py) var(--dts-cell-px) !important;
+            padding: var(--dts-cell-py) var(--dts-cell-px);
         }
 
         & tbody td:is(:first-child, :only-child)::before {
@@ -5918,7 +5958,7 @@ td[data-column="select"] {
 .page-platform-systems-users-edit .ts-wrapper.disabled .item .remove,
 .page-platform-systems-users-edit .ts-wrapper.disabled .clear-button,
 .page-platform-systems-users-edit .ts-wrapper.disabled.has-items .ts-control>input {
-    display: none !important;
+    display: none;
 }
 
 /* Permission descriptions are shown, not hidden in a hover tooltip. */
@@ -6373,7 +6413,7 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 .page-platform-systems-users-edit .ts-wrapper.disabled .item .remove,
 .page-platform-systems-users-edit .ts-wrapper.disabled .clear-button,
 .page-platform-systems-users-edit .ts-wrapper.disabled.has-items .ts-control>input {
-    display: none !important;
+    display: none;
 }
 
 /* Permission descriptions are shown, not hidden in a hover tooltip. */
@@ -7085,9 +7125,9 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 
 /* Outgoing list: "Send to another office" row action, outlined so Edit stays the main button. */
 .dts-row-actions .dts-row-action.dts-row-action-send {
-    border: 1px solid var(--dts-green) !important;
-    background: #fff !important;
-    color: var(--dts-green) !important;
+    border: 1px solid var(--dts-green);
+    background: #fff;
+    color: var(--dts-green);
 }
 
 .dts-row-actions .dts-row-action.dts-row-action-send:hover {
@@ -7860,9 +7900,9 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     justify-content: center;
     gap: 10px;
     width: 100%;
-    background: var(--dts-green) !important;
-    border-color: var(--dts-green) !important;
-    color: #fff !important;
+    background: var(--dts-green);
+    border-color: var(--dts-green);
+    color: #fff;
     font-weight: 700;
 }
 
@@ -8017,4 +8057,66 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 .dts-email-alerts-status.is-active {
     background: var(--dts-green-soft);
     color: var(--dts-green-dark);
+}
+
+
+/* ---- Accessibility sweep ---- */
+
+/* <main> wraps the page without changing the layout. */
+.dts-main {
+    display: contents;
+}
+
+.dts-skip-link:focus {
+    position: fixed;
+    z-index: 2000;
+    top: 8px;
+    left: 8px;
+    padding: 10px 16px;
+    border-radius: var(--dts-radius);
+    background: var(--dts-green);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Orchid forces a grey (!important) on the current page number, which is unreadable on the green box (2:1). */
+.pagination .page-item.active :is(.page-link, span) {
+    color: #fff !important;
+}
+
+/* Column sort links: a full-height target instead of a 20px line of text. */
+[data-controller="table"] thead th a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+}
+
+/* Form checkboxes and switches: at least 22px so they are easy to hit. */
+.form-check .form-check-input[type="checkbox"]:not([role="switch"]) {
+    width: 1.375rem;
+    height: 1.375rem;
+    margin-top: 0.0625rem;
+}
+
+.form-check.form-switch {
+    padding-left: 3.25rem;
+}
+
+.form-check.form-switch .form-check-input {
+    width: 2.75rem;
+    height: 1.5rem;
+    margin-top: 0;
+    margin-left: -3.25rem;
+}
+
+/* Sign-in activity cards on phones: the row number adds nothing there. */
+@media (max-width: 575px) {
+    .page-platform-systems-sign-in-activity [data-controller="table"] [data-column="number"] {
+        display: none;
+    }
+}
+
+/* Orchid sets "label { white-space: nowrap }"; the sign-in "Keep me signed in…" text must wrap on phones. */
+.dts-remember .form-check-label {
+    white-space: normal;
 }

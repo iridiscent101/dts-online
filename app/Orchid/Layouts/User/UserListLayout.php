@@ -71,7 +71,7 @@ class UserListLayout extends Table
                         ->route('platform.systems.users.edit', $user->id)
                         ->rawClick(false)
                         ->icon('bs.pencil'),
-                    // Accounts are deactivated, not deleted, so their names stay on the documents they handled.
+                    // Permanent deletion is available from the edit page only after deactivation and data transfer.
                     'deleteAction' => $user->id === auth()->id() || $user->isAdministrator()
                         ? null
                         : ($user->isDeactivated()

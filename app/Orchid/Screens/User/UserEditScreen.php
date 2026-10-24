@@ -20,9 +20,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
+use Orchid\Screen\Actions\ModalToggle;
+use Orchid\Screen\Fields\Select;
 use Orchid\Screen\Screen;
 use Orchid\Support\Facades\Layout;
 use Orchid\Support\Facades\Toast;
@@ -34,6 +37,9 @@ class UserEditScreen extends Screen
      */
     public $user;
 
+    /** @var array<int, string> */
+    public array $administrators = [];
+
     /**
      * Fetch data to be displayed on the screen.
      *
@@ -44,8 +50,16 @@ class UserEditScreen extends Screen
         $user->load(['offices', 'roles']);
         $user->setAttribute('office_ids', $this->selectedOfficeIds($user));
 
+        $this->administrators = User::query()
+            ->active()
+            ->whereHas('roles', fn (Builder $query): Builder => $query->where('slug', User::ADMIN_ROLE_SLUG))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
+
         return [
             'user' => $user,
+            'administrators' => $this->administrators,
         ];
     }
 
@@ -98,6 +112,13 @@ class UserEditScreen extends Screen
                 ->method('reactivate')
                 ->canSee($this->canChangeStatus() && $this->user->isDeactivated()),
 
+            ModalToggle::make(__('Delete account'))
+                ->class('btn dts-button dts-button-danger')
+                ->icon('bs.trash3')
+                ->modal('deleteUserModal')
+                ->method('delete')
+                ->canSee($this->canDelete()),
+
             Button::make(__('Save'))
                 ->class('btn dts-button dts-button-primary')
                 ->icon('bs.check-circle')
@@ -127,6 +148,19 @@ class UserEditScreen extends Screen
             Layout::block(UserRoleLayout::class)
                 ->title(__('Roles'))
                 ->description(__('A Role defines a set of tasks a user assigned the role is allowed to perform.')),
+
+            Layout::modal('deleteUserModal', Layout::rows([
+                Select::make('transfer_to')
+                    ->title(__('Transfer account data to'))
+                    ->options($this->administrators)
+                    ->empty(__('Select an administrator'))
+                    ->help(__('Uploaded files and kiosk signing requests will be reassigned. Document history keeps the original staff member as its actor.'))
+                    ->required(),
+            ]))
+                ->title(__('Permanently remove :name?', ['name' => $this->user->name]))
+                ->applyButton(__('Delete account'))
+                ->closeButton(__('Cancel'))
+                ->canSee($this->canDelete()),
 
         ];
     }
@@ -235,9 +269,48 @@ class UserEditScreen extends Screen
         return redirect()->route('platform.systems.users.edit', $user);
     }
 
+    public function delete(User $user, Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdministrator(), 403);
+        abort_if($user->is($request->user()) || $user->isAdministrator() || ! $user->isDeactivated(), 403);
+
+        $validated = $request->validate([
+            'transfer_to' => ['required', 'integer', Rule::exists(User::class, 'id')->whereNull('deactivated_at')->whereNull('deleted_at')],
+        ]);
+        $administrator = User::query()->with('roles')->findOrFail($validated['transfer_to']);
+
+        if (! $administrator->isAdministrator()) {
+            throw ValidationException::withMessages([
+                'transfer_to' => __('Choose an active administrator.'),
+            ]);
+        }
+
+        DB::transaction(function () use ($administrator, $user): void {
+            DB::table('attachments')->where('user_id', $user->id)->update(['user_id' => $administrator->id]);
+            DB::table('kiosk_signing_requests')->where('requested_by', $user->id)->update(['requested_by' => $administrator->id]);
+            AccountActivity::record(AccountActivity::DELETED, $user, auth()->user(), [
+                'email' => $user->email,
+                'transferred_to' => $administrator->email,
+            ]);
+            $user->delete();
+        });
+
+        Toast::success(__(':name was removed. Their uploaded files and signing requests were transferred to :administrator.', [
+            'name' => $user->name,
+            'administrator' => $administrator->name,
+        ]));
+
+        return redirect()->route('platform.systems.users');
+    }
+
     private function canChangeStatus(): bool
     {
         return $this->user->exists && $this->user->id !== auth()->id() && ! $this->user->isAdministrator();
+    }
+
+    private function canDelete(): bool
+    {
+        return $this->canChangeStatus() && $this->user->isDeactivated() && auth()->user()?->isAdministrator();
     }
 
     /**

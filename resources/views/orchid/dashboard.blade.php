@@ -50,7 +50,7 @@
                 <div class="dts-table-frame">
                     <div class="dts-table-scroll">
                       <table class="dts-table dts-office-queue-table">
-                        <thead><tr><th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Quick action</th></tr></thead>
+                        <thead><tr><th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Date registered</th><th scope="col">Quick action</th></tr></thead>
                         <tbody>
                             @forelse ($officeQueue as $queueItem)
                                 @php
@@ -109,6 +109,8 @@
                                             @endif
                                         </div>
                                     </td>
+                                    {{-- When the document was registered (Manila time): date, then time below. --}}
+                                    <td class="dts-queue-registered"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="dts-muted">{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</span></time></td>
                                     <td>
                                         {{-- Icon-only buttons; each label shows as a tooltip on hover and on keyboard focus. --}}
                                         <div class="dts-queue-icons">
@@ -145,7 +147,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="3"><div class="dts-empty dts-empty-compact">
+                                <tr><td colspan="4"><div class="dts-empty dts-empty-compact">
                                     <span class="dts-empty-icon"><x-orchid-icon path="bs.check2-circle" /></span>
                                     <h4>No pending office actions</h4>
                                     <p>{{ $workspaceOffice === 'No office assigned' ? 'Ask an administrator to assign your account to an office.' : 'There are no documents waiting for action in this workspace.' }}</p>

@@ -28,10 +28,6 @@ class RoutingControlsUiTest extends TestCase
             ->assertSee('data-office-remark', false)
             ->assertSee(route('platform.documents.remarks.store', $document), false)
             ->assertSee('Add remark');
-
-        $this->get(route('platform.documents.view', $document))
-            ->assertOk()
-            ->assertSee('id="document-office-remark-panel"', false);
     }
 
     public function test_sending_office_sees_send_to_another_office_in_outgoing(): void

@@ -260,6 +260,16 @@ class SystemHealth
             );
         }
 
+        if (app()->isProduction() && $this->mailCanSilentlySkipDelivery()) {
+            return $this->result(
+                'configuration',
+                'Configuration',
+                self::CRITICAL,
+                'Email delivery disabled',
+                'Use a delivery mailer in production; log and array transports do not send email.',
+            );
+        }
+
         return $this->result(
             'configuration',
             'Configuration',
@@ -267,6 +277,18 @@ class SystemHealth
             app()->isProduction() ? 'Production mode' : ucfirst($environment).' mode',
             'Debug mode: '.($debug ? 'enabled' : 'disabled'),
         );
+    }
+
+    private function mailCanSilentlySkipDelivery(): bool
+    {
+        $mailer = (string) config('mail.default');
+        $mailers = (array) config("mail.mailers.{$mailer}.mailers", [$mailer]);
+
+        return collect($mailers)->contains(function (string $name): bool {
+            $transport = (string) config("mail.mailers.{$name}.transport", $name);
+
+            return in_array($transport, ['log', 'array'], true);
+        });
     }
 
     /**

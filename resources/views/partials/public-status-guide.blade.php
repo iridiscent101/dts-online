@@ -15,14 +15,14 @@
         'Waiting for document/s' => 'bring the document/s to the Records Unit so processing can start.',
     ];
 @endphp
-<details class="dts-public-status-guide rounded-sm border border-slate-300 bg-white {{ $class ?? '' }}">
+<details class="dts-public-status-guide rounded-sm border border-province-line-strong bg-white {{ $class ?? '' }}">
     <summary class="flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm font-semibold text-[#216E39]">
         <x-orchid-icon path="bs.question-circle" class="size-4 shrink-0" />
         <span class="grow">Status guide: what each status means</span>
         <x-orchid-icon path="bs.chevron-down" class="dts-public-status-guide-chevron size-4 shrink-0" />
     </summary>
     {{-- Every status is laid out the same way: its badge, then its meaning underneath. --}}
-    <dl class="grid divide-y divide-slate-200 border-t border-slate-200 px-4">
+    <dl class="grid divide-y divide-province-line border-t border-province-line px-4">
         @foreach ($guideStatuses as $status => $meaning)
             <div class="grid justify-items-start gap-1 py-3">
                 <dt>@include('partials.public-status-badge', ['status' => $status])</dt>

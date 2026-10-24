@@ -395,6 +395,35 @@ select:not([multiple], [size]):disabled {
     }
 }
 
+/* With JavaScript, resources/js/floating-tooltip.js draws the hover text as one floating box instead, so dialogs and
+   scrolling tables cannot cut it off. The ::after version above stays as the no-JavaScript fallback. */
+.dts-js-tooltips [data-tooltip]::after {
+    display: none;
+}
+
+.dts-floating-tooltip {
+    position: fixed;
+    z-index: 3000;
+    max-width: min(320px, calc(100vw - 8px));
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--dts-charcoal, #26332b);
+    color: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.3;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+@media (hover: none) {
+    .dts-floating-tooltip {
+        display: none;
+    }
+}
+
 /* An open menu covers the tooltip's spot; hide it there. */
 details[open] > [data-tooltip]::after {
     display: none;
@@ -500,8 +529,8 @@ dts-signature-pad.is-invalid .dts-signature-box {
     bottom: 36px;
     left: 24px;
     padding-top: 4px;
-    border-top: 1px solid var(--dts-grid, #c4bb9f);
-    color: var(--dts-text-subtle, #64748b);
+    border-top: 1px solid var(--dts-grid, #968a6a);
+    color: var(--dts-text-subtle, #556274);
     font-size: var(--dts-text-xs, 0.875rem);
     text-align: center;
     pointer-events: none;

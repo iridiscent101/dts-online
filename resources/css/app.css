@@ -13,8 +13,9 @@
     --color-province-brown: #86562d;
     --color-province-cream: #f8f4e7;
     --color-province-charcoal: #26332b;
-    --color-slate-200: #d8c66f;
-    --color-slate-300: #b3843f;
+    /* Card and field borders on the public pages (gold line; stronger brown for fields and emphasis). */
+    --color-province-line: #d8c66f;
+    --color-province-line-strong: #b3843f;
 }
 
 /* Public pages: the copy button matches the Refresh button (44px square, green outline). */

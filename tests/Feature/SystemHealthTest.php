@@ -141,4 +141,26 @@ class SystemHealthTest extends TestCase
         }
 
     }
+
+    public function test_a_non_delivery_mailer_is_critical_in_production(): void
+    {
+        $originalEnvironment = $this->app->environment();
+        $this->app->instance('env', 'production');
+        config([
+            'app.debug' => false,
+            'mail.default' => 'failover',
+            'mail.mailers.failover.mailers' => ['smtp', 'log'],
+            'backup.path' => storage_path('framework/testing/no-system-backups'),
+        ]);
+
+        try {
+            $configuration = collect(app(SystemHealth::class)->report()['checks'])
+                ->firstWhere('id', 'configuration');
+
+            $this->assertSame(SystemHealth::CRITICAL, $configuration['status']);
+            $this->assertSame('Email delivery disabled', $configuration['summary']);
+        } finally {
+            $this->app->instance('env', $originalEnvironment);
+        }
+    }
 }

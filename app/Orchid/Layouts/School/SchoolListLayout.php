@@ -7,7 +7,7 @@ namespace App\Orchid\Layouts\School;
 use App\Models\School;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
 use Orchid\Screen\Actions\Button;
-use Orchid\Screen\Actions\ModalToggle;
+use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Components\Cells\DateTimeSplit;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
@@ -40,20 +40,17 @@ class SchoolListLayout extends Table
                 ->align(TD::ALIGN_RIGHT)
                 ->sort(),
 
-            // Schools come from the DepEd catalog (each has a source unit ID), so there is no "Add"; rows can be
-            // renamed in a dialog or removed.
+            // Edit opens the school's own page (like Users, Offices and Roles); missing schools are added with "Add".
             TD::make(__('Actions'))
                 ->align(TD::ALIGN_CENTER)
                 ->width('112px')
                 ->cantHide()
                 ->render(fn (School $school) => view('orchid.cells.admin-row-actions', [
-                    'editAction' => ModalToggle::make(__('Edit'))
+                    'editAction' => Link::make(__('Edit'))
                         ->class('btn dts-row-action dts-row-action-edit')
-                        ->icon('bs.pencil')
-                        ->modal('editSchoolModal')
-                        ->modalTitle(__('Edit school'))
-                        ->method('saveSchool')
-                        ->asyncParameters(['school' => $school->id]),
+                        ->route('platform.systems.schools.edit', $school->id)
+                        ->rawClick(false)
+                        ->icon('bs.pencil'),
                     'deleteAction' => Button::make(__('Delete'))
                         ->class('btn dts-row-action dts-row-action-delete')
                         ->icon('bs.trash3')

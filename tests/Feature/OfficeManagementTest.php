@@ -158,7 +158,7 @@ class OfficeManagementTest extends TestCase
         $this->assertSame('Temporary Desk', $movement->fresh()->to_office);
 
         $this->actingAs($staff)
-            ->get(route('platform.documents.view', $secondaryDocument))
+            ->get(route('platform.documents.workspace', $secondaryDocument))
             ->assertOk();
     }
 

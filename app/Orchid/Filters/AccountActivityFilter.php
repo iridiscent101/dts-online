@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace App\Orchid\Filters;
 
-use App\Auth\AccountActivity;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Orchid\Filters\Filter;
 use Orchid\Screen\Fields\Input;
-use Orchid\Screen\Fields\Select;
 
 /**
- * Sign-in activity: find entries by name, email or IP address, and by what happened.
+ * Sign-in activity: find entries by name, email or IP address. AccountActivityEventFilter narrows by what happened.
  */
 class AccountActivityFilter extends Filter
 {
@@ -23,16 +21,14 @@ class AccountActivityFilter extends Filter
 
     public function parameters(): ?array
     {
-        return ['activity_search', 'activity_event'];
+        return ['activity_search'];
     }
 
     public function run(Builder $builder): Builder
     {
         $search = $this->request->string('activity_search')->trim()->limit(150, '')->toString();
-        $event = $this->request->string('activity_event')->toString();
 
         return $builder
-            ->when(isset(AccountActivity::LABELS[$event]), fn (Builder $query): Builder => $query->where('event', $event))
             ->when($search !== '', function (Builder $query) use ($search): void {
                 $userIds = User::query()
                     ->where('name', 'like', "%{$search}%")
@@ -49,29 +45,23 @@ class AccountActivityFilter extends Filter
     }
 
     /**
-     * @return iterable<Input|Select>
+     * @return Input[]
      */
     public function display(): iterable
     {
         return [
             Input::make('activity_search')
                 ->type('search')
-                ->title(__('Search'))
+                ->title(__('Search sign-in activity'))
                 ->placeholder(__('Name, email or IP address'))
                 ->maxlength(150)
                 ->autocomplete('off')
                 ->value($this->request->get('activity_search')),
-
-            Select::make('activity_event')
-                ->options(array_map(__(...), AccountActivity::LABELS))
-                ->empty(__('Everything'))
-                ->value($this->request->get('activity_event'))
-                ->title(__('What happened')),
         ];
     }
 
     public function value(): string
     {
-        return $this->name();
+        return $this->name().': '.$this->request->string('activity_search')->trim()->toString();
     }
 }

@@ -1,5 +1,5 @@
 {{-- Optional recovery email (users.notification_email), separate from the sign-in email. Forgot password sends a
-     temporary password here once it is confirmed. Off means the address is submitted empty, which clears it.
+     password reset link here once it is confirmed. Off means the address is submitted empty, which clears it.
      Toggle handled in resources/js/dts.js. --}}
 @php($enabled = filled($value))
 <div class="dts-email-alerts" data-email-alerts>

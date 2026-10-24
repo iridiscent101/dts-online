@@ -47,7 +47,7 @@ class FeedbackMessagesUiTest extends TestCase
         $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
 
         $this->actingAs($user)
-            ->get(route('platform.documents.view', 999999))
+            ->get(route('platform.documents.workspace', 999999))
             ->assertNotFound()
             ->assertSee('Return to dashboard');
     }

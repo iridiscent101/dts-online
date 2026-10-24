@@ -346,7 +346,7 @@ class DocumentRegistrationTest extends TestCase
             ->assertSee($document->tracking_number);
 
         $this->actingAs($administrativeUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Sent to Administrative Unit')
             ->assertSee('title="Pending: Awaiting acknowledgment of receipt">Pending</span>', false)
@@ -363,7 +363,7 @@ class DocumentRegistrationTest extends TestCase
             ->assertSee('data-workspace-office="Administrative Unit"', false);
 
         $this->actingAs($curriculumUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk();
 
         $this->post(route('platform.documents.movements.store', $document), [
@@ -546,7 +546,7 @@ class DocumentRegistrationTest extends TestCase
         ))->load();
         $document->attachments()->attach($attachment);
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee($document->tracking_number)
             ->assertDontSee('retention-guide.pdf')

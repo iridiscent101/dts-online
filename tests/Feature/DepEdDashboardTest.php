@@ -4,12 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\DocumentOfficeAssignment;
+use App\Models\KioskSigningRequest;
 use App\Models\Office;
 use App\Models\User;
 use Database\Seeders\DocumentTypeSeeder;
 use Database\Seeders\SupervisorRoleSeeder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Orchid\Attachment\File;
@@ -279,7 +282,7 @@ class DepEdDashboardTest extends TestCase
                 ->assertSee('dts-button-primary', false);
         }
 
-        // User accounts are deactivated rather than deleted.
+        // Active accounts must be deactivated before an administrator can permanently remove them.
         foreach ([
             [route('platform.systems.users.edit', $user), 'Deactivate'],
             [route('platform.systems.roles.edit', $role), 'Delete'],
@@ -388,7 +391,7 @@ class DepEdDashboardTest extends TestCase
 
         $this->post(route('platform.systems.users').'/saveUser?user='.$administrator->id, [
             'user' => ['name' => 'Changed administrator', 'email' => $administrator->email],
-        ])->assertForbidden();
+        ])->assertNotFound(); // The list page no longer has its own edit dialog.
 
         $this->assertFalse($manager->fresh()->isAdministrator());
         $this->assertSame($administrator->name, $administrator->fresh()->name);
@@ -472,6 +475,107 @@ class DepEdDashboardTest extends TestCase
         $this->assertNotSame($rememberToken, $user->fresh()->remember_token);
         $this->assertSame($user->id, $document->fresh()->registered_by);
         $this->assertSame($user->id, $movement->fresh()->acted_by);
+    }
+
+    public function test_administrator_can_delete_a_deactivated_account_after_transferring_its_data(): void
+    {
+        $administrator = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
+        $adminRole = Role::create(['name' => 'Administrator', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $administrator->replaceRoles([$adminRole->id]);
+        $user = User::factory()->create(['deactivated_at' => now()]);
+        $document = Document::factory()->create(['registered_by' => $user->id]);
+        $movement = DocumentMovement::factory()->create(['document_id' => $document->id, 'acted_by' => $user->id]);
+        $assignment = DocumentOfficeAssignment::create([
+            'document_id' => $document->id,
+            'office' => 'Records Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+            'assigned_by' => $user->id,
+            'movement_id' => $movement->id,
+        ]);
+        $signingRequest = KioskSigningRequest::create([
+            'document_id' => $document->id,
+            'requested_by' => $user->id,
+            'office' => 'Records Unit',
+            'expires_at' => now()->addMinutes(10),
+        ]);
+        DB::table('attachments')->insert([
+            'name' => 'handover.pdf',
+            'original_name' => 'handover.pdf',
+            'mime' => 'application/pdf',
+            'size' => 1,
+            'path' => 'tests/handover.pdf',
+            'disk' => 'local',
+            'user_id' => $user->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($administrator)
+            ->get(route('platform.systems.users.edit', $user))
+            ->assertOk()
+            ->assertSee('Delete account')
+            ->assertSee('Transfer account data to');
+
+        $this->post(route('platform.systems.users.edit', $user).'/delete', [
+            'transfer_to' => $administrator->id,
+        ])->assertRedirectToRoute('platform.systems.users');
+
+        $this->assertSoftDeleted($user);
+        $this->assertSame($user->id, $document->fresh()->registered_by);
+        $this->assertSame($user->id, $movement->fresh()->acted_by);
+        $this->assertSame($user->id, $assignment->fresh()->assigned_by);
+        $this->assertSame($user->name, $document->fresh()->registeredBy?->name);
+        $this->assertSame($administrator->id, $signingRequest->fresh()->requested_by);
+        $this->assertDatabaseHas('attachments', ['name' => 'handover.pdf', 'user_id' => $administrator->id]);
+        $this->assertDatabaseHas('activity_log', [
+            'event' => 'deleted',
+            'subject_id' => $user->id,
+            'causer_id' => $administrator->id,
+        ]);
+    }
+
+    public function test_account_deletion_requires_an_administrator_and_a_deactivated_target(): void
+    {
+        $administrator = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
+        $adminRole = Role::create(['name' => 'Administrator', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $administrator->replaceRoles([$adminRole->id]);
+        $manager = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
+        $activeUser = User::factory()->create();
+        $deactivatedUser = User::factory()->create(['deactivated_at' => now()]);
+
+        $this->actingAs($manager)
+            ->get(route('platform.systems.users.edit', $deactivatedUser))
+            ->assertOk()
+            ->assertDontSee('Delete account');
+        $this->post(route('platform.systems.users.edit', $deactivatedUser).'/delete', ['transfer_to' => $administrator->id])
+            ->assertForbidden();
+
+        $this->actingAs($administrator)
+            ->get(route('platform.systems.users.edit', $activeUser))
+            ->assertOk()
+            ->assertDontSee('Delete account');
+        $this->post(route('platform.systems.users.edit', $activeUser).'/delete', ['transfer_to' => $administrator->id])
+            ->assertForbidden();
+
+        $this->assertModelExists($activeUser);
+        $this->assertModelExists($deactivatedUser);
+    }
+
+    public function test_account_deletion_rejects_transfer_to_a_non_administrator(): void
+    {
+        $administrator = User::factory()->create(['permissions' => ['platform.index' => true, 'platform.systems.users' => true]]);
+        $adminRole = Role::create(['name' => 'Administrator', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $administrator->replaceRoles([$adminRole->id]);
+        $user = User::factory()->create(['deactivated_at' => now()]);
+        $ordinaryUser = User::factory()->create();
+
+        $this->actingAs($administrator)
+            ->from(route('platform.systems.users.edit', $user))
+            ->post(route('platform.systems.users.edit', $user).'/delete', ['transfer_to' => $ordinaryUser->id])
+            ->assertRedirect(route('platform.systems.users.edit', $user))
+            ->assertSessionHasErrors('transfer_to');
+
+        $this->assertModelExists($user);
     }
 
     public function test_user_bulk_deactivate_requires_permission_and_valid_selection(): void
@@ -1142,9 +1246,9 @@ class DepEdDashboardTest extends TestCase
             ->assertDontSee('DTS-SENT-ON');
 
         // The sending office can still open what it sent on, but has nothing left to do there.
-        $this->get(route('platform.documents.view', $sentOn))
+        $this->get(route('platform.documents.workspace', $sentOn))
             ->assertOk()
-            ->assertSee('Action unavailable');
+            ->assertDontSee('data-workspace-routing ', false);
     }
 
     public function test_closed_documents_leave_outgoing_but_remain_in_archived_and_accessible(): void
@@ -1207,7 +1311,7 @@ class DepEdDashboardTest extends TestCase
             ->assertDontSee('DTS-STILL-OUTGOING');
         $this->actingAs($unrelated)->get(route('platform.archived'))
             ->assertDontSee('DTS-CLOSED-RELEASED');
-        $this->actingAs($sender)->get(route('platform.documents.view', $document))
+        $this->actingAs($sender)->get(route('platform.documents.workspace', $document))
             ->assertOk();
     }
 
@@ -1535,5 +1639,24 @@ class DepEdDashboardTest extends TestCase
             ->get(route('platform.archived'))
             ->assertOk()
             ->assertSee('DTS-LEGACY-ARCHIVE');
+    }
+
+    public function test_action_queue_shows_when_each_document_was_registered(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $this->travelTo(Carbon::parse('2026-10-20 02:30:00', 'UTC'));
+        $document = Document::factory()->create([
+            'current_office' => 'SDO-Records Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT,
+        ]);
+        $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Records Unit'], ['status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT]);
+        $this->travelBack();
+
+        // Shown in Manila time: 02:30 UTC is 10:30 AM, with the date on the first line and the time below it.
+        $this->actingAs($records)
+            ->get(route('platform.main'))
+            ->assertOk()
+            ->assertSeeInOrder(['<th scope="col">Offices and status</th>', '<th scope="col">Date registered</th>', '<th scope="col">Quick action</th>'], false)
+            ->assertSee('<td class="dts-queue-registered"><time datetime="'.$document->created_at->toIso8601String().'">Oct 20, 2026<span class="dts-muted">10:30 AM</span></time></td>', false);
     }
 }

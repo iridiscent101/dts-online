@@ -33,6 +33,8 @@ class AccountActivity
 
     public const REACTIVATED = 'reactivated';
 
+    public const DELETED = 'deleted';
+
     public const DEACTIVATED_SIGN_IN = 'deactivated_sign_in';
 
     public const PASSWORD_CHANGE_REQUIRED = 'password_change_required';
@@ -47,6 +49,7 @@ class AccountActivity
         self::PASSWORD_CHANGED => 'Password changed',
         self::DEACTIVATED => 'Account deactivated',
         self::REACTIVATED => 'Account reactivated',
+        self::DELETED => 'Account deleted',
         self::DEACTIVATED_SIGN_IN => 'Sign-in refused: account deactivated',
         self::PASSWORD_CHANGE_REQUIRED => 'Asked to set a stronger password',
         self::TEMPORARY_PASSWORD_SENT => 'Temporary password emailed (forgot password)',

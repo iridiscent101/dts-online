@@ -4,14 +4,10 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
-use App\Models\Office;
 use App\Models\User;
-use App\Orchid\Layouts\User\UserEditLayout;
 use App\Orchid\Layouts\User\UserFiltersLayout;
 use App\Orchid\Layouts\User\UserListLayout;
-use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -88,63 +84,7 @@ class UserListScreen extends Screen
                 'pageSize' => Layout::view('orchid.table-page-size'),
                 'table' => UserListLayout::class,
             ]),
-
-            Layout::modal('editUserModal', UserEditLayout::class)
-                ->deferred('loadUserOnOpenModal'),
         ];
-    }
-
-    /**
-     * Loads user data when opening the modal window.
-     *
-     * @return array
-     */
-    public function loadUserOnOpenModal(User $user): iterable
-    {
-        return [
-            'user' => $user,
-        ];
-    }
-
-    public function saveUser(Request $request, User $user): void
-    {
-        abort_if($user->isAdministrator() && ! $request->user()?->isAdministrator(), 403);
-
-        $request->validate([
-            'user.email' => [
-                'required',
-                Rule::unique(User::class, 'email')->ignore($user),
-            ],
-            'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($user->notification_email)],
-            'user.office_ids' => ['nullable', 'array'],
-            'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
-        ]);
-
-        if (! $request->user()?->isAdministrator()
-            && ($request->has('user.office_ids') || $request->boolean('user.offices_submitted'))) {
-            $submittedOffices = Office::query()->whereKey($this->officeIdsFromRequest($request))->pluck('name')->sort()->values()->all();
-            abort_if($submittedOffices !== $user->assignedOfficeNames()->sort()->values()->all(), 403);
-        }
-
-        DB::transaction(function () use ($request, $user): void {
-            $sendVerification = $request->has('user.notification_email')
-                && $user->setNotificationEmail($request->input('user.notification_email'));
-
-            $user
-                ->fill($request->collect('user')->only(['name', 'email'])->toArray())
-                ->save();
-
-            if ($sendVerification) {
-                $user->sendNotificationEmailVerification();
-            }
-
-            if ($request->user()->isAdministrator() && $request->boolean('user.offices_submitted')) {
-                $officeIds = $this->officeIdsFromRequest($request);
-                $user->offices()->sync($officeIds->all());
-            }
-        });
-
-        Toast::success(__('User was saved.'));
     }
 
     public function deactivate(Request $request): void
@@ -171,9 +111,7 @@ class UserListScreen extends Screen
         Toast::success(__(':name can sign in again.', ['name' => $user->name]));
     }
 
-    /**
-     * "Deactivate selected" on the list (accounts are no longer deleted, so their document history keeps their names).
-     */
+    /** "Deactivate selected" keeps bulk actions reversible. */
     public function bulkDeactivate(Request $request): void
     {
         abort_unless($request->user()?->hasAccess('platform.systems.users'), 403);
@@ -203,17 +141,5 @@ class UserListScreen extends Screen
         $perPage = request()->integer('per_page', 10);
 
         return in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
-    }
-
-    /**
-     * @return Collection<int, int>
-     */
-    private function officeIdsFromRequest(Request $request): Collection
-    {
-        return collect($request->input('user.office_ids', []))
-            ->filter(fn (mixed $officeId): bool => filled($officeId))
-            ->map(fn (mixed $officeId): int => (int) $officeId)
-            ->unique()
-            ->values();
     }
 }

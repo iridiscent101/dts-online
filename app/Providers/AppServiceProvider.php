@@ -5,8 +5,10 @@ namespace App\Providers;
 use App\Auth\AccountActivity;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
+use App\Support\EmailLink;
 use App\View\Components\OrchidIcon;
 use Illuminate\Auth\Events\Validated;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -43,6 +45,11 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(AccountActivity::class);
         Event::listen(Validated::class, [EnsureAccountIsActive::class, 'refuseSignIn']);
+
+        ResetPassword::createUrlUsing(fn (User $user, string $token): string => EmailLink::route('password.reset', [
+            'token' => $token,
+            'email' => $user->getEmailForPasswordReset(),
+        ]));
 
         // Every new or changed staff password: at least 13 characters with a capital letter, a small letter, a number
         // and a symbol. Passwords set before this rule keep working until they are next changed.

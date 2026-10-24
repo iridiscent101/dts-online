@@ -178,7 +178,7 @@ class DocumentMovement extends Model
 
     public function actor(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'acted_by');
+        return $this->belongsTo(User::class, 'acted_by')->withTrashed();
     }
 
     public function title(): string

@@ -19,7 +19,7 @@
         <span class="bg-[#86562D]"></span>
     </div>
 
-    <header class="border-b border-slate-200 bg-white">
+    <header class="border-b border-province-line bg-white">
         <div class="mx-auto flex min-h-20 w-full max-w-4xl items-center justify-between gap-4 px-6 py-4">
             <div class="flex min-w-0 items-center gap-3">
                 <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-14 shrink-0 rounded-xl">
@@ -34,7 +34,7 @@
 
     <main class="mx-auto w-full max-w-4xl px-6 py-10">
         {{-- Waiting for the Records Unit --}}
-        <section data-kiosk-idle class="grid place-items-center gap-5 rounded-md border border-slate-200 bg-white px-6 py-16 text-center shadow-sm" aria-live="polite">
+        <section data-kiosk-idle class="grid place-items-center gap-5 rounded-md border border-province-line bg-white px-6 py-16 text-center shadow-sm" aria-live="polite">
             {{-- Waiting animation: a ring turning around the hourglass, and three dots under the text (still for reduced motion). --}}
             <span class="relative grid size-28 place-items-center" aria-hidden="true">
                 <span class="absolute inset-0 rounded-full border-[6px] border-[#216E39]/15 border-t-[#216E39] motion-safe:animate-spin"></span>
@@ -54,7 +54,7 @@
         </section>
 
         {{-- Signing --}}
-        <form data-kiosk-form class="grid gap-6 rounded-md border border-slate-200 bg-white p-6 shadow-sm sm:p-8" novalidate hidden aria-labelledby="kiosk-sign-heading">
+        <form data-kiosk-form class="grid gap-6 rounded-md border border-province-line bg-white p-6 shadow-sm sm:p-8" novalidate hidden aria-labelledby="kiosk-sign-heading">
             <div>
                 <h1 id="kiosk-sign-heading" class="text-3xl font-bold text-slate-900">Sign for your document</h1>
                 <p class="mt-2 text-lg text-slate-700">Check the tracking number, then sign inside the box. Typing your name is optional.</p>
@@ -62,17 +62,17 @@
 
             <dl class="grid gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-4 sm:grid-cols-2">
                 <div>
-                    <dt class="text-sm font-semibold uppercase tracking-wide text-slate-500">Tracking number</dt>
+                    <dt class="text-sm font-semibold uppercase tracking-wide text-slate-600">Tracking number</dt>
                     <dd data-kiosk-tracking class="mt-1 font-mono text-2xl font-extrabold text-slate-900 [overflow-wrap:anywhere]"></dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-semibold uppercase tracking-wide text-slate-500">Type of document</dt>
+                    <dt class="text-sm font-semibold uppercase tracking-wide text-slate-600">Type of document</dt>
                     <dd data-kiosk-type class="mt-1 text-xl font-semibold text-slate-900"></dd>
                 </div>
             </dl>
 
             <div>
-                <label for="kiosk-name" class="block text-lg font-semibold text-slate-800">Your full name <span class="text-base font-normal text-slate-500">(optional)</span></label>
+                <label for="kiosk-name" class="block text-lg font-semibold text-slate-800">Your full name <span class="text-base font-normal text-slate-600">(optional)</span></label>
                 <input id="kiosk-name" name="recipient_name" maxlength="255" autocomplete="off" class="mt-2 block min-h-14 w-full rounded-sm border-2 border-[#B3843F] bg-white px-4 text-xl text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#F2C230]">
             </div>
 
@@ -116,7 +116,7 @@
         {{-- For the staff who set up the laptop. --}}
         <form method="POST" action="{{ route('platform.logout') }}">
             @csrf
-            <button type="submit" class="text-sm text-slate-500 underline hover:text-slate-700">Sign out of the kiosk</button>
+            <button type="submit" class="min-h-11 px-2 text-sm text-slate-600 underline hover:text-slate-700">Sign out of the kiosk</button>
         </form>
     </footer>
 

@@ -94,6 +94,8 @@ class SchoolCatalogTest extends TestCase
             ->assertSee('data-table-select-all', false)
             ->assertSee('data-table-row-select', false)
             ->assertSeeInOrder(['Offices', 'Schools'])
+            ->assertSee(route('platform.systems.schools.create'), false)
+            ->assertSee('Add')
             ->assertSee('Search schools')
             ->assertSee('School name')
             ->assertDontSee('Source unit ID')
@@ -103,6 +105,80 @@ class SchoolCatalogTest extends TestCase
         $this->actingAs($staff)
             ->get(route('platform.systems.schools'))
             ->assertForbidden();
+    }
+
+    public function test_school_manager_can_create_a_school_for_origin_suggestions(): void
+    {
+        $manager = User::factory()->create(['permissions' => [
+            'platform.index' => true,
+            'platform.systems.schools' => true,
+        ]]);
+
+        $this->actingAs($manager)
+            ->get(route('platform.systems.schools.create'))
+            ->assertOk()
+            ->assertSee('Create school')
+            ->assertSee('School name');
+
+        $this->post(route('platform.systems.schools.create').'/save', [
+            'school' => ['name' => 'Nueva Vizcaya Science School'],
+        ])->assertRedirectToRoute('platform.systems.schools');
+
+        $this->assertDatabaseHas('schools', [
+            'source_unit_id' => null,
+            'name' => 'Nueva Vizcaya Science School',
+        ]);
+        $this->assertContains('Nueva Vizcaya Science School', Document::originOptions());
+    }
+
+    public function test_school_creation_rejects_an_active_duplicate_name(): void
+    {
+        $manager = User::factory()->create(['permissions' => [
+            'platform.index' => true,
+            'platform.systems.schools' => true,
+        ]]);
+        School::factory()->create(['name' => 'Abaca ES']);
+
+        $this->actingAs($manager)
+            ->from(route('platform.systems.schools.create'))
+            ->post(route('platform.systems.schools.create').'/save', [
+                'school' => ['name' => 'Abaca ES'],
+            ])
+            ->assertRedirect(route('platform.systems.schools.create'))
+            ->assertSessionHasErrors('school.name');
+
+        $this->assertSame(1, School::query()->where('name', 'Abaca ES')->count());
+    }
+
+    public function test_a_removed_school_can_be_added_again(): void
+    {
+        $manager = User::factory()->create(['permissions' => [
+            'platform.index' => true,
+            'platform.systems.schools' => true,
+        ]]);
+        School::factory()->create(['name' => 'Abaca ES'])->delete();
+
+        $this->actingAs($manager)
+            ->post(route('platform.systems.schools.create').'/save', [
+                'school' => ['name' => '  Abaca ES  '],
+            ])
+            ->assertRedirectToRoute('platform.systems.schools')
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(1, School::query()->where('name', 'Abaca ES')->count());
+    }
+
+    public function test_school_creation_requires_school_management_permission(): void
+    {
+        $staff = User::factory()->create(['permissions' => ['platform.index' => true]]);
+
+        $this->actingAs($staff)
+            ->post(route('platform.systems.schools.create').'/save', [
+                'school' => ['name' => 'Unauthorized School'],
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('schools', ['name' => 'Unauthorized School']);
     }
 
     public function test_school_bulk_delete_removes_only_selected_schools(): void

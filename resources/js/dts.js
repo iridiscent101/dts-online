@@ -1,3 +1,4 @@
+import './floating-tooltip.js';
 import './signature-pad.js';
 import './copy-button.js';
 import './timeline-reveal.js';
@@ -2163,17 +2164,6 @@ document.addEventListener('click', async (event) => {
     } catch (error) {
         errors.textContent = error.message;
         errors.hidden = false;
-    }
-});
-
-document.addEventListener('click', (event) => {
-    const link = event.target.closest('.dts-document-view [data-workflow-office-link]');
-    const source = link?.closest('.dts-document-view')?.querySelector('[data-workflow-source-office]');
-    if (!source || source.type === 'hidden') return;
-
-    if ([...source.options].some((option) => option.value === link.dataset.workflowOfficeLink)) {
-        source.value = link.dataset.workflowOfficeLink;
-        source.dispatchEvent(new Event('change', { bubbles: true }));
     }
 });
 

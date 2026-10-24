@@ -49,8 +49,8 @@ class PublicDocumentTrackingTest extends TestCase
 
         $html = $this->get(route('tracking.index', ['tracking' => 'SDONV12345678913']))->assertOk()->getContent();
         // Only the forward has a "From" line; the receipt is named in its title.
-        $this->assertSame(1, substr_count($html, '<dt class="font-medium text-slate-500">From</dt>'));
-        $this->assertStringContainsString('<dt class="font-medium text-slate-500">From</dt><dd class="text-slate-800">SDO-Records Unit</dd>', $html);
+        $this->assertSame(1, substr_count($html, '<dt class="font-medium text-slate-600">From</dt>'));
+        $this->assertStringContainsString('<dt class="font-medium text-slate-600">From</dt><dd class="text-slate-800">SDO-Records Unit</dd>', $html);
     }
 
     public function test_guests_can_open_the_fast_track_page(): void
@@ -159,14 +159,14 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee('Office destination')
             ->assertDontSee('Private Origin')
             ->assertDontSee('Private document remarks')
-            ->assertSee('Private forwarding remarks')
-            ->assertSee('Private receipt remarks')
-            ->assertSee('Processed by')
-            ->assertSee('Private Employee')
+            ->assertDontSee('Private forwarding remarks')
+            ->assertDontSee('Private receipt remarks')
+            ->assertDontSee('Processed by')
+            ->assertDontSee('Private Employee')
             ->assertDontSee('Staff sign in');
     }
 
-    public function test_public_timeline_escapes_movement_remarks_and_staff_names(): void
+    public function test_public_timeline_does_not_expose_movement_remarks_or_staff_names(): void
     {
         $actor = User::factory()->create(['name' => '<script>alert("staff")</script>']);
         $document = Document::factory()->create(['tracking_number' => 'DTS-2026-000125']);
@@ -182,10 +182,10 @@ class PublicDocumentTrackingTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSee('&lt;script&gt;alert(&quot;remark&quot;)&lt;/script&gt;', false)
-            ->assertSee('&lt;script&gt;alert(&quot;staff&quot;)&lt;/script&gt;', false)
-            ->assertDontSee('<script>alert("remark")</script>', false)
-            ->assertDontSee('<script>alert("staff")</script>', false);
+            ->assertDontSee('alert(&quot;remark&quot;)', false)
+            ->assertDontSee('alert(&quot;staff&quot;)', false)
+            ->assertDontSee('alert("remark")', false)
+            ->assertDontSee('alert("staff")', false);
     }
 
     public function test_registration_office_does_not_change_after_the_document_is_forwarded(): void
@@ -337,7 +337,7 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee("if (event.target.id === 'timeline-office') showOfficeTimeline(event.target.value);", false);
     }
 
-    public function test_office_remarks_appear_in_the_public_history(): void
+    public function test_office_remarks_stay_in_staff_history(): void
     {
         $staff = User::factory()->create(['name' => 'Remark Author']);
         $document = Document::factory()->create([
@@ -359,18 +359,16 @@ class PublicDocumentTrackingTest extends TestCase
         $this->travel(1)->minute();
         $document->recordActivity('Remark added', $staff, ['office' => 'Administrative Unit', 'remark' => 'Waiting for the signed annex.']);
 
-        // Newest first: the remark comes before the forward and the registration.
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSee('data-kind="remark"', false)
-            // The writer is named once, before the remark ("Remark Author: ..."), with no separate "Added by" row.
-            ->assertSeeInOrder(['Administrative Unit added a remark', 'Remark Author', 'Waiting for the signed annex.', 'Document/s forwarded to Administrative Unit', 'Document registered'])
-            ->assertDontSee('Added by');
+            ->assertDontSee('data-kind="remark"', false)
+            ->assertDontSee('Remark Author')
+            ->assertDontSee('Waiting for the signed annex.')
+            ->assertSeeInOrder(['Document/s forwarded to Administrative Unit', 'Document registered']);
 
-        // The office filter treats it as one of that office's steps.
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number, 'office' => 'Records Unit']))
             ->assertOk()
-            ->assertSee('data-kind="remark" data-movement data-from-office="Administrative Unit" data-to-office="Administrative Unit" class="dts-public-timeline-item hidden', false);
+            ->assertDontSee('Waiting for the signed annex.');
     }
 
     public function test_office_without_recorded_movements_has_a_clear_empty_timeline(): void

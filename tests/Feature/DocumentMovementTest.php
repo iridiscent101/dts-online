@@ -7,6 +7,7 @@ use App\Models\DocumentMovement;
 use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
@@ -58,7 +59,7 @@ class DocumentMovementTest extends TestCase
         ]);
         $this->assertSame(1, $document->movements()->count());
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Document received');
     }
@@ -74,7 +75,7 @@ class DocumentMovementTest extends TestCase
         ]);
 
         $this->assertFalse(Document::query()->visibleTo($budget)->whereKey($document->id)->exists());
-        $this->actingAs($budget)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->actingAs($budget)->get(route('platform.documents.workspace', $document))->assertNotFound();
         $this->actingAs($budget)->postJson(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Budget Unit'],
         ])->assertForbidden();
@@ -156,7 +157,7 @@ class DocumentMovementTest extends TestCase
 
         $this->assertDatabaseCount('document_movements', 3);
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('value="Curriculum Implementation Division"', false)
             ->assertSee('value="Administrative Unit"', false)
@@ -205,20 +206,27 @@ class DocumentMovementTest extends TestCase
             'status' => 'Awaiting receipt',
         ]);
 
-        $this->get(route('platform.documents.view', $document))
+        // The dialog offers both offices; the one still awaiting receipt can only receive it.
+        $response = $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('id="workflow-source-office" name="workflow[source_office]" required data-workflow-source-office', false)
-            ->assertSee('value="Administrative Unit" selected>Administrative Unit — Awaiting receipt</option>', false)
-            ->assertSee('id="workflow-action" name="workflow[action]" required data-workflow-action', false)
-            ->assertSee('value="received"', false)
-            ->assertDontSee('value="reviewed"', false);
+            ->assertSee('name="workflow[source_office]" data-workflow-source-office', false)
+            ->assertSee('<option value="Administrative Unit"', false)
+            ->assertSee('<option value="Records Unit"', false);
+        $options = $this->workspaceActionOptions($response);
+        $this->assertArrayHasKey('received', $options['Administrative Unit']);
+        $this->assertArrayNotHasKey('reviewed', $options['Administrative Unit']);
+    }
 
-        $this->get(route('platform.documents.view', [
-            'document' => $document,
-            'source_office' => 'Records Unit',
-        ]))
-            ->assertOk()
-            ->assertSee('value="Records Unit" selected>Records Unit — Received</option>', false);
+    /**
+     * The actions the workspace dialog offers each acting office (the data-action-options JSON).
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private function workspaceActionOptions(TestResponse $response): array
+    {
+        preg_match("/data-action-options='([^']+)'/", $response->getContent(), $match);
+
+        return json_decode(html_entity_decode($match[1] ?? '[]'), true) ?? [];
     }
 
     public function test_workflow_validates_destination_without_requiring_remarks(): void
@@ -310,32 +318,22 @@ class DocumentMovementTest extends TestCase
             'status' => 'Forwarded',
         ]);
 
-        $this->actingAs($user)
-            ->get(route('platform.documents.view', [
-                'document' => $document,
-                'source_office' => 'Records Unit',
-            ]))
+        $response = $this->actingAs($user)
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Acting office')
-            ->assertSee('name="workflow[source_office]"', false)
-            ->assertSee('value="Records Unit" selected>Records Unit — Received</option>', false)
-            ->assertSee('value="Administrative Unit"', false)
-            ->assertSee('Administrative Unit — Forwarded</option>', false)
-            ->assertSee('Choose an action')
-            ->assertSee('value="forwarded"', false)
-            ->assertDontSee('value="completed"', false)
-            ->assertDontSee('value="reviewed"', false)
-            ->assertDontSee('value="approved"', false)
-            ->assertSee('data-action-options', false);
+            ->assertSee('<option value="Records Unit"', false)
+            ->assertSee('<option value="Administrative Unit"', false)
+            ->assertSee('Choose an action');
+        $options = $this->workspaceActionOptions($response);
+        $this->assertArrayHasKey('forwarded', $options['Records Unit']);
+        foreach (['reviewed', 'approved'] as $action) {
+            $this->assertArrayNotHasKey($action, $options['Records Unit']);
+        }
 
-        $this->get(route('platform.documents.view', [
-            'document' => $document,
-            'source_office' => 'Administrative Unit',
-        ]))
-            ->assertOk()
-            ->assertSee('value="Administrative Unit" selected>Administrative Unit — Forwarded</option>', false)
-            ->assertSee('value="received"', false)
-            ->assertDontSee('value="reviewed"', false);
+        $options = $this->workspaceActionOptions($this->get(route('platform.documents.workspace', $document))->assertOk());
+        $this->assertArrayHasKey('received', $options['Administrative Unit']);
+        $this->assertArrayNotHasKey('reviewed', $options['Administrative Unit']);
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
@@ -628,9 +626,9 @@ class DocumentMovementTest extends TestCase
 
         // Records can still open what it sent on (its Outgoing tab), but can no longer act on it.
         $this->actingAs($recordsUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Action unavailable');
+            ->assertDontSee('data-workspace-routing ', false);
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
@@ -640,7 +638,7 @@ class DocumentMovementTest extends TestCase
         ])->assertForbidden();
 
         $this->actingAs($administrativeUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Check the administrative requirements.')
             ->assertDontSee('Review the curriculum content.');
@@ -655,12 +653,12 @@ class DocumentMovementTest extends TestCase
             ->assertRedirectToRoute('platform.documents.view', $document);
 
         $this->actingAs($curriculumUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Assigned offices')
+            ->assertSee('Office routes')
             ->assertSee('Administrative Unit')
             ->assertSee('Curriculum Implementation Division')
-            ->assertSee('Next action')
+            ->assertSee('Routing action')
             ->assertSee('Received');
 
         $this->post(route('platform.documents.movements.store', $document), [
@@ -778,9 +776,9 @@ class DocumentMovementTest extends TestCase
         ]);
 
         // The administrative office can still open what it sent on, but can no longer act on it.
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Action unavailable');
+            ->assertDontSee('data-workspace-routing ', false);
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
                 'action' => 'received',
@@ -789,13 +787,13 @@ class DocumentMovementTest extends TestCase
         ])->assertForbidden();
 
         $this->actingAs($curriculumUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Curriculum review.')
             ->assertDontSee('Budget review after administrative receipt.');
 
         $this->actingAs($budgetUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk();
     }
 
@@ -1066,8 +1064,8 @@ class DocumentMovementTest extends TestCase
             ->assertSee('<dt>Released to</dt><dd>Juan Dela Cruz</dd>', false);
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertSee('Released to')
-            ->assertSee('Juan Dela Cruz');
+            ->assertDontSee('Released to')
+            ->assertDontSee('Juan Dela Cruz');
     }
 
     public function test_an_administrator_can_release_a_received_document_from_any_office(): void
@@ -1153,7 +1151,7 @@ class DocumentMovementTest extends TestCase
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
 
-        foreach ([route('platform.documents.view', $document), route('platform.documents.workspace', $document)] as $url) {
+        foreach ([route('platform.documents.workspace', $document)] as $url) {
             $this->actingAs($records)->get($url)
                 ->assertOk()
                 ->assertSee('<dts-signature-pad', false)
@@ -1191,7 +1189,7 @@ class DocumentMovementTest extends TestCase
         $this->get(route('platform.documents.workspace', $document))
             ->assertSee('<dt>Signature</dt>', false)
             ->assertSee('src="'.$signature.'"', false);
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertSee('class="dts-history-signature" src="'.$signature.'"', false);
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertDontSee($signature, false);
@@ -1556,9 +1554,8 @@ class DocumentMovementTest extends TestCase
             'subject_id' => $document->id,
         ]);
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Last changed by')
             ->assertSee($user->name);
     }
 
@@ -1914,7 +1911,7 @@ class DocumentMovementTest extends TestCase
             'remarks' => 'Records received the resubmitted packet.',
         ]);
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee($recordsOfficer->name)
             ->assertSee('Records Unit')
@@ -1928,7 +1925,6 @@ class DocumentMovementTest extends TestCase
                 'Required supporting document attached.',
                 'Forwarded to Administrative Unit',
                 'Send to admin for supporting documents.',
-                'Document registered',
             ])
             ->assertDontSee('Admin received and reviewed the request.');
     }
@@ -1945,7 +1941,7 @@ class DocumentMovementTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertDontSee('Suggested next office')
             ->assertDontSee('value="Administrative Unit" selected', false)
@@ -1979,7 +1975,7 @@ class DocumentMovementTest extends TestCase
         ]);
 
         $this->actingAs($curriculumUser)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertDontSee('Suggested next office')
             ->assertDontSee('Planned route');

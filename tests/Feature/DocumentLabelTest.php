@@ -28,17 +28,10 @@ class DocumentLabelTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Next action')
-            ->assertSee('Tracking label')
-            ->assertSee('Assigned offices')
-            ->assertSee('More details')
-            ->assertSee('RO-2026-104')
+            ->assertSee('Print label')
             ->assertSee('Retention guidance for division records.')
-            ->assertDontSee('Add routing update')
-            ->assertDontSee('Primary office')
-            ->assertDontSee('document-attachments-heading', false)
             ->assertSee(route('platform.documents.label', $document), false);
 
         $response = $this->get(route('platform.documents.label', $document));

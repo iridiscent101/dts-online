@@ -7,7 +7,7 @@
     <title>Track a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'])
+    @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'])
 </head>
 <body class="dts-public-page flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
@@ -21,7 +21,7 @@
     @php
         $contact = config('dts.contact');
     @endphp
-    <header class="border-b border-slate-200 bg-white">
+    <header class="border-b border-province-line bg-white">
         <div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-3 sm:px-8">
             <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 rounded-lg text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#216E39]">
                 <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-11 shrink-0 rounded-xl sm:size-14">
@@ -57,7 +57,7 @@
                             <div class="min-w-0 grow">
                                 <label for="tracking" class="sr-only">Tracking number</label>
                                 <div class="flex min-h-12 items-center gap-3 rounded-sm border border-white/40 bg-white px-4 text-slate-700 focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-white">
-                                    <x-orchid-icon path="bs.search" class="size-5 shrink-0 text-slate-500" />
+                                    <x-orchid-icon path="bs.search" class="size-5 shrink-0 text-slate-600" />
                                     <input
                                         id="tracking"
                                         name="tracking"
@@ -67,7 +67,7 @@
                                         autocomplete="off"
                                         spellcheck="false"
                                         placeholder="Enter your tracking number"
-                                        class="h-12 min-w-0 grow border-0 bg-transparent text-base font-medium uppercase text-slate-900 outline-none placeholder:font-normal placeholder:normal-case placeholder:text-slate-400"
+                                        class="h-12 min-w-0 grow border-0 bg-transparent text-base font-medium uppercase text-slate-900 outline-none placeholder:font-normal placeholder:normal-case placeholder:text-slate-500"
                                     >
                                 </div>
                             </div>
@@ -153,9 +153,9 @@
                     @foreach ([
                         ['bs.send', 'Send', 'Fill in the form online or bring your document to the Records Unit.'],
                         ['bs.inbox', 'Records Unit receives', 'Records staff receive it and send it to the right office.'],
-                        ['bs.search', 'Track', 'Use your tracking number to see each office, status and remarks.'],
+                        ['bs.search', 'Track', 'Use your tracking number to see each office, status and routing update.'],
                     ] as [$icon, $title, $text])
-                        <li class="flex gap-3 rounded-sm border border-slate-300 bg-white p-4">
+                        <li class="flex gap-3 rounded-sm border border-province-line-strong bg-white p-4">
                             <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-[#216E39] text-white"><x-orchid-icon :path="$icon" class="size-5" /></span>
                             <span><strong class="block text-base text-slate-900">{{ $loop->iteration }}. {{ $title }}</strong><span class="text-sm leading-6 text-slate-600">{{ $text }}</span></span>
                         </li>
@@ -191,7 +191,7 @@
 
                 {{-- Wide screens: the status card sets the row height; the movement card grows with its content up to that height. --}}
                 <div class="grid gap-6 lg:grid-cols-2">
-                    <section class="min-w-0 rounded-sm border border-slate-200 bg-white p-5 shadow-sm sm:p-6 lg:self-start" aria-labelledby="document-summary-heading">
+                    <section class="min-w-0 rounded-sm border border-province-line bg-white p-5 shadow-sm sm:p-6 lg:self-start" aria-labelledby="document-summary-heading">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
                                 <p class="text-sm font-semibold uppercase text-[#216E39]">Current status</p>
@@ -208,7 +208,7 @@
                                 </a>
                             </div>
                         </div>
-                        <p class="mt-2 text-sm text-slate-500">Last checked {{ now('Asia/Manila')->format('M d, Y · g:i A') }}</p>
+                        <p class="mt-2 text-sm text-slate-600">Last checked {{ now('Asia/Manila')->format('M d, Y · g:i A') }}</p>
                         {{-- The QR code sits with the tracking number at the top, where clients look for it first. --}}
                         @if ($qrCodeDataUri)
                             <div class="mt-4 flex items-center gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-3">
@@ -224,14 +224,14 @@
                             </div>
                         @endif
 
-                        <div class="grid gap-4 border-t border-slate-200 pt-4">
+                        <div class="grid gap-4 border-t border-province-line pt-4">
                             <h3 class="text-lg font-semibold leading-7 text-slate-900 [overflow-wrap:anywhere]">{{ $document->client_submission_key ? 'Client document' : $document->subject }}</h3>
                             <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                                 @php
                                     $officeCardsFilterTimeline = $timelineOffices->count() > 1;
                                 @endphp
                                 <div class="sm:col-span-2">
-                                    <dt class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm font-medium text-slate-500">
+                                    <dt class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm font-medium text-slate-600">
                                         <span>{{ $routeOffices->count() > 1 ? 'Assigned offices' : 'Receiving unit' }}</span>
                                         @if ($assignedOffices->count() > 1)
                                             <span class="font-semibold text-slate-700">{{ $finishedOfficeCount }} of {{ $assignedOffices->count() }} offices finished</span>
@@ -254,7 +254,7 @@
                                                         default => 'active',
                                                     };
                                                 @endphp
-                                                <li class="dts-route-office flex rounded-sm border border-slate-200 bg-white" data-route-state="{{ $routeState }}" data-route-office="{{ $assignment['office'] }}">
+                                                <li class="dts-route-office flex rounded-sm border border-province-line bg-white" data-route-state="{{ $routeState }}" data-route-office="{{ $assignment['office'] }}">
                                                     @if ($routeLinks)
                                                         <a href="{{ route('tracking.index', ['tracking' => $trackingNumber, 'office' => $assignment['office']]) }}#movement-heading" class="dts-route-link flex w-full items-center gap-3 px-3 py-2 text-inherit no-underline" data-timeline-office="{{ $assignment['office'] }}"@if ($selectedOffice === $assignment['office']) aria-current="true"@endif>
                                                     @else
@@ -269,7 +269,7 @@
                                                     </span>
                                                     <span class="min-w-0 grow">
                                                         <span class="block text-base font-semibold text-slate-800">{{ $assignment['office'] }}</span>
-                                                        <span class="block text-sm text-slate-600"><span class="font-semibold uppercase tracking-wide">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-500"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
+                                                        <span class="block text-sm text-slate-600"><span class="font-semibold uppercase tracking-wide">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-600"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
                                                     </span>
                                                     @if ($routeLinks)
                                                         <span class="sr-only">, show history</span>
@@ -286,18 +286,18 @@
                                     </dd>
                                 </div>
                                 <div>
-                                    <dt class="text-sm font-medium text-slate-500">Document type</dt>
+                                    <dt class="text-sm font-medium text-slate-600">Document type</dt>
                                     <dd class="mt-1 text-base font-semibold text-slate-800">{{ $document->document_type }}</dd>
                                 </div>
                                 {{-- Client submissions keep the sender private, as they do the subject. --}}
                                 @if (filled($document->sender) && ! $document->client_submission_key)
                                     <div>
-                                        <dt class="text-sm font-medium text-slate-500">Sender</dt>
+                                        <dt class="text-sm font-medium text-slate-600">Sender</dt>
                                         <dd class="mt-1 text-base font-semibold text-slate-800 [overflow-wrap:anywhere]">{{ $document->sender }}</dd>
                                     </div>
                                 @endif
                                 <div>
-                                    <dt class="text-sm font-medium text-slate-500">{{ $document->client_submission_key ? 'Date submitted' : 'Date received' }}</dt>
+                                    <dt class="text-sm font-medium text-slate-600">{{ $document->client_submission_key ? 'Date submitted' : 'Date received' }}</dt>
                                     <dd class="mt-1 text-base font-semibold text-slate-800">{{ ($document->client_submission_key ? $document->created_at : $document->received_at)?->format('M d, Y') ?? 'Not received yet' }}</dd>
                                 </div>
                             </dl>
@@ -307,8 +307,8 @@
                     {{-- The history is as tall as its content, up to nearly the window height on a computer (not just the height of
                          the status card), so more steps can be read at once before its list scrolls. --}}
                     <div class="min-w-0">
-                    <section class="flex min-w-0 flex-col rounded-sm border border-slate-200 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="movement-heading">
-                        <div class="border-b border-slate-300 pb-3">
+                    <section class="flex min-w-0 flex-col rounded-sm border border-province-line bg-white p-5 shadow-sm sm:p-6" aria-labelledby="movement-heading">
+                        <div class="border-b border-province-line-strong pb-3">
                             <p class="text-sm font-semibold uppercase text-[#216E39]">Routing history</p>
                             <h2 id="movement-heading" class="mt-1 text-2xl font-semibold text-slate-900">Document movement</h2>
                         </div>
@@ -359,7 +359,7 @@
                             @foreach ($timelineDays as $day => $events)
                                 @php($timelineDate = \Illuminate\Support\Carbon::parse($day, 'Asia/Manila'))
                                 <section data-timeline-day @class(['hidden' => $events->doesntContain('visible', true)])>
-                                    <h3 class="sticky top-0 z-10 bg-white py-2 text-sm font-semibold uppercase tracking-wide text-slate-500">{{ $timelineDate->isSameDay($timelineToday) ? 'Today' : ($timelineDate->isSameDay($timelineToday->copy()->subDay()) ? 'Yesterday' : $timelineDate->format('F j, Y')) }}</h3>
+                                    <h3 class="sticky top-0 z-10 bg-white py-2 text-sm font-semibold uppercase tracking-wide text-slate-600">{{ $timelineDate->isSameDay($timelineToday) ? 'Today' : ($timelineDate->isSameDay($timelineToday->copy()->subDay()) ? 'Yesterday' : $timelineDate->format('F j, Y')) }}</h3>
                                     <ol class="dts-step-timeline">
                                         @foreach ($events as $event)
                                             @php($movement = $event['movement'])
@@ -376,16 +376,16 @@
                                                         </div>
                                                         @unless ($isSigning)
                                                             {{-- Who wrote it comes first, as "Name: remark". --}}
-                                                            <p class="mt-2 whitespace-pre-line rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><strong class="font-semibold text-[#216E39]">{{ $remark['by'] ?: ($remark['office'] ?: 'Staff') }}:</strong> {{ $remark['remark'] }}</p>
+                                                            <p class="mt-2 whitespace-pre-line rounded-sm border border-province-line-strong bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><strong class="font-semibold text-[#216E39]">{{ $remark['by'] ?: ($remark['office'] ?: 'Staff') }}:</strong> {{ $remark['remark'] }}</p>
                                                         @endunless
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
-                                                            <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $remark['at']->toIso8601String() }}">{{ $remark['at']->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $remark['at']->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
+                                                            <dt class="font-medium text-slate-600">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $remark['at']->toIso8601String() }}">{{ $remark['at']->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $remark['at']->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                             @if ($isSigning)
-                                                                <dt class="font-medium text-slate-500">Status</dt><dd class="text-slate-800">Signature received</dd>
+                                                                <dt class="font-medium text-slate-600">Status</dt><dd class="text-slate-800">Signature received</dd>
                                                             @endif
                                                             {{-- A remark already names its writer ("Name: remark"), so only a signing lists who signed. --}}
                                                             @if ($isSigning && filled($remark['by']))
-                                                                <dt class="font-medium text-slate-500">Signed by</dt><dd class="text-slate-800">{{ $remark['by'] }}</dd>
+                                                                <dt class="font-medium text-slate-600">Signed by</dt><dd class="text-slate-800">{{ $remark['by'] }}</dd>
                                                             @endif
                                                         </dl>
                                                     </div>
@@ -399,12 +399,12 @@
                                                         </div>
                                                         <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting document/s at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
-                                                            <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
+                                                            <dt class="font-medium text-slate-600">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                         </dl>
                                                         @php($clientInstructions = $document->clientInstructions())
                                                         @if ($clientInstructions)
                                                             {{-- What the client typed when submitting (stored on the first "sent" step, shown here instead). --}}
-                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2">
+                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-province-line-strong bg-[#F8F4E7]/60 px-3 py-2">
                                                                 <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Instructions for Records</p>
                                                                 <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $clientInstructions }}</p>
                                                             </div>
@@ -422,35 +422,22 @@
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
                                                             {{-- A step an office takes on its own copy (received, completed…) is already named in the title. --}}
                                                             @if (filled($movement->from_office) && $movement->from_office !== $movement->to_office)
-                                                                <dt class="font-medium text-slate-500">From</dt><dd class="text-slate-800">{{ $movement->from_office }}</dd>
+                                                                <dt class="font-medium text-slate-600">From</dt><dd class="text-slate-800">{{ $movement->from_office }}</dd>
                                                             @endif
                                                             @if (filled($movement->to_office) && $movement->to_office !== $movement->from_office)
-                                                                <dt class="font-medium text-slate-500">Office destination</dt><dd class="text-slate-800">{{ $movement->to_office }}</dd>
+                                                                <dt class="font-medium text-slate-600">Office destination</dt><dd class="text-slate-800">{{ $movement->to_office }}</dd>
                                                             @endif
                                                             @if (filled($movement->to_status))
-                                                                <dt class="self-center font-medium text-slate-500">Status</dt><dd>@include('partials.public-status-badge', ['status' => $movement->to_status])</dd>
+                                                                <dt class="self-center font-medium text-slate-600">Status</dt><dd>@include('partials.public-status-badge', ['status' => $movement->to_status])</dd>
                                                             @endif
                                                             @if ($document->client_submission_key && $movement->action === \App\Models\DocumentMovement::ACTION_SENT && $movement->from_office === null && filled($document->delivery_method))
-                                                                <dt class="font-medium text-slate-500">Mode of submission</dt><dd class="text-slate-800">{{ $document->delivery_method }}</dd>
+                                                                <dt class="font-medium text-slate-600">Mode of submission</dt><dd class="text-slate-800">{{ $document->delivery_method }}</dd>
                                                             @endif
-                                                            <dt class="font-medium text-slate-500">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $movement->created_at->toIso8601String() }}">{{ $movement->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $movement->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
-                                                            @if ($movement->actor?->name)
-                                                                <dt class="font-medium text-slate-500">Processed by</dt><dd class="text-slate-800">{{ $movement->actor->name }}</dd>
-                                                            @endif
-                                                            @if ($movement->released_to)
-                                                                <dt class="font-medium text-slate-500">Released to</dt><dd class="text-slate-800">{{ $movement->released_to }}</dd>
-                                                            @endif
+                                                            <dt class="font-medium text-slate-600">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $movement->created_at->toIso8601String() }}">{{ $movement->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $movement->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                             @if ($movement->action === \App\Models\DocumentMovement::ACTION_RELEASED && $movement->has_recipient_signature)
-                                                                <dt class="font-medium text-slate-500">Recipient signature</dt><dd class="text-slate-800">Signature received</dd>
+                                                                <dt class="font-medium text-slate-600">Recipient signature</dt><dd class="text-slate-800">Signature received</dd>
                                                             @endif
                                                         </dl>
-                                                        @if (filled($movement->remarks) && ! $document->isClientSubmissionStep($movement))
-                                                            {{-- Shown in full, not folded away: the remarks are often the instruction the reader needs. --}}
-                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-slate-300 bg-[#F8F4E7]/60 px-3 py-2">
-                                                                <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Remarks</p>
-                                                                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $movement->remarks }}</p>
-                                                            </div>
-                                                        @endif
                                                     </div>
                                                 </li>
                                             @endif
@@ -459,13 +446,13 @@
                                 </section>
                             @endforeach
                         </div>
-                        <p id="timeline-empty" class="{{ $showEmptyTimeline ? '' : 'hidden' }} mt-5 rounded-sm border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">No movements recorded for this office yet.</p>
+                        <p id="timeline-empty" class="{{ $showEmptyTimeline ? '' : 'hidden' }} mt-5 rounded-sm border border-province-line bg-white px-4 py-3 text-sm text-slate-600">No movements recorded for this office yet.</p>
                     </section>
                     </div>
                 </div>
             @else
-                <div class="flex min-h-48 items-center gap-4 border-y border-slate-200 bg-white px-5 py-8 sm:px-8">
-                    <span class="grid size-12 shrink-0 place-items-center rounded-sm bg-slate-100 text-slate-500">
+                <div class="flex min-h-48 items-center gap-4 border-y border-province-line bg-white px-5 py-8 sm:px-8">
+                    <span class="grid size-12 shrink-0 place-items-center rounded-sm bg-slate-100 text-slate-600">
                         <x-orchid-icon path="bs.file-earmark-x" class="size-6" />
                     </span>
                     <div>
@@ -481,7 +468,7 @@
 
     @include('client-document-submission', ['embedded' => true])
 
-    <footer class="border-t border-slate-200 bg-white">
+    <footer class="border-t border-province-line bg-white">
         {{-- "Contact us" in the header jumps here. --}}
         <section id="contact" class="mx-auto grid w-full max-w-6xl scroll-mt-4 gap-4 px-5 py-6 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-start sm:px-8" aria-labelledby="contact-heading">
             {{-- SDO Nueva Vizcaya seal, left of the contact details. --}}
@@ -494,12 +481,12 @@
                         <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> {{ $contact['address'] }}</li>
                     @endif
                     @if (filled($contact['phone']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.telephone" class="mt-0.5 size-4 shrink-0 text-[#216E39]" />
-                            <span class="flex flex-wrap gap-x-3 gap-y-1">@foreach (array_filter(array_map('trim', explode(',', $contact['phone']))) as $phone)<a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="text-inherit">{{ $phone }}</a>@endforeach</span>
+                        <li class="flex gap-2"><x-orchid-icon path="bs.telephone" class="mt-1.5 size-4 shrink-0 text-[#216E39]" />
+                            <span class="flex flex-wrap gap-x-3 gap-y-1">@foreach (array_filter(array_map('trim', explode(',', $contact['phone']))) as $phone)<a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="inline-block py-1 text-inherit">{{ $phone }}</a>@endforeach</span>
                         </li>
                     @endif
                     @if (filled($contact['email']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.envelope" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> <a href="mailto:{{ $contact['email'] }}" class="text-inherit">{{ $contact['email'] }}</a></li>
+                        <li class="flex gap-2"><x-orchid-icon path="bs.envelope" class="mt-1.5 size-4 shrink-0 text-[#216E39]" /> <a href="mailto:{{ $contact['email'] }}" class="inline-block py-1 text-inherit">{{ $contact['email'] }}</a></li>
                     @endif
                     @if (filled($contact['hours']))
                         <li class="flex gap-2"><x-orchid-icon path="bs.clock" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> {{ $contact['hours'] }}</li>
@@ -512,7 +499,7 @@
             {{-- One footer: seal and contact details on the left; the system line on the right. The Facebook and website
                  links stay in the header only. --}}
             <div class="grid content-end gap-3 self-stretch sm:justify-items-end">
-                <p class="text-sm text-slate-500">Department of Education &middot; Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</p>
+                <p class="text-sm text-slate-600">Department of Education &middot; Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</p>
             </div>
         </section>
     </footer>

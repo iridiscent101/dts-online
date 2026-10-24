@@ -164,8 +164,8 @@ class DocumentUploadAvailabilityTest extends TestCase
         $document = Document::query()->sole();
         $this->assertSame('SDO-Records Unit', $document->current_office);
         $this->assertDatabaseCount('document_route_steps', 0);
-        $this->actingAs($administrativeStaff)->get(route('platform.documents.view', $document))->assertNotFound();
-        $this->actingAs($curriculumStaff)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->actingAs($administrativeStaff)->get(route('platform.documents.workspace', $document))->assertNotFound();
+        $this->actingAs($curriculumStaff)->get(route('platform.documents.workspace', $document))->assertNotFound();
 
         $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), [
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],

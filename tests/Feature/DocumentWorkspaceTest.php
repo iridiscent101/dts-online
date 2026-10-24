@@ -61,7 +61,7 @@ class DocumentWorkspaceTest extends TestCase
             ->get(route('platform.documents.workspace', $document))
             ->assertViewHas('workflowActionOptions', fn (array $options): bool => ! isset($options['SDO-Records Unit'][DocumentMovement::ACTION_COMPLETED]));
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertDontSee('"completed":"Completed"', false);
     }
 
@@ -71,7 +71,7 @@ class DocumentWorkspaceTest extends TestCase
         $document = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
 
         // Another office can forward or complete what it received, but releasing to the client is the Records Unit's job.
-        foreach ([route('platform.documents.workspace', $document), route('platform.documents.view', $document)] as $url) {
+        foreach ([route('platform.documents.workspace', $document)] as $url) {
             $page = $this->actingAs($budget)->get($url)->assertOk();
             preg_match("/data-action-options='([^']+)'/", $page->getContent(), $match);
             $options = json_decode(html_entity_decode($match[1] ?? ''), true);
@@ -252,9 +252,12 @@ class DocumentWorkspaceTest extends TestCase
             ->assertSee('data-workspace-edit-open', false)
             ->assertSee('data-workspace-url="'.route('platform.documents.workspace', $document).'"', false);
 
+        // A document's address opens the registry with its dialog; there is no separate document page.
         $this->get(route('platform.documents.view', $document))
-            ->assertSee('data-workspace-edit-open', false)
+            ->assertRedirect(route('platform.documents', ['open_document' => $document->id]));
+        $this->get(route('platform.documents', ['open_document' => $document->id]))
             ->assertSee('data-workspace-auto-open', false)
+            ->assertSee('data-workspace-url="'.route('platform.documents.workspace', $document).'"', false)
             ->assertSee('data-workspace-return-url="'.route('platform.documents').'"', false)
             ->assertSee('data-document-workspace', false);
 
@@ -622,7 +625,7 @@ class DocumentWorkspaceTest extends TestCase
         $this->get(route('platform.documents.workspace', $document).'?history_page=1&office=Budget%20Unit')
             ->assertForbidden();
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertSee('My office remark')
             ->assertSee('Document details updated')
             ->assertDontSee('Document routes updated')

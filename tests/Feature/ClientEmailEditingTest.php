@@ -17,7 +17,7 @@ class ClientEmailEditingTest extends TestCase
         $staff = $this->recordsStaff();
         $document = $this->processedDocument('typo@gmial.com');
 
-        $this->actingAs($staff)->get(route('platform.documents.view', $document))
+        $this->actingAs($staff)->get(route('platform.documents.workspace', $document))
             ->assertOk()->assertSeeInOrder(['Sender email', 'typo@gmial.com']);
         $this->get(route('platform.documents.workspace', $document))
             ->assertOk()->assertSee('typo@gmial.com')->assertSee('name="document[client_email]"', false);

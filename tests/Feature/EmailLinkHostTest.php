@@ -5,8 +5,8 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Notifications\DocumentFinishedClientNotification;
 use App\Notifications\DocumentRoutedClientNotification;
-use App\Notifications\TemporaryPasswordNotification;
 use App\Notifications\VerifyNotificationEmail;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -32,11 +32,15 @@ class EmailLinkHostTest extends TestCase
             'notification_email' => 'clerk@gmail.com', 'notification_email_verified_at' => now(),
         ]);
 
-        $this->withServerVariables(['HTTP_HOST' => 'evil-login.test'])
-            ->post('http://evil-login.test/forgot-password', ['email' => 'clerk@deped.local']);
+        $this->withHeader('Host', 'evil-login.test')
+            ->post(route('password.forgot.send'), ['email' => 'clerk@deped.local'])
+            ->assertRedirect(route('password.forgot'));
 
-        Notification::assertSentTo($clerk, TemporaryPasswordNotification::class, function (TemporaryPasswordNotification $notification) use ($clerk): bool {
-            return $notification->toMail($clerk)->actionUrl === 'https://dts.example.gov.ph/admin/login';
+        Notification::assertSentTo($clerk, ResetPassword::class, function (ResetPassword $notification) use ($clerk): bool {
+            $url = $notification->toMail($clerk)->actionUrl;
+
+            return str_starts_with($url, 'https://dts.example.gov.ph/reset-password/')
+                && str_contains($url, 'email=clerk%40deped.local');
         });
     }
 

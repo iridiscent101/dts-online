@@ -6,6 +6,13 @@
     <h1 class="dts-auth-title">{{ $isLockUser ? __('Welcome back') : __('Staff sign in') }}</h1>
     <p class="dts-auth-subtitle">{{ $isLockUser ? __('Enter your password to continue.') : __('Use the email and password given to you by your system administrator.') }}</p>
 
+    @if (session('status'))
+        <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">
+            <x-orchid-icon path="bs.check-circle" class="mt-1 flex-shrink-0"/>
+            <p class="mb-0">{{ session('status') }}</p>
+        </div>
+    @endif
+
     <form role="form"
           method="POST"
           data-controller="form"

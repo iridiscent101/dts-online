@@ -4,6 +4,7 @@
         'platform.systems.roles' => 'admin-roles-table',
         'platform.systems.offices' => 'admin-offices-table',
         'platform.systems.schools' => 'admin-schools-table',
+        'platform.systems.sign-in-activity' => 'admin-sign-in-activity-table',
         default => 'admin-table',
     };
     $bulkDelete = match ($frameId) {

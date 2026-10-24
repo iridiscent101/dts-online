@@ -590,7 +590,7 @@ class Document extends Model
 
     public function registeredBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'registered_by');
+        return $this->belongsTo(User::class, 'registered_by')->withTrashed();
     }
 
     public function movements(): HasMany

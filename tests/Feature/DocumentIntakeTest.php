@@ -255,7 +255,7 @@ class DocumentIntakeTest extends TestCase
             ->assertSeeInOrder($rows)
             ->assertDontSee($recordsRow, false);
         $this->get(route('platform.documents'))->assertOk()->assertSeeInOrder($rows)->assertDontSee($recordsRow, false);
-        $this->get(route('platform.documents.view', $document))->assertOk()->assertSeeInOrder($rows)->assertDontSee($recordsRow, false);
+        $this->get(route('platform.documents.workspace', $document))->assertOk()->assertSeeInOrder($rows)->assertDontSee($recordsRow, false);
         $this->get(route('platform.documents.workspace', $document))->assertOk()->assertSeeInOrder($rows)
             ->assertDontSee('data-workspace-route="SDO-Records Unit"', false);
 
@@ -271,7 +271,7 @@ class DocumentIntakeTest extends TestCase
             ->assertSee(route('tracking.index', ['tracking' => $document->tracking_number, 'office' => 'SDO-Budget Unit']));
 
         // Waiting rows are clickable like the others: the office's page and its (still empty) history open normally.
-        $this->get(route('platform.documents.view', ['document' => $document, 'source_office' => 'SDO-Budget Unit']))->assertOk();
+        $this->get(route('platform.documents.workspace', ['document' => $document, 'source_office' => 'SDO-Budget Unit']))->assertOk();
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number, 'office' => 'SDO-Budget Unit']))
             ->assertOk()
             ->assertSee('aria-current="true"', false);
@@ -280,7 +280,7 @@ class DocumentIntakeTest extends TestCase
             'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
         ])->assertOk();
 
-        $this->get(route('platform.documents.view', $document))->assertOk()->assertDontSee('data-status="waiting-for-paper-copy"', false);
+        $this->get(route('platform.documents.workspace', $document))->assertOk()->assertDontSee('data-status="waiting-for-paper-copy"', false);
     }
 
     public function test_records_follows_the_whole_history_of_documents_it_sent_on(): void
@@ -303,14 +303,14 @@ class DocumentIntakeTest extends TestCase
             'remarks' => 'Budget cleared for ASDS approval.',
         ]);
 
-        $this->get(route('platform.documents.view', $document))->assertOk()->assertSee('Budget cleared for ASDS approval.');
+        $this->get(route('platform.documents.workspace', $document))->assertOk()->assertSee('Budget cleared for ASDS approval.');
         $this->get(route('platform.documents.workspace', $document))->assertOk()->assertSee('Budget cleared for ASDS approval.');
         $this->get(route('platform.documents.workspace', ['document' => $document, 'history_page' => 1, 'office' => 'SDO-Budget Unit']))
             ->assertOk()
             ->assertSee('Budget cleared for ASDS approval.');
 
         // Other offices still only see the entries that involve them.
-        $this->actingAs($legal)->get(route('platform.documents.view', $document))->assertOk()->assertDontSee('Budget cleared for ASDS approval.');
+        $this->actingAs($legal)->get(route('platform.documents.workspace', $document))->assertOk()->assertDontSee('Budget cleared for ASDS approval.');
     }
 
     private function pendingDocument(): Document

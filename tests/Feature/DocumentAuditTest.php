@@ -43,7 +43,7 @@ class DocumentAuditTest extends TestCase
             ->assertSee($visibleDocument->tracking_number)
             ->assertDontSee($hiddenDocument->tracking_number);
 
-        $this->get(route('platform.documents.view', $hiddenDocument))->assertNotFound();
+        $this->get(route('platform.documents.workspace', $hiddenDocument))->assertNotFound();
     }
 
     public function test_staff_can_see_documents_for_any_assigned_office(): void
@@ -75,8 +75,8 @@ class DocumentAuditTest extends TestCase
             ->assertSee($administrativeDocument->tracking_number)
             ->assertDontSee($hiddenDocument->tracking_number);
 
-        $this->get(route('platform.documents.view', $administrativeDocument))->assertOk();
-        $this->get(route('platform.documents.view', $hiddenDocument))->assertNotFound();
+        $this->get(route('platform.documents.workspace', $administrativeDocument))->assertOk();
+        $this->get(route('platform.documents.workspace', $hiddenDocument))->assertNotFound();
     }
 
     public function test_staff_creator_can_view_their_document_after_it_moves_to_another_office(): void
@@ -103,8 +103,8 @@ class DocumentAuditTest extends TestCase
             ->get(route('platform.documents'))
             ->assertSee($document->tracking_number)
             ->assertDontSee($otherDocument->tracking_number);
-        $this->get(route('platform.documents.view', $document))->assertOk();
-        $this->get(route('platform.documents.view', $otherDocument))->assertNotFound();
+        $this->get(route('platform.documents.workspace', $document))->assertOk();
+        $this->get(route('platform.documents.workspace', $otherDocument))->assertNotFound();
         // The registering Records office can still correct the details (after unlocking them with a reason), but
         // attachments stay with the office that holds the document now.
         $this->get(route('platform.documents.edit', $document))->assertOk()->assertSee('data-unlock-details', false);
@@ -129,7 +129,7 @@ class DocumentAuditTest extends TestCase
             ->get(route('platform.documents'))
             ->assertSee($document->tracking_number);
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertSee($document->tracking_number);
     }
 
@@ -142,11 +142,10 @@ class DocumentAuditTest extends TestCase
         $document = Document::factory()->create(['current_office' => 'Records Unit']);
 
         $this->actingAs($user)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Audit trail')
-            ->assertSee('No activity has been recorded.')
-            ->assertDontSee('Last 0 actions');
+            ->assertSee('Activity history')
+            ->assertSee('No activity recorded.');
 
         $this->assertDatabaseMissing('activity_log', [
             'subject_type' => Document::class,
@@ -196,7 +195,7 @@ class DocumentAuditTest extends TestCase
             'description' => 'Document removed',
         ]);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id]);
-        $this->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->get(route('platform.documents.workspace', $document))->assertNotFound();
         $this->get(route('platform.main'))
             ->assertOk()
             ->assertDontSee($document->tracking_number);
@@ -234,17 +233,11 @@ class DocumentAuditTest extends TestCase
         ]);
 
         $this->actingAs($firstEditor)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Last 20 actions')
             ->assertSee('Document details updated')
             ->assertSee($latestEditor->name)
-            ->assertDontSee('What:')
-            ->assertDontSee('Who:')
-            ->assertSee('Last changed by')
-            ->assertSee($latestEditor->name)
-            ->assertDontSee('revision-1.pdf')
-            ->assertSee('revision-20.pdf');
+            ->assertSee('Showing 20 of 21 entries');
     }
 
     public function test_preview_is_not_audited_and_every_download_is_retained(): void
@@ -278,71 +271,6 @@ class DocumentAuditTest extends TestCase
         $this->assertSame(
             2,
             $document->activities()->where('description', 'Attachment downloaded')->count(),
-        );
-
-        $this->get(route('platform.documents.view', $document))
-            ->assertOk()
-            ->assertSee('Last downloaded by')
-            ->assertSee($user->name)
-            ->assertSee('routing-note.pdf');
-    }
-
-    public function test_download_summary_only_shows_downloads_from_staff_assigned_offices(): void
-    {
-        Storage::fake('local');
-        $legalStaff = User::factory()->create(['office' => 'Legal Unit', 'permissions' => ['platform.index' => true]]);
-        $budgetStaff = User::factory()->create(['office' => 'Budget Unit', 'permissions' => ['platform.index' => true]]);
-        $document = Document::factory()->create(['current_office' => 'Legal Unit']);
-        $document->officeAssignments()->create(['office' => 'Budget Unit', 'status' => 'Awaiting receipt']);
-        $attachment = (new File(
-            UploadedFile::fake()->createWithContent('office-note.pdf', '%PDF-1.4 test'),
-            'local',
-            'documents',
-        ))->load();
-        $document->attachments()->attach($attachment);
-
-        $this->actingAs($budgetStaff)
-            ->get(route('platform.documents.attachments.download', [$document, $attachment]))
-            ->assertDownload('office-note.pdf');
-
-        $this->actingAs($legalStaff)
-            ->get(route('platform.documents.view', $document))
-            ->assertOk()
-            ->assertSee('Last downloaded by your office')
-            ->assertSee('Not downloaded by your office yet')
-            ->assertDontSee($budgetStaff->name);
-
-        $this->get(route('platform.documents.attachments.download', [$document, $attachment]))
-            ->assertDownload('office-note.pdf');
-
-        $this->get(route('platform.documents.view', $document))
-            ->assertOk()
-            ->assertSee($legalStaff->name)
-            ->assertDontSee($budgetStaff->name);
-
-        $this->actingAs($budgetStaff)
-            ->get(route('platform.documents.attachments.download', [$document, $attachment]))
-            ->assertDownload('office-note.pdf');
-
-        $this->actingAs($legalStaff)
-            ->get(route('platform.documents.view', $document))
-            ->assertOk()
-            ->assertSee($legalStaff->name)
-            ->assertDontSee($budgetStaff->name);
-
-        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
-        $admin = User::factory()->create(['permissions' => []]);
-        $admin->replaceRoles([$adminRole->id]);
-
-        $this->actingAs($admin)
-            ->get(route('platform.documents.view', $document))
-            ->assertOk()
-            ->assertSee('Last downloaded by</dt>', false)
-            ->assertSee($budgetStaff->name);
-
-        $this->assertSame(
-            ['Budget Unit'],
-            $document->activities()->where('description', 'Attachment downloaded')->latest('id')->first()->properties['offices'],
         );
     }
 

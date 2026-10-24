@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Auth\AccountActivity;
-use App\Notifications\TemporaryPasswordNotification;
 use App\Notifications\VerifyNotificationEmail;
 use App\Support\SendAfterResponse;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,8 @@ use Spatie\Activitylog\Models\Activity;
 
 class User extends Authenticatable
 {
+    use SoftDeletes;
+
     public const ADMIN_ROLE_SLUG = 'Admin';
 
     // The password rule itself is Password::defaults() in AppServiceProvider.
@@ -181,8 +184,8 @@ class User extends Authenticatable
 
     public function routeNotificationForMail(Notification $notification): ?string
     {
-        // A temporary password goes only to the address the staff member confirmed, never to an unchecked one.
-        return $notification instanceof TemporaryPasswordNotification
+        // A reset link goes only to the address the staff member confirmed, never to an unchecked one.
+        return $notification instanceof ResetPassword
             ? $this->notification_email
             : $this->email;
     }
@@ -194,6 +197,7 @@ class User extends Authenticatable
         if ($this->notification_email !== $address) {
             $this->notification_email = $address;
             $this->notification_email_verified_at = null;
+            DB::table('password_reset_tokens')->where('email', $this->email)->delete();
         }
 
         return $address !== null && $this->notification_email_verified_at === null;

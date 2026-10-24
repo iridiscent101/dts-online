@@ -95,7 +95,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertDontSee('School Office');
 
         $this->actingAs($staff)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Alex Rivera')
             ->assertSee('School Office')
@@ -180,7 +180,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertDatabaseCount('notifications', 1);
 
         $this->actingAs($destinationStaff)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertNotFound();
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
@@ -201,7 +201,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertSee($document->tracking_number);
 
         $this->actingAs($recordsStaff)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Alex Rivera')
             ->assertSee('Not received')
@@ -244,7 +244,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->get(route('platform.incoming'))
             ->assertOk()
             ->assertDontSee($document->tracking_number);
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Alex Rivera');
         $this->get(route('platform.documents.edit', $document))
@@ -255,11 +255,11 @@ class ClientDocumentSubmissionTest extends TestCase
             'permissions' => ['platform.index' => true],
         ]);
         $this->actingAs($unrelatedStaff)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertNotFound();
 
         $this->actingAs($destinationStaff)
-            ->get(route('platform.documents.view', $document))
+            ->get(route('platform.documents.workspace', $document))
             ->assertNotFound();
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
@@ -346,8 +346,8 @@ class ClientDocumentSubmissionTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSee('Review this.')
-            ->assertSee('Please ask Records to send this to the right office.');
+            ->assertDontSee('Review this.')
+            ->assertDontSee('Please ask Records to send this to the right office.');
     }
 
     public function test_records_receipt_does_not_dispatch_unselected_routes(): void
@@ -383,7 +383,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->assertDatabaseCount('document_office_assignments', 1);
         $this->assertDatabaseCount('notifications', 1);
 
-        $this->actingAs($otherStaff)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->actingAs($otherStaff)->get(route('platform.documents.workspace', $document))->assertNotFound();
 
         $this->actingAs($recordsStaff)->post(route('platform.documents.movements.store', $document), $receipt)
             ->assertSessionHasErrors('workflow.action');
@@ -446,22 +446,17 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertJsonPath('document.delivery_method', 'Hand carry')
             ->assertJsonPath('document.routes', []);
 
-        // The instructions show once, on the "Document submitted" step, in all three timelines (user decision 2026-10-18).
+        // Staff can see the instructions, but public tracking cannot expose them.
         $workspace = $this->get(route('platform.documents.workspace', $document))
             ->assertSee('<dt>Mode of submission</dt><dd>Hand carry</dd>', false)
             ->assertSee('<strong>Instructions for Records</strong><p>Please send copies to Budget and Legal for review.</p>', false);
         $this->assertSame(1, substr_count($workspace->getContent(), 'Please send copies to Budget and Legal for review.'));
 
-        $this->get(route('platform.documents.view', $document))
-            ->assertSee('Mode of submission: Hand carry')
-            ->assertSee('Instructions for Records:</strong> Please send copies to Budget and Legal for review.', false);
-
         $public = $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertSee('Mode of submission')
             ->assertSee('Hand carry')
-            ->assertSee('Instructions for Records');
-        $this->assertSame(1, substr_count($public->getContent(), 'Please send copies to Budget and Legal for review.'));
+            ->assertDontSee('Please send copies to Budget and Legal for review.');
     }
 
     public function test_client_routing_instructions_must_be_short_text(): void

@@ -70,7 +70,7 @@ class KioskSigningTest extends TestCase
         $this->assertSame(self::SIGNATURE, $release->recipient_signature);
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertSee('Released to</dt><dd class="text-slate-800">Juan Dela Cruz</dd>', false)
+            ->assertDontSee('Juan Dela Cruz')
             ->assertSee('Recipient signature</dt><dd class="text-slate-800">Signature received</dd>', false)
             ->assertDontSee(self::SIGNATURE);
     }
@@ -496,7 +496,7 @@ class KioskSigningTest extends TestCase
     {
         [$records, $document] = $this->releasableDocument();
 
-        $this->actingAs($records)->get(route('platform.documents.view', $document))
+        $this->actingAs($records)->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('data-kiosk-send', false)
             ->assertSee('data-kiosk-url="'.route('platform.kiosk-signing.store', $document).'"', false);

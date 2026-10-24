@@ -38,7 +38,9 @@ class KioskSigningHistoryTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSeeInOrder(['Ian Nico Perillo signed for the document/s', 'Document registered']);
+            ->assertDontSee('Ian Nico Perillo')
+            ->assertDontSee('signed for the document/s')
+            ->assertSee('Document registered');
         $this->actingAs($records)->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Signed for by the recipient')

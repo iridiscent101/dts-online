@@ -92,11 +92,11 @@ class DocumentRouteCorrectionTest extends TestCase
             'correction_reason' => 'Budget was selected by mistake.',
         ])->assertOk();
 
-        $this->actingAs($oldRecipient)->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->actingAs($oldRecipient)->get(route('platform.documents.workspace', $document))->assertNotFound();
         $this->get(route('platform.notifications.open', $oldNotification->id))->assertRedirectToRoute('platform.main');
         $this->assertNotNull($oldNotification->fresh()->read_at);
 
-        $this->actingAs($newRecipient)->get(route('platform.documents.view', $document))->assertOk();
+        $this->actingAs($newRecipient)->get(route('platform.documents.workspace', $document))->assertOk();
         $this->assertSame(1, $newRecipient->notifications()->count());
     }
 

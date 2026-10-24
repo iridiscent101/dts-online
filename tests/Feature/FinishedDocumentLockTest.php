@@ -141,7 +141,7 @@ class FinishedDocumentLockTest extends TestCase
             ->assertDontSee('<details class="dts-workspace-history-remarks dts-change-details">', false)
             ->assertSee('<p class="dts-change-reason"><strong>Reason for the correction:</strong> Wrong sender typed at registration</p>', false)
             ->assertSeeInOrder(['Sender', 'Original sender', 'Corrected sender']);
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Wrong sender typed at registration');
     }

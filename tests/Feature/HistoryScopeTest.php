@@ -29,13 +29,13 @@ class HistoryScopeTest extends TestCase
         $this->actingAs($budget)
             ->get(route('platform.documents.workspace', $document))
             ->assertSee('Document routes updated');
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertSee('Document routes updated');
 
         $this->actingAs($legal)
             ->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Document routes updated');
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Document routes updated');
     }
 
@@ -52,13 +52,13 @@ class HistoryScopeTest extends TestCase
         $this->actingAs($budget)
             ->get(route('platform.documents.workspace', $document))
             ->assertSee('Document routes updated');
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertSee('Document routes updated');
 
         $this->actingAs($legal)
             ->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Document routes updated');
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Document routes updated');
     }
 
@@ -81,14 +81,14 @@ class HistoryScopeTest extends TestCase
             $this->actingAs($viewer)
                 ->get(route('platform.documents.workspace', $document))
                 ->assertSee('Private legal routing reason');
-            $this->get(route('platform.documents.view', $document))
-                ->assertSee('Document route added');
+            $this->get(route('platform.documents.workspace', $document))
+                ->assertSee('Office added');
         }
 
         $this->actingAs($unrelated)
             ->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Private legal routing reason');
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Document route added');
     }
 
@@ -141,7 +141,7 @@ class HistoryScopeTest extends TestCase
                 ->assertDontSee('BUDGET-PRIVATE-REMARK');
         }
 
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertDontSee('BUDGET-ROUTE-NOTE')
             ->assertDontSee('BUDGET-RECEIPT-NOTE')

@@ -49,13 +49,13 @@ class SupervisorRoleTest extends TestCase
             ->assertOk()
             ->assertSee($document->tracking_number)
             ->assertSee($recordsDocument->tracking_number);
-        $this->get(route('platform.documents.view', $document))
+        $this->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Administrative report')
             ->assertDontSee('Edit document');
-        $this->get(route('platform.documents.view', $recordsDocument))
+        $this->get(route('platform.documents.workspace', $recordsDocument))
             ->assertOk()
-            ->assertSee('Action unavailable');
+            ->assertDontSee('data-workspace-routing ', false);
         $this->get(route('platform.documents.create'))->assertForbidden();
         $this->post(route('platform.documents.create').'/save')->assertForbidden();
         $this->post(route('platform.documents.movements.store', $recordsDocument), [
@@ -81,6 +81,6 @@ class SupervisorRoleTest extends TestCase
             ->get(route('platform.documents'))
             ->assertOk()
             ->assertDontSee($document->tracking_number);
-        $this->get(route('platform.documents.view', $document))->assertNotFound();
+        $this->get(route('platform.documents.workspace', $document))->assertNotFound();
     }
 }
