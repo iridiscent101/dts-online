@@ -37,8 +37,7 @@ class DocumentRemarkTest extends TestCase
         $this->get(route('platform.documents.workspace', $document))
             ->assertSee('<p><strong>'.$staff->name.':</strong> Please review the revised figures.</p>', false);
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertDontSee($staff->name)
-            ->assertDontSee('Please review the revised figures.');
+            ->assertSee($staff->name.':</strong> Please review the revised figures.', false);
     }
 
     public function test_administrator_can_add_a_remark_for_any_received_office(): void

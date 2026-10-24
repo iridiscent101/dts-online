@@ -153,7 +153,7 @@
                     @foreach ([
                         ['bs.send', 'Send', 'Fill in the form online or bring your document to the Records Unit.'],
                         ['bs.inbox', 'Records Unit receives', 'Records staff receive it and send it to the right office.'],
-                        ['bs.search', 'Track', 'Use your tracking number to see each office, status and routing update.'],
+                        ['bs.search', 'Track', 'Use your tracking number to see each office, status and remarks.'],
                     ] as [$icon, $title, $text])
                         <li class="flex gap-3 rounded-sm border border-province-line-strong bg-white p-4">
                             <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-[#216E39] text-white"><x-orchid-icon :path="$icon" class="size-5" /></span>
@@ -434,10 +434,23 @@
                                                                 <dt class="font-medium text-slate-600">Mode of submission</dt><dd class="text-slate-800">{{ $document->delivery_method }}</dd>
                                                             @endif
                                                             <dt class="font-medium text-slate-600">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $movement->created_at->toIso8601String() }}">{{ $movement->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $movement->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
+                                                            @if ($movement->actor?->name)
+                                                                <dt class="font-medium text-slate-600">Processed by</dt><dd class="text-slate-800">{{ $movement->actor->name }}</dd>
+                                                            @endif
+                                                            @if ($movement->released_to)
+                                                                <dt class="font-medium text-slate-600">Released to</dt><dd class="text-slate-800">{{ $movement->released_to }}</dd>
+                                                            @endif
                                                             @if ($movement->action === \App\Models\DocumentMovement::ACTION_RELEASED && $movement->has_recipient_signature)
                                                                 <dt class="font-medium text-slate-600">Recipient signature</dt><dd class="text-slate-800">Signature received</dd>
                                                             @endif
                                                         </dl>
+                                                        @if (filled($movement->remarks) && ! $document->isClientSubmissionStep($movement))
+                                                            {{-- Shown in full, not folded away: the remarks are often the instruction the reader needs. --}}
+                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-province-line-strong bg-[#F8F4E7]/60 px-3 py-2">
+                                                                <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Remarks</p>
+                                                                <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $movement->remarks }}</p>
+                                                            </div>
+                                                        @endif
                                                     </div>
                                                 </li>
                                             @endif

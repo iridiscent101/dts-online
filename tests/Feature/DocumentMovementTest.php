@@ -1064,8 +1064,8 @@ class DocumentMovementTest extends TestCase
             ->assertSee('<dt>Released to</dt><dd>Juan Dela Cruz</dd>', false);
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertDontSee('Released to')
-            ->assertDontSee('Juan Dela Cruz');
+            ->assertSee('Released to')
+            ->assertSee('Juan Dela Cruz');
     }
 
     public function test_an_administrator_can_release_a_received_document_from_any_office(): void

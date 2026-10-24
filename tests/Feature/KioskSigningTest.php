@@ -70,7 +70,7 @@ class KioskSigningTest extends TestCase
         $this->assertSame(self::SIGNATURE, $release->recipient_signature);
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertDontSee('Juan Dela Cruz')
+            ->assertSee('Released to</dt><dd class="text-slate-800">Juan Dela Cruz</dd>', false)
             ->assertSee('Recipient signature</dt><dd class="text-slate-800">Signature received</dd>', false)
             ->assertDontSee(self::SIGNATURE);
     }
