@@ -54,7 +54,9 @@ class ForgotPasswordController extends Controller
         ]);
 
         $email = Str::lower(trim($data['email']));
+        self::trace('request received (queue: '.config('queue.default').')');
         $work = function () use ($email): void {
+            self::trace('started');
             $user = User::query()->where('email', $email)->first();
 
             // One server-log line per request saying where it stopped, so a missing email can be traced. The page itself
@@ -66,7 +68,7 @@ class ForgotPasswordController extends Controller
                 default => $this->sendTemporaryPassword($user),
             };
 
-            Log::info('Forgot password: '.$outcome, ['user_id' => $user?->id]);
+            self::trace($outcome.($user ? ' (user #'.$user->id.')' : ''));
         };
 
         // Sending the email takes seconds, so answering only after it would show who has a recovery email. Every answer
@@ -86,6 +88,18 @@ class ForgotPasswordController extends Controller
         return ! $user->isDeactivated()
             && $user->canChangeOwnPassword()
             && filled($user->notification_email);
+    }
+
+    /**
+     * Goes to the app log and straight to stderr, which is the only log Vercel keeps whatever LOG_CHANNEL says.
+     */
+    private static function trace(string $message): void
+    {
+        Log::info('Forgot password: '.$message);
+
+        if (! app()->runningUnitTests()) {
+            error_log('FORGOT_PASSWORD '.$message);
+        }
     }
 
     private function ineligibleReason(User $user): string
