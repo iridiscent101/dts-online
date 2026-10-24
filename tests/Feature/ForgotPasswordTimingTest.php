@@ -41,7 +41,7 @@ class ForgotPasswordTimingTest extends TestCase
             ->assertSessionHas('status', ForgotPasswordController::SENT_MESSAGE);
 
         Notification::assertSentToTimes($clerk, TemporaryPasswordNotification::class, 1);
-        $this->assertTrue((bool) $clerk->fresh()->must_change_password);
+        $this->assertNotNull($clerk->fresh()->temporary_password);
     }
 
     private function staffWithRecoveryEmail(): User

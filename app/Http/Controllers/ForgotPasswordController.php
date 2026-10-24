@@ -19,9 +19,11 @@ use Throwable;
 use function Illuminate\Support\defer;
 
 /**
- * Forgot password for staff: a temporary password is emailed to the account's recovery email, and the person
- * must set a new one right after signing in with it (RequirePasswordChange). The page answers the same way whether or
- * not the account exists, so it cannot be used to find out which emails have accounts.
+ * Forgot password for staff: a temporary password is emailed to the account's recovery email. The real password keeps
+ * working until one of the two is used to sign in (DtsUserProvider), so nobody can lock a colleague out by asking for
+ * their reset. Signing in with the temporary one means setting a new password right away (RequirePasswordChange). The
+ * page answers the same way whether or not the account exists, so it cannot be used to find out which emails have
+ * accounts.
  */
 class ForgotPasswordController extends Controller
 {
@@ -119,12 +121,12 @@ class ForgotPasswordController extends Controller
         $temporaryPassword = self::generate();
 
         try {
-            // The new password is saved only if the email goes out, so a mail failure never locks the person out.
+            // The temporary password sits beside the real one, which keeps working: asking for someone else's reset only
+            // sends them an email. It is saved only if the email goes out (User::settleTemporaryPasswordAfterSignIn).
             DB::transaction(function () use ($user, $temporaryPassword): void {
                 $user->forceFill([
-                    'password' => Hash::make($temporaryPassword),
-                    'must_change_password' => true,
-                    'remember_token' => Str::random(60),
+                    'temporary_password' => Hash::make($temporaryPassword),
+                    'temporary_password_expires_at' => now()->addMinutes((int) config('dts.temporary_password_minutes')),
                 ])->save();
                 AccountActivity::record(AccountActivity::TEMPORARY_PASSWORD_SENT, $user, null);
                 $user->notifyNow(new TemporaryPasswordNotification($temporaryPassword));

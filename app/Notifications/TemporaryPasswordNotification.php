@@ -32,9 +32,9 @@ class TemporaryPasswordNotification extends Notification
             ->greeting('Good day!')
             ->line('Someone asked for a new password for your Document Tracking System account. Use this temporary password to sign in:')
             ->line(new HtmlString('<strong style="font-size: 18px; letter-spacing: 1px;">'.e($this->temporaryPassword).'</strong>'))
-            ->line('Right after you sign in you will be asked to set a new password of your own. Type this temporary password as your current password.')
+            ->line('It works for '.(int) config('dts.temporary_password_minutes').' minutes. Right after you sign in with it you will be asked to set a new password of your own: type this temporary password as your current password.')
             ->action('Sign in', EmailLink::route('platform.login'))
-            ->line('If you did not ask for this, tell your system administrator.')
+            ->line('Your current password still works until you use this one, so if you did not ask for this you can ignore this email. If it keeps happening, tell your system administrator.')
             ->line(DocumentRoutedClientNotification::SPAM_NOTE)
             ->salutation(new HtmlString('Regards,<br>'.e(config('dts.mail_sign_off'))));
     }

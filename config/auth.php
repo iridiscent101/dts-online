@@ -66,7 +66,8 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            // Eloquent users, plus the pending temporary password from forgot password (App\Auth\DtsUserProvider).
+            'driver' => 'dts-users',
             'model' => env('AUTH_MODEL', User::class),
         ],
 

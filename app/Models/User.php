@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Orchid\Filters\Types\Like;
 use Orchid\Filters\Types\Where;
@@ -29,8 +30,22 @@ class User extends Authenticatable
 
     public const PASSWORD_HINT = 'At least 13 characters, with a capital letter, a small letter, a number and a symbol (for example ! @ # $).';
 
+    /**
+     * Set by DtsUserProvider for this sign-in only (never saved): the person typed their pending temporary password.
+     */
+    public bool $signedInWithTemporaryPassword = false;
+
     protected static function booted(): void
     {
+        // Any new password (changed in the profile, set by an administrator, or taken from the temporary one) ends a
+        // pending temporary password.
+        static::saving(function (User $user): void {
+            if ($user->isDirty('password') && ! $user->isDirty('temporary_password')) {
+                $user->temporary_password = null;
+                $user->temporary_password_expires_at = null;
+            }
+        });
+
         static::deleted(function (User $user): void {
             $user->notifications()->delete();
             DB::table('sessions')->where('user_id', $user->id)->delete();
@@ -57,6 +72,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'temporary_password',
         'remember_token',
         'permissions',
     ];
@@ -72,7 +88,43 @@ class User extends Authenticatable
         'notification_email_verified_at' => 'datetime',
         'deactivated_at' => 'datetime',
         'must_change_password' => 'boolean',
+        'temporary_password_expires_at' => 'datetime',
     ];
+
+    /**
+     * Whether this is the person's unexpired temporary password (forgot password). Their real password keeps working
+     * alongside it, so someone asking for a colleague's reset cannot lock the colleague out.
+     */
+    public function temporaryPasswordMatches(#[\SensitiveParameter] string $plain): bool
+    {
+        return filled($this->temporary_password)
+            && $this->temporary_password_expires_at?->isFuture()
+            && Hash::check($plain, $this->temporary_password);
+    }
+
+    /**
+     * Runs after every sign-in. With the temporary password it becomes the real password and a new one must be chosen
+     * straight away; with the real password a pending temporary one is cancelled, since the person clearly knows theirs.
+     */
+    public function settleTemporaryPasswordAfterSignIn(): void
+    {
+        if ($this->signedInWithTemporaryPassword) {
+            $this->forceFill([
+                'password' => $this->temporary_password,
+                'temporary_password' => null,
+                'temporary_password_expires_at' => null,
+                'must_change_password' => true,
+            ])->save();
+            $this->signedInWithTemporaryPassword = false;
+            AccountActivity::record(AccountActivity::TEMPORARY_PASSWORD_USED, $this, $this);
+
+            return;
+        }
+
+        if (filled($this->temporary_password)) {
+            $this->forceFill(['temporary_password' => null, 'temporary_password_expires_at' => null])->save();
+        }
+    }
 
     /**
      * The attributes for which you can use filters in url.
@@ -132,12 +184,12 @@ class User extends Authenticatable
             ->where('log_name', AccountActivity::LOG_NAME)
             ->where('subject_type', $this->getMorphClass())
             ->where('subject_id', $this->getKey())
-            ->whereIn('event', [AccountActivity::TEMPORARY_PASSWORD_SENT, AccountActivity::PASSWORD_CHANGE_REQUIRED, AccountActivity::PASSWORD_CHANGED])
+            ->whereIn('event', [AccountActivity::TEMPORARY_PASSWORD_USED, AccountActivity::PASSWORD_CHANGE_REQUIRED, AccountActivity::PASSWORD_CHANGED])
             ->latest('id')
             ->first();
 
         return match (true) {
-            $latest?->event === AccountActivity::TEMPORARY_PASSWORD_SENT => 'temporary',
+            $latest?->event === AccountActivity::TEMPORARY_PASSWORD_USED => 'temporary',
             $latest?->event === AccountActivity::PASSWORD_CHANGED && (bool) data_get($latest->properties, 'set_by_admin') => 'administrator',
             default => 'rule',
         };

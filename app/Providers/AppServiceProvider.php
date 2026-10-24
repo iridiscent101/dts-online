@@ -3,12 +3,15 @@
 namespace App\Providers;
 
 use App\Auth\AccountActivity;
+use App\Auth\DtsUserProvider;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
 use App\View\Components\OrchidIcon;
+use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -43,6 +46,15 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(AccountActivity::class);
         Event::listen(Validated::class, [EnsureAccountIsActive::class, 'refuseSignIn']);
+
+        // Sign-in accepts the real password or a pending temporary one (forgot password); after sign-in only the one
+        // that was used is kept.
+        Auth::provider('dts-users', fn ($app, array $config): DtsUserProvider => new DtsUserProvider($app['hash'], $config['model']));
+        Event::listen(Login::class, function (Login $event): void {
+            if ($event->user instanceof User) {
+                $event->user->settleTemporaryPasswordAfterSignIn();
+            }
+        });
 
         // Every new or changed staff password: at least 13 characters with a capital letter, a small letter, a number
         // and a symbol. Passwords set before this rule keep working until they are next changed.

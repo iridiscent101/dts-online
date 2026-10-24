@@ -42,6 +42,9 @@ return [
     // never shows which sign-in emails have a recovery email. Other servers answer at once and send afterwards.
     'forgot_password_answer_seconds' => (float) env('DTS_FORGOT_PASSWORD_ANSWER_SECONDS', 10),
 
+    // How long an emailed temporary password works. The person's real password keeps working alongside it.
+    'temporary_password_minutes' => (int) env('DTS_TEMPORARY_PASSWORD_MINUTES', 60),
+
     // Shown under "Regards," at the end of every email.
     'mail_sign_off' => env('DTS_MAIL_SIGN_OFF', 'Deped SDO Records Unit'),
 

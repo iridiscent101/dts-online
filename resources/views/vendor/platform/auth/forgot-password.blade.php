@@ -4,7 +4,7 @@
 
 @section('content')
     <h1 class="dts-auth-title">{{ __('Forgot your password?') }}</h1>
-    <p class="dts-auth-subtitle">{{ __('Enter the email you sign in with. We will send a temporary password to the recovery email saved in your profile.') }}</p>
+    <p class="dts-auth-subtitle">{{ __('We will email a temporary password to the recovery email saved in your profile.') }}</p>
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">
@@ -27,8 +27,14 @@
     <form method="POST" action="{{ route('password.forgot.send') }}">
         @csrf
         <div class="mb-3">
-            <label class="form-label" for="forgot-email">{{ __('Email address') }}</label>
-            <input id="forgot-email" type="email" name="email" @class(['form-control', 'is-invalid' => $errors->has('email')]) value="{{ old('email') }}" required autofocus autocomplete="email" inputmode="email" placeholder="{{ __('Enter your email') }}" @if ($errors->any()) aria-invalid="true" aria-describedby="forgot-errors" @endif>
+            <label class="form-label" for="forgot-email">{{ __('Sign-in email') }}</label>
+            {{-- autocomplete="username" makes the browser offer saved sign-in addresses, not every email it remembers
+                 (an autofilled recovery Gmail address matches no account, so nothing is sent). --}}
+            <input id="forgot-email" type="email" name="email" @class(['form-control', 'is-invalid' => $errors->has('email')]) value="{{ old('email') }}" required autofocus autocomplete="username" inputmode="email" placeholder="{{ __('The email you sign in with') }}" @if ($errors->any()) aria-invalid="true" @endif aria-describedby="{{ $errors->any() ? 'forgot-errors ' : '' }}forgot-email-help">
+            <p class="form-text dts-forgot-hint" id="forgot-email-help">
+                <strong>{{ __('Type the email you use to sign in to this system,') }}</strong>
+                {{ __('not your recovery (Gmail) address. The temporary password goes to your recovery email.') }}
+            </p>
         </div>
 
         <button type="submit" class="btn btn-default dts-auth-submit">

@@ -41,15 +41,21 @@ class ForgotPasswordTest extends TestCase
 
             return $staff->routeNotificationForMail($notification) === 'recovery@gmail.com';
         });
+        // The real password is untouched: the temporary one waits beside it.
         $staff->refresh();
-        $this->assertTrue(Hash::check($temporaryPassword, $staff->password));
-        $this->assertFalse(Hash::check('password', $staff->password));
-        $this->assertTrue($staff->must_change_password);
+        $this->assertTrue(Hash::check('password', $staff->password));
+        $this->assertTrue(Hash::check($temporaryPassword, $staff->temporary_password));
+        $this->assertFalse($staff->must_change_password);
         $this->assertTrue(Activity::query()->where('event', AccountActivity::TEMPORARY_PASSWORD_SENT)->where('subject_id', $staff->id)->exists());
 
-        // Signing in with it leads straight to setting a new password, with a note about the temporary one.
+        // Signing in with it makes it the password and leads straight to setting a new one, with a note about it.
         $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => $temporaryPassword]);
         $this->assertAuthenticatedAs($staff);
+        $staff->refresh();
+        $this->assertTrue(Hash::check($temporaryPassword, $staff->password));
+        $this->assertNull($staff->temporary_password);
+        $this->assertTrue($staff->must_change_password);
+        $this->assertTrue(Activity::query()->where('event', AccountActivity::TEMPORARY_PASSWORD_USED)->where('subject_id', $staff->id)->exists());
         $this->get(route('platform.main'))->assertRedirect(route('platform.profile'));
         $this->get(route('platform.profile'))->assertOk()->assertSee('You signed in with a temporary password.');
 
@@ -59,6 +65,68 @@ class ForgotPasswordTest extends TestCase
             'password_confirmation' => 'Brand-new-Pass-2026!',
         ])->assertSessionHasNoErrors();
         $this->assertFalse($staff->fresh()->must_change_password);
+    }
+
+    public function test_someone_asking_for_your_reset_cannot_lock_you_out(): void
+    {
+        Notification::fake();
+        $staff = $this->staffWithRecoveryEmail();
+        // A password that meets the rule, so signing in with it asks for no change.
+        $staff->forceFill(['password' => Hash::make('Usual-Strong-Pass-2026!')])->save();
+
+        $this->post(route('password.forgot.send'), ['email' => 'clerk@deped.local']);
+        $temporaryPassword = null;
+        Notification::assertSentTo($staff, TemporaryPasswordNotification::class, function (TemporaryPasswordNotification $notification) use (&$temporaryPassword): bool {
+            $temporaryPassword = $notification->temporaryPassword;
+
+            return true;
+        });
+
+        // The owner signs in with their usual password: nothing to change, and the unused temporary one stops working.
+        $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => 'Usual-Strong-Pass-2026!']);
+        $this->assertAuthenticatedAs($staff);
+        $staff->refresh();
+        $this->assertFalse($staff->must_change_password);
+        $this->assertNull($staff->temporary_password);
+        $this->get(route('platform.main'))->assertOk();
+
+        $this->post(route('platform.logout'));
+        $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => $temporaryPassword]);
+        $this->assertGuest();
+    }
+
+    public function test_a_temporary_password_expires(): void
+    {
+        Notification::fake();
+        $staff = $this->staffWithRecoveryEmail();
+
+        $this->post(route('password.forgot.send'), ['email' => 'clerk@deped.local']);
+        $temporaryPassword = null;
+        Notification::assertSentTo($staff, TemporaryPasswordNotification::class, function (TemporaryPasswordNotification $notification) use (&$temporaryPassword): bool {
+            $temporaryPassword = $notification->temporaryPassword;
+
+            return true;
+        });
+
+        $this->travel(config('dts.temporary_password_minutes') + 1)->minutes();
+        $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => $temporaryPassword]);
+        $this->assertGuest();
+        $this->assertTrue(Hash::check('password', $staff->fresh()->password));
+    }
+
+    public function test_setting_a_new_password_cancels_a_pending_temporary_one(): void
+    {
+        Notification::fake();
+        $staff = $this->staffWithRecoveryEmail();
+        $this->post(route('password.forgot.send'), ['email' => 'clerk@deped.local']);
+        $this->assertNotNull($staff->fresh()->temporary_password);
+
+        $staff = $staff->fresh();
+        $staff->password = Hash::make('Another-new-Pass-2026!');
+        $staff->save();
+
+        $this->assertNull($staff->fresh()->temporary_password);
+        $this->assertNull($staff->fresh()->temporary_password_expires_at);
     }
 
     public function test_a_recovery_email_works_without_a_confirmation_step(): void
@@ -75,7 +143,7 @@ class ForgotPasswordTest extends TestCase
             ->assertSessionHas('status', ForgotPasswordController::SENT_MESSAGE);
 
         Notification::assertSentTo($staff, TemporaryPasswordNotification::class);
-        $this->assertTrue($staff->fresh()->must_change_password);
+        $this->assertNotNull($staff->fresh()->temporary_password);
     }
 
     public function test_nothing_is_sent_or_changed_for_accounts_that_cannot_receive_one(): void
@@ -94,7 +162,7 @@ class ForgotPasswordTest extends TestCase
         Notification::assertNothingSent();
         foreach ([$noRecovery, $deactivated] as $user) {
             $this->assertTrue(Hash::check('password', $user->fresh()->password));
-            $this->assertFalse((bool) $user->fresh()->must_change_password);
+            $this->assertNull($user->fresh()->temporary_password);
         }
     }
 
@@ -104,12 +172,12 @@ class ForgotPasswordTest extends TestCase
         $staff = $this->staffWithRecoveryEmail();
 
         $this->post(route('password.forgot.send'), ['email' => 'clerk@deped.local']);
-        $firstHash = $staff->fresh()->password;
+        $firstHash = $staff->fresh()->temporary_password;
         $this->post(route('password.forgot.send'), ['email' => 'clerk@deped.local'])
             ->assertSessionHas('status', ForgotPasswordController::SENT_MESSAGE);
 
         Notification::assertSentToTimes($staff, TemporaryPasswordNotification::class, 1);
-        $this->assertSame($firstHash, $staff->fresh()->password);
+        $this->assertSame($firstHash, $staff->fresh()->temporary_password);
 
         $this->travel(ForgotPasswordController::ACCOUNT_COOLDOWN_SECONDS + 1)->seconds();
         $this->post(route('password.forgot.send'), ['email' => 'clerk@deped.local']);
@@ -125,7 +193,7 @@ class ForgotPasswordTest extends TestCase
             ->assertSessionHas('status', ForgotPasswordController::SENT_MESSAGE);
 
         $this->assertTrue(Hash::check('password', $staff->fresh()->password));
-        $this->assertFalse((bool) $staff->fresh()->must_change_password);
+        $this->assertNull($staff->fresh()->temporary_password);
     }
 
     public function test_temporary_passwords_meet_the_password_rule_and_are_never_queued(): void

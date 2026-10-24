@@ -7997,6 +7997,14 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     margin-top: 3px;
 }
 
+/* Forgot password: which email goes in the box, in full-size dark text so it is not missed. */
+.dts-forgot-hint {
+    margin: 8px 0 0;
+    color: var(--dts-ink);
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
 .dts-auth .dts-footer {
     justify-content: center;
     margin-top: 24px;
