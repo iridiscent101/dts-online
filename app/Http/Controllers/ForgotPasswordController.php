@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Support\Timebox;
@@ -56,10 +57,16 @@ class ForgotPasswordController extends Controller
         $work = function () use ($email): void {
             $user = User::query()->where('email', $email)->first();
 
-            if ($user instanceof User && $this->canReceiveTemporaryPassword($user)
-                && RateLimiter::attempt('temporary-password:'.$user->id, 1, fn () => true, self::ACCOUNT_COOLDOWN_SECONDS)) {
-                $this->sendTemporaryPassword($user);
-            }
+            // One server-log line per request saying where it stopped, so a missing email can be traced. The page itself
+            // still answers the same way every time, and the log holds no email address or password.
+            $outcome = match (true) {
+                ! $user instanceof User => 'no matching account',
+                ! $this->canReceiveTemporaryPassword($user) => 'account cannot receive one ('.$this->ineligibleReason($user).')',
+                ! RateLimiter::attempt('temporary-password:'.$user->id, 1, fn () => true, self::ACCOUNT_COOLDOWN_SECONDS) => 'cooldown: one was sent in the last 10 minutes',
+                default => $this->sendTemporaryPassword($user),
+            };
+
+            Log::info('Forgot password: '.$outcome, ['user_id' => $user?->id]);
         };
 
         // Sending the email takes seconds, so answering only after it would show who has a recovery email. Every answer
@@ -81,7 +88,19 @@ class ForgotPasswordController extends Controller
             && filled($user->notification_email);
     }
 
-    private function sendTemporaryPassword(User $user): void
+    private function ineligibleReason(User $user): string
+    {
+        return match (true) {
+            $user->isDeactivated() => 'deactivated',
+            ! $user->canChangeOwnPassword() => 'kiosk-only account',
+            default => 'no recovery email saved',
+        };
+    }
+
+    /**
+     * @return string What happened, for the server log.
+     */
+    private function sendTemporaryPassword(User $user): string
     {
         $temporaryPassword = self::generate();
 
@@ -99,7 +118,11 @@ class ForgotPasswordController extends Controller
         } catch (Throwable $exception) {
             report($exception);
             RateLimiter::clear('temporary-password:'.$user->id);
+
+            return 'sending failed ('.$exception::class.': '.Str::limit($exception->getMessage(), 300).')';
         }
+
+        return 'temporary password sent';
     }
 
     /**
