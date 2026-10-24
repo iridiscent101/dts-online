@@ -207,8 +207,9 @@ class UserEditScreen extends Screen
         $passwordChanged = $user->exists && $request->filled('user.password');
 
         DB::transaction(function () use ($request, $user, $passwordChanged): void {
-            $sendVerification = $request->has('user.notification_email')
-                && $user->setNotificationEmail($request->input('user.notification_email'));
+            if ($request->has('user.notification_email')) {
+                $user->setNotificationEmail($request->input('user.notification_email'));
+            }
 
             $user->when($request->filled('user.password'), function (Builder $builder) use ($request) {
                 $builder->getModel()->password = Hash::make($request->input('user.password'));
@@ -221,10 +222,6 @@ class UserEditScreen extends Screen
                 ->fill($request->collect('user')->except(['office', 'office_ids', 'offices_submitted', 'password', 'permissions', 'roles', 'notification_email'])->toArray())
                 ->forceFill(['permissions' => []])
                 ->save();
-
-            if ($sendVerification) {
-                $user->sendNotificationEmailVerification();
-            }
 
             if ($request->user()->isAdministrator() && $request->boolean('user.offices_submitted')) {
                 $officeIds = $this->officeIdsFromRequest($request);

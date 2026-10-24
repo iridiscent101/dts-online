@@ -4,30 +4,39 @@ namespace App\Http\Controllers;
 
 use App\Auth\AccountActivity;
 use App\Models\User;
-use Illuminate\Auth\Events\PasswordReset;
+use App\Notifications\TemporaryPasswordNotification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Support\Timebox;
-use Illuminate\Validation\Rules\Password as PasswordRule;
 use Throwable;
 
 use function Illuminate\Support\defer;
 
 /**
- * Forgot password for staff: a one-time reset link is emailed to the account's confirmed recovery email. The page
- * answers the same way whether or not the account exists, so it cannot be used to find account emails.
+ * Forgot password for staff: a temporary password is emailed to the account's recovery email, and the person
+ * must set a new one right after signing in with it (RequirePasswordChange). The page answers the same way whether or
+ * not the account exists, so it cannot be used to find out which emails have accounts.
  */
 class ForgotPasswordController extends Controller
 {
-    public const SENT_MESSAGE = 'If that account has a confirmed recovery email, a password reset link was sent to it. Check your Spam folder if it is not in your Inbox, and mark it "Report not spam".';
+    public const SENT_MESSAGE = 'If that account has a recovery email, a temporary password was sent to it. Check your Spam folder if it is not in your Inbox, and mark it "Report not spam".';
 
-    // One reset email per account in this many seconds, so nobody can flood a colleague's recovery inbox.
+    // One temporary password per account in this many seconds, so nobody can keep resetting a colleague's password.
     public const ACCOUNT_COOLDOWN_SECONDS = 600;
+
+    // Readable characters only (no 0/O, 1/l/I), so the password is easy to type from the email.
+    private const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+
+    private const LOWER = 'abcdefghijkmnpqrstuvwxyz';
+
+    private const DIGITS = '23456789';
+
+    private const SYMBOLS = '!@#$%*?';
 
     public function show(): View
     {
@@ -47,9 +56,9 @@ class ForgotPasswordController extends Controller
         $work = function () use ($email): void {
             $user = User::query()->where('email', $email)->first();
 
-            if ($user instanceof User && $this->canReceiveResetLink($user)
-                && RateLimiter::attempt('password-reset-link:'.$user->id, 1, fn () => true, self::ACCOUNT_COOLDOWN_SECONDS)) {
-                $this->sendResetLink($user);
+            if ($user instanceof User && $this->canReceiveTemporaryPassword($user)
+                && RateLimiter::attempt('temporary-password:'.$user->id, 1, fn () => true, self::ACCOUNT_COOLDOWN_SECONDS)) {
+                $this->sendTemporaryPassword($user);
             }
         };
 
@@ -65,56 +74,56 @@ class ForgotPasswordController extends Controller
         return redirect()->route('password.forgot')->with('status', self::SENT_MESSAGE);
     }
 
-    public function showReset(Request $request, string $token): View
-    {
-        return view('platform::auth.reset-password', [
-            'email' => is_string($request->query('email')) ? $request->query('email') : '',
-            'token' => $token,
-        ]);
-    }
-
-    public function reset(Request $request): RedirectResponse
-    {
-        $data = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:255'],
-            'token' => ['required', 'string'],
-            'password' => ['required', 'confirmed', PasswordRule::defaults()],
-        ]);
-
-        $status = Password::reset($data, function (User $user, string $password): void {
-            abort_unless($this->canReceiveResetLink($user), 403);
-
-            $user->forceFill([
-                'password' => Hash::make($password),
-                'must_change_password' => false,
-                'remember_token' => Str::random(60),
-            ])->save();
-            AccountActivity::record(AccountActivity::PASSWORD_CHANGED, $user, null, ['recovered' => true]);
-            event(new PasswordReset($user));
-        });
-
-        if ($status !== Password::PasswordReset) {
-            return back()->withInput($request->only('email'))->withErrors(['email' => __($status)]);
-        }
-
-        return redirect()->route('platform.login')->with('status', 'Your password was reset. You can sign in now.');
-    }
-
-    private function canReceiveResetLink(User $user): bool
+    private function canReceiveTemporaryPassword(User $user): bool
     {
         return ! $user->isDeactivated()
             && $user->canChangeOwnPassword()
-            && filled($user->notification_email)
-            && $user->notification_email_verified_at !== null;
+            && filled($user->notification_email);
     }
 
-    private function sendResetLink(User $user): void
+    private function sendTemporaryPassword(User $user): void
     {
+        $temporaryPassword = self::generate();
+
         try {
-            Password::sendResetLink(['email' => $user->email]);
+            // The new password is saved only if the email goes out, so a mail failure never locks the person out.
+            DB::transaction(function () use ($user, $temporaryPassword): void {
+                $user->forceFill([
+                    'password' => Hash::make($temporaryPassword),
+                    'must_change_password' => true,
+                    'remember_token' => Str::random(60),
+                ])->save();
+                AccountActivity::record(AccountActivity::TEMPORARY_PASSWORD_SENT, $user, null);
+                $user->notifyNow(new TemporaryPasswordNotification($temporaryPassword));
+            });
         } catch (Throwable $exception) {
             report($exception);
-            RateLimiter::clear('password-reset-link:'.$user->id);
+            RateLimiter::clear('temporary-password:'.$user->id);
         }
+    }
+
+    /**
+     * 14 characters with capitals, small letters, numbers and symbols, so it meets the password rule.
+     */
+    public static function generate(): string
+    {
+        $pick = fn (string $set, int $count): array => array_map(
+            fn (): string => $set[random_int(0, strlen($set) - 1)],
+            range(1, $count),
+        );
+        $characters = [
+            ...$pick(self::UPPER, 3),
+            ...$pick(self::LOWER, 6),
+            ...$pick(self::DIGITS, 3),
+            ...$pick(self::SYMBOLS, 2),
+        ];
+
+        // Fisher-Yates with random_int, so the order is as unpredictable as the characters.
+        for ($i = count($characters) - 1; $i > 0; $i--) {
+            $j = random_int(0, $i);
+            [$characters[$i], $characters[$j]] = [$characters[$j], $characters[$i]];
+        }
+
+        return implode('', $characters);
     }
 }

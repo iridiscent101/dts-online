@@ -5,8 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Notifications\DocumentFinishedClientNotification;
 use App\Notifications\DocumentRoutedClientNotification;
-use App\Notifications\VerifyNotificationEmail;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\TemporaryPasswordNotification;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -24,23 +23,20 @@ class EmailLinkHostTest extends TestCase
         config(['app.url' => 'https://dts.example.gov.ph']);
     }
 
-    public function test_a_forged_host_header_does_not_change_the_reset_email_link(): void
+    public function test_a_forged_host_header_does_not_change_the_temporary_password_email_link(): void
     {
         Notification::fake();
         $clerk = User::factory()->create([
             'email' => 'clerk@deped.local', 'permissions' => ['platform.index' => true],
-            'notification_email' => 'clerk@gmail.com', 'notification_email_verified_at' => now(),
+            'notification_email' => 'clerk@gmail.com',
         ]);
 
         $this->withHeader('Host', 'evil-login.test')
             ->post(route('password.forgot.send'), ['email' => 'clerk@deped.local'])
             ->assertRedirect(route('password.forgot'));
 
-        Notification::assertSentTo($clerk, ResetPassword::class, function (ResetPassword $notification) use ($clerk): bool {
-            $url = $notification->toMail($clerk)->actionUrl;
-
-            return str_starts_with($url, 'https://dts.example.gov.ph/reset-password/')
-                && str_contains($url, 'email=clerk%40deped.local');
+        Notification::assertSentTo($clerk, TemporaryPasswordNotification::class, function (TemporaryPasswordNotification $notification) use ($clerk): bool {
+            return $notification->toMail($clerk)->actionUrl === 'https://dts.example.gov.ph/admin/login';
         });
     }
 
@@ -53,21 +49,10 @@ class EmailLinkHostTest extends TestCase
 
         $routed = (new DocumentRoutedClientNotification('SDONV12345678912', ['SDO-Budget Unit']))->toMail($client)->actionUrl;
         $finished = (new DocumentFinishedClientNotification('SDONV12345678912', DocumentFinishedClientNotification::RELEASED, 'SDO-Records Unit'))->toMail($client)->actionUrl;
-        $verify = (new VerifyNotificationEmail(1, str_repeat('a', 64)))->toMail($client)->actionUrl;
+        $signIn = (new TemporaryPasswordNotification('Temp-Pass-2026!'))->toMail($client)->actionUrl;
 
         $this->assertSame('https://dts.example.gov.ph/?tracking=SDONV12345678912', $routed);
         $this->assertSame('https://dts.example.gov.ph/?tracking=SDONV12345678912', $finished);
-        $this->assertStringStartsWith('https://dts.example.gov.ph/notification-email/verify/1/', $verify);
-        $this->assertStringContainsString('signature=', $verify);
-    }
-
-    public function test_the_confirmation_link_still_works_from_the_site_address(): void
-    {
-        $user = User::factory()->create(['notification_email' => 'clerk@gmail.com']);
-        $link = (new VerifyNotificationEmail($user->id, hash('sha256', 'clerk@gmail.com')))->toMail($user)->actionUrl;
-
-        // The signature covers only the path and query, so the link opens on the real site.
-        $this->get(str_replace('https://dts.example.gov.ph', '', $link))->assertOk();
-        $this->assertNotNull($user->fresh()->notification_email_verified_at);
+        $this->assertSame('https://dts.example.gov.ph/admin/login', $signIn);
     }
 }

@@ -43,8 +43,6 @@ class UserEditLayout extends Rows
 
             ViewField::make('user.notification_email')
                 ->view('orchid.partials.email-alerts')
-                ->set('savedAddress', $isCreating ? null : $user?->notification_email)
-                ->set('confirmed', ! $isCreating && $user?->notification_email_verified_at !== null)
                 ->when($isCreating, fn (ViewField $field): ViewField => $field->value('')),
         ];
     }

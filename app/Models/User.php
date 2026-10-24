@@ -3,16 +3,13 @@
 namespace App\Models;
 
 use App\Auth\AccountActivity;
-use App\Notifications\VerifyNotificationEmail;
-use App\Support\SendAfterResponse;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\TemporaryPasswordNotification;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Str;
 use Orchid\Filters\Types\Like;
 use Orchid\Filters\Types\Where;
@@ -184,32 +181,18 @@ class User extends Authenticatable
 
     public function routeNotificationForMail(Notification $notification): ?string
     {
-        // A reset link goes only to the address the staff member confirmed, never to an unchecked one.
-        return $notification instanceof ResetPassword
+        // A temporary password goes to the recovery email, never to the sign-in email.
+        return $notification instanceof TemporaryPasswordNotification
             ? $this->notification_email
             : $this->email;
     }
 
-    public function setNotificationEmail(?string $address): bool
+    /**
+     * The recovery email is used as soon as it is saved: there is no confirmation email to click first.
+     */
+    public function setNotificationEmail(?string $address): void
     {
-        $address = filled($address) ? Str::lower(trim($address)) : null;
-
-        if ($this->notification_email !== $address) {
-            $this->notification_email = $address;
-            $this->notification_email_verified_at = null;
-            DB::table('password_reset_tokens')->where('email', $this->email)->delete();
-        }
-
-        return $address !== null && $this->notification_email_verified_at === null;
-    }
-
-    public function sendNotificationEmailVerification(): void
-    {
-        $email = $this->notification_email;
-        $verification = new VerifyNotificationEmail($this->getKey(), hash('sha256', $email));
-
-        // Sent after the profile is saved and the page has answered; no queue worker needed.
-        SendAfterResponse::mail(fn () => NotificationFacade::route('mail', $email)->notifyNow($verification));
+        $this->notification_email = filled($address) ? Str::lower(trim($address)) : null;
     }
 
     public function canManageRole(Role $role): bool

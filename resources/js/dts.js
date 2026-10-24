@@ -3266,13 +3266,6 @@ document.addEventListener('change', (event) => {
     }
 });
 
-// The confirmation status describes the saved address, so hide it while a different one is typed.
-document.addEventListener('input', (event) => {
-    const input = event.target.closest('[data-email-alerts-field] input[type="email"]');
-    const status = input?.closest('[data-email-alerts]')?.querySelector('[data-email-alerts-status]');
-    if (status) status.hidden = input.value.trim() !== status.dataset.savedAddress;
-});
-
 // First page load: dts.css covers the page until this runs (html:not(.dts-ready)). It is the last listener in
 // this file, so every turbo:load set-up above runs before the cover lifts.
 const markPageReady = () => document.documentElement.classList.add('dts-ready');

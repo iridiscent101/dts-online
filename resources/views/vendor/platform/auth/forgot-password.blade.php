@@ -1,10 +1,10 @@
-{{-- Forgot password (ForgotPasswordController): a reset link is emailed to the confirmed recovery email. --}}
+{{-- Forgot password (ForgotPasswordController): a temporary password is emailed to the recovery email. --}}
 @extends('platform::auth')
 @section('title', __('Forgot password'))
 
 @section('content')
     <h1 class="dts-auth-title">{{ __('Forgot your password?') }}</h1>
-    <p class="dts-auth-subtitle">{{ __('Enter the email you sign in with. We will send a one-time reset link to the recovery email saved in your profile.') }}</p>
+    <p class="dts-auth-subtitle">{{ __('Enter the email you sign in with. We will send a temporary password to the recovery email saved in your profile.') }}</p>
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">
@@ -33,7 +33,7 @@
 
         <button type="submit" class="btn btn-default dts-auth-submit">
             <x-orchid-icon path="bs.envelope"/>
-            {{ __('Send reset link') }}
+            {{ __('Send temporary password') }}
         </button>
     </form>
 

@@ -9,10 +9,8 @@ use App\Notifications\DocumentAssignedNotification;
 use App\Notifications\DocumentChangedNotification;
 use App\Notifications\DocumentNotificationDispatcher;
 use App\Notifications\DocumentRoutedClientNotification;
-use App\Notifications\VerifyNotificationEmail;
 use App\Support\EmailLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Request;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Carbon;
@@ -307,54 +305,14 @@ class DocumentNotificationTest extends TestCase
 
         $this->assertSame($loginEmail, $user->fresh()->email);
         $this->assertSame('alerts@gmail.com', $user->fresh()->notification_email);
-        $this->assertNull($user->fresh()->notification_email_verified_at);
-        Notification::assertSentOnDemand(VerifyNotificationEmail::class);
 
         $this->post(route('platform.profile').'/save', [
             'user' => ['name' => $user->name, 'email' => $loginEmail, 'notification_email' => ''],
         ])->assertSessionHasNoErrors();
 
         $this->assertNull($user->fresh()->notification_email);
-        Notification::assertSentOnDemandTimes(VerifyNotificationEmail::class, 1);
-    }
-
-    public function test_only_a_valid_confirmation_link_confirms_the_recovery_email(): void
-    {
-        Notification::fake();
-        $recipient = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
-
-        $this->actingAs($recipient)->post(route('platform.profile').'/save', [
-            'user' => ['name' => $recipient->name, 'email' => $recipient->email, 'notification_email' => 'alerts@gmail.com'],
-        ])->assertSessionHasNoErrors();
-
-        $verification = new VerifyNotificationEmail($recipient->id, hash('sha256', 'alerts@gmail.com'));
-        $url = $verification->toMail($recipient)->actionUrl;
-        $this->assertSame('alerts@gmail.com', $recipient->fresh()->notification_email);
-        $this->assertTrue(Request::create($url)->hasValidSignature(false));
-        $this->get($url.'&tampered=1')->assertForbidden();
-        $this->assertNull($recipient->fresh()->notification_email_verified_at);
-        $this->assertContains(DocumentRoutedClientNotification::SPAM_NOTE, $verification->toMail($recipient)->outroLines);
-
-        $this->get($url)->assertOk()->assertSee('Recovery email confirmed');
-        $this->assertNotNull($recipient->fresh()->notification_email_verified_at);
-    }
-
-    public function test_changed_or_expired_confirmation_links_do_not_enable_email(): void
-    {
-        Notification::fake();
-        $user = User::factory()->create(['notification_email' => 'first@gmail.com']);
-        $oldUrl = (new VerifyNotificationEmail($user->id, hash('sha256', 'first@gmail.com')))
-            ->toMail($user)->actionUrl;
-
-        $user->setNotificationEmail('second@gmail.com');
-        $user->save();
-        $this->get($oldUrl)->assertForbidden();
-
-        $newUrl = (new VerifyNotificationEmail($user->id, hash('sha256', 'second@gmail.com')))
-            ->toMail($user)->actionUrl;
-        $this->travel(25)->hours();
-        $this->get($newUrl)->assertForbidden();
-        $this->assertNull($user->fresh()->notification_email_verified_at);
+        // There is no confirmation email: the address works as soon as it is saved.
+        Notification::assertNothingSent();
     }
 
     public function test_profile_shows_the_email_alert_toggle_on_only_when_an_address_is_saved(): void
@@ -368,21 +326,14 @@ class DocumentNotificationTest extends TestCase
             ->assertSee('Report not spam')
             ->getContent();
         $this->assertDoesNotMatchRegularExpression('/data-email-alerts-toggle[^>]*checked/', $html);
-        $this->assertStringNotContainsString('Check your inbox to confirm this address', $html);
 
-        $user->forceFill(['notification_email' => 'alerts@gmail.com', 'notification_email_verified_at' => null])->save();
+        $user->forceFill(['notification_email' => 'alerts@gmail.com'])->save();
 
         $html = $this->get(route('platform.profile'))->assertOk()->getContent();
         $this->assertMatchesRegularExpression('/data-email-alerts-toggle[^>]*checked/', $html);
         $this->assertStringContainsString('value="alerts@gmail.com"', $html);
-        $this->assertStringContainsString('Check your inbox to confirm this address', $html);
-        $this->assertStringNotContainsString('Recovery email confirmed', $html);
-
-        $user->forceFill(['notification_email_verified_at' => now()])->save();
-
-        $this->get(route('platform.profile'))->assertOk()
-            ->assertSee('Recovery email confirmed')
-            ->assertDontSee('Check your inbox to confirm this address');
+        $this->assertStringContainsString('there is no confirmation email', $html);
+        $this->assertStringNotContainsString('Check your inbox to confirm this address', $html);
     }
 
     public function test_notification_email_must_be_a_valid_address(): void

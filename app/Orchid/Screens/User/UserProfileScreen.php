@@ -127,14 +127,11 @@ class UserProfileScreen extends Screen
         ]);
 
         $user = $request->user();
-        $sendVerification = $request->has('user.notification_email')
-            && $user->setNotificationEmail($request->input('user.notification_email'));
+        if ($request->has('user.notification_email')) {
+            $user->setNotificationEmail($request->input('user.notification_email'));
+        }
 
         $user->fill($request->collect('user')->only(['name', 'email'])->toArray())->save();
-
-        if ($sendVerification) {
-            $user->sendNotificationEmailVerification();
-        }
 
         Toast::success(__('Profile updated.'));
     }
