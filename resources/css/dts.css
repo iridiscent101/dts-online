@@ -7663,9 +7663,36 @@ body .invalid-feedback {
     font-weight: 400;
 }
 
-/* Page-loading status (see pageLoading in dts.js) */
+/* Page-loading cover (see pageLoading in dts.js). While Turbo fetches the next page or a form is saving, a light cover
+   over the whole page stops clicks on buttons that are about to go away. For the first short moment it is see-through
+   (is-pending) so quick loads don't flash. is-passive lets clicks through again: full-page navigations (which may be a
+   download or a cancelled "Leave site?") and loads that take very long only show the message. */
+.dts-page-loading {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+    background: rgb(255 255 255 / 0.65);
+    cursor: progress;
+}
+
 .dts-page-loading[hidden] {
     display: none !important;
+}
+
+.dts-page-loading.is-pending {
+    background: transparent;
+}
+
+.dts-page-loading.is-pending > * {
+    visibility: hidden;
+}
+
+.dts-page-loading.is-passive {
+    pointer-events: none;
+    background: transparent;
 }
 
 .dts-page-loading__bar {
@@ -7679,24 +7706,64 @@ body .invalid-feedback {
 }
 
 .dts-page-loading__pill {
-    position: fixed;
-    top: 14px;
-    left: 50%;
-    z-index: 2147483000;
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 18px;
-    transform: translateX(-50%);
+    gap: 12px;
+    padding: 12px 24px;
     border: 1px solid var(--dts-green-dark);
     border-radius: 999px;
     background: var(--dts-green);
     color: #fff;
-    font-size: var(--dts-text);
+    font-size: 1.125rem;
     font-weight: 600;
     line-height: 1.2;
     box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+}
+
+/* First page load: the cover is drawn by the stylesheet, so it is up before any script runs, and dts.js adds
+   html.dts-ready once the page's buttons work. body::before is the brand stripe, so the cover uses body::after and
+   the message html::after. It stays see-through for a moment, and lifts by itself after 10 seconds in case a script
+   failed to load, so the page is never locked. */
+html:not(.dts-ready) body::after,
+html:not(.dts-ready)::after {
+    position: fixed;
+    z-index: 2147483000;
+    animation: dts-boot-show 0.2s ease 0.3s both, dts-boot-release 0s linear 10s forwards;
+}
+
+html:not(.dts-ready) body::after {
+    content: '';
+    inset: 0;
+    background: rgb(255 255 255 / 0.65);
+    cursor: progress;
+}
+
+html:not(.dts-ready)::after {
+    content: 'Loading…';
+    top: 50%;
+    left: 50%;
+    padding: 12px 24px 12px 56px;
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--dts-green-dark);
+    border-radius: 999px;
+    background: var(--dts-green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='3'/%3E%3Cpath d='M12 3a9 9 0 0 1 9 9' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='0.8s' repeatCount='indefinite'/%3E%3C/path%3E%3C/svg%3E") no-repeat 22px center / 20px 20px;
+    color: #fff;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
     pointer-events: none;
+}
+
+@keyframes dts-boot-show {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes dts-boot-release {
+    to { visibility: hidden; pointer-events: none; }
 }
 
 .dts-page-loading__spinner {
@@ -7726,7 +7793,9 @@ body .invalid-feedback {
 }
 
 @media print {
-    .dts-page-loading {
+    .dts-page-loading,
+    html:not(.dts-ready) body::after,
+    html:not(.dts-ready)::after {
         display: none !important;
     }
 }

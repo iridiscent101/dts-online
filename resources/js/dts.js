@@ -326,6 +326,7 @@ async function postWorkspace(url, data, errors, button) {
     if (dialog) dialog.dataset.saving = 'true';
     errors.hidden = true;
     errors.textContent = '';
+    pageLoading.show('Saving…');
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -350,6 +351,7 @@ async function postWorkspace(url, data, errors, button) {
         errors.focus();
         return null;
     } finally {
+        pageLoading.hide();
         // After a stale-edit conflict, saving stays blocked until the document is refreshed: nothing is retried or
         // sent again over the newer changes.
         button.disabled = button.dataset.staleEdit === 'true';
@@ -376,11 +378,18 @@ async function refreshWorkspace(dialog, preserveRouting = false) {
         })),
         dirty: routing.dataset.dirty === 'true',
     } : null;
-    const response = await fetch(shell.dataset.workspaceUrl, { headers: { 'Accept': 'text/html' } });
-    if (!response.ok) throw new Error('Saved, but could not refresh the workspace. Reopen this document to see the update.');
+    pageLoading.show('Loading…');
+    let html;
+    try {
+        const response = await fetch(shell.dataset.workspaceUrl, { headers: { 'Accept': 'text/html' } });
+        if (!response.ok) throw new Error('Saved, but could not refresh the workspace. Reopen this document to see the update.');
+        html = await response.text();
+    } finally {
+        pageLoading.hide();
+    }
     const content = dialog.querySelector('[data-workspace-content]');
     const statusesBefore = statusSnapshot([content]);
-    content.innerHTML = await response.text();
+    content.innerHTML = html;
     markChangedStatuses([content], statusesBefore);
     if (activeTab) dialog.querySelector(`[data-workspace-tab="${activeTab}"]`)?.click();
     if (selectedRoute) {
@@ -1511,6 +1520,7 @@ class DocumentAttachmentManager extends HTMLElement {
         control?.setAttribute('aria-busy', 'true');
         data.append('_token', this.dataset.token);
         this.showStatus('Saving attachment changes...', false);
+        pageLoading.show('Saving…');
 
         try {
             const response = await fetch(url, {
@@ -1533,6 +1543,7 @@ class DocumentAttachmentManager extends HTMLElement {
             this.showStatus(message, true);
             void dtsDialog.alert(message, { title: 'Attachment not saved' });
         } finally {
+            pageLoading.hide();
             this.busy = false;
             control?.removeAttribute('aria-busy');
         }
@@ -2845,6 +2856,7 @@ async function confirmPaperReceipt(lookupUrl, data) {
     body.append('workflow[action]', 'received');
     body.append('workflow[source_office]', data.source_office);
 
+    pageLoading.show('Saving…');
     try {
         const response = await fetch(data.document.confirm_url, {
             method: 'POST',
@@ -2864,6 +2876,8 @@ async function confirmPaperReceipt(lookupUrl, data) {
         return { error: Object.values(failure.errors || {})[0]?.[0] || failure.message || 'Could not confirm receipt. Try again.' };
     } catch {
         return { error: 'Could not save. Check the connection and try again.' };
+    } finally {
+        pageLoading.hide();
     }
 }
 
@@ -2959,6 +2973,7 @@ document.addEventListener('click', async (event) => {
     button.disabled = true;
     setSubmitBusy(button, true);
     const failed = [];
+    pageLoading.show('Saving…');
     for (const office of offices) {
         const body = new FormData();
         body.append('workflow[action]', 'received');
@@ -2977,6 +2992,7 @@ document.addEventListener('click', async (event) => {
             failed.push(`${office}: Could not reach the server.`);
         }
     }
+    pageLoading.hide();
 
     if (failed.length > 0) {
         await dtsDialog.alert(['Some routes were not received:', ...failed].join('\n\n'), { title: 'Receive' });
@@ -3061,14 +3077,29 @@ document.addEventListener('turbo:load', attachStickyScrollbars);
 document.addEventListener('turbo:frame-load', attachStickyScrollbars);
 attachStickyScrollbars();
 
-// Page-loading status: a "Loading…" pill (and top bar) while Turbo fetches the next page or a form
-// submission is in flight, plus on full-page navigations. Shown after a short delay so fast loads don't flash.
+// Page-loading cover: while Turbo fetches the next page or a form is saving, a cover over the whole page shows
+// "Loading…"/"Saving…" and stops clicks on buttons that are about to go away (dts.css .dts-page-loading). It blocks
+// clicks at once but stays see-through for a short delay, so fast loads don't flash. Full-page navigations only show
+// the message (passive): the browser may stay on this page (a download, a cancelled "Leave site?"). A load that takes
+// longer than LOADING_RELEASE_MS also turns passive, so a stuck request never locks the page.
+const LOADING_RELEASE_MS = 15000;
 const pageLoading = (() => {
     let el = null;
     let timer = null;
+    let releaseTimer = null;
+
+    // An open modal <dialog> sits in the browser's top layer, above anything in the page, so the cover goes inside the
+    // newest one to block its buttons too.
+    const host = () => [...document.querySelectorAll('dialog[open]')].filter((dialog) => {
+        try { return dialog.matches(':modal'); } catch { return true; }
+    }).at(-1) ?? document.body;
 
     const ensure = () => {
-        if (el && document.body.contains(el)) return el;
+        const parent = host();
+        if (el) {
+            if (el.parentElement !== parent) parent.appendChild(el);
+            return el;
+        }
         el = document.createElement('div');
         el.className = 'dts-page-loading';
         el.setAttribute('role', 'status');
@@ -3077,22 +3108,28 @@ const pageLoading = (() => {
             + '<div class="dts-page-loading__pill"><span class="dts-page-loading__spinner" aria-hidden="true"></span>'
             + '<span class="dts-page-loading__text">Loading…</span></div>';
         el.hidden = true;
-        document.body.appendChild(el);
+        parent.appendChild(el);
         return el;
     };
 
-    const show = (label = 'Loading…', delay = 150) => {
+    const show = (label = 'Loading…', { delay = 150, blocking = true } = {}) => {
         clearTimeout(timer);
+        clearTimeout(releaseTimer);
+        const node = ensure();
+        node.querySelector('.dts-page-loading__text').textContent = label;
+        node.classList.toggle('is-passive', !blocking);
+        node.classList.add('is-pending');
+        node.hidden = false;
         timer = setTimeout(() => {
-            const node = ensure();
-            node.querySelector('.dts-page-loading__text').textContent = label;
-            node.hidden = false;
+            node.classList.remove('is-pending');
             document.documentElement.setAttribute('aria-busy', 'true');
         }, delay);
+        releaseTimer = setTimeout(() => node.classList.add('is-passive'), LOADING_RELEASE_MS);
     };
 
     const hide = () => {
         clearTimeout(timer);
+        clearTimeout(releaseTimer);
         if (el) el.hidden = true;
         document.documentElement.removeAttribute('aria-busy');
     };
@@ -3113,8 +3150,8 @@ document.addEventListener('turbo:submit-end', (event) => {
     document.addEventListener(name, pageLoading.hide);
 });
 window.addEventListener('pageshow', pageLoading.hide);
-// Full (non-Turbo) navigations and reloads: show immediately while the browser waits for the next page.
-window.addEventListener('beforeunload', () => pageLoading.show('Loading…', 0));
+// Full (non-Turbo) navigations and reloads: show the message at once while the browser waits for the next page.
+window.addEventListener('beforeunload', () => pageLoading.show('Loading…', { delay: 0, blocking: false }));
 
 // Release "Send to kiosk": ask the recipient to sign on the kiosk laptop outside the Records Unit, then fill the name
 // and signature into this Release form once they have signed (KioskSigningRequestController). Staff still save the
@@ -3235,3 +3272,9 @@ document.addEventListener('input', (event) => {
     const status = input?.closest('[data-email-alerts]')?.querySelector('[data-email-alerts-status]');
     if (status) status.hidden = input.value.trim() !== status.dataset.savedAddress;
 });
+
+// First page load: dts.css covers the page until this runs (html:not(.dts-ready)). It is the last listener in
+// this file, so every turbo:load set-up above runs before the cover lifts.
+const markPageReady = () => document.documentElement.classList.add('dts-ready');
+document.addEventListener('turbo:load', markPageReady);
+window.addEventListener('load', markPageReady);
