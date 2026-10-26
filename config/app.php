@@ -78,9 +78,12 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // Only a language the app has messages for (lang/<locale>). A blank or unknown APP_LOCALE on a server would show
+    // raw keys such as "validation.min.string" instead of messages, so it falls back to English.
+    'locale' => (filled($locale = env('APP_LOCALE')) && is_dir(dirname(__DIR__).'/lang/'.$locale)) ? $locale : 'en',
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+    // Laravel's built-in messages exist in English only.
+    'fallback_locale' => 'en',
 
     'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
 
