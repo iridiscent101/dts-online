@@ -46,6 +46,37 @@ class EmailAddressValidationTest extends TestCase
         $this->assertNull($user->fresh()->notification_email);
     }
 
+    public function test_profile_name_and_sign_in_email_are_bounded_and_valid(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+
+        $this->actingAs($user)->post(route('platform.profile').'/save', [
+            'user' => ['name' => str_repeat('x', 256), 'email' => 'not-an-email'],
+        ])->assertSessionHasErrors(['user.name', 'user.email']);
+
+        $this->assertSame($user->name, $user->fresh()->name);
+        $this->assertSame($user->email, $user->fresh()->email);
+    }
+
+    public function test_user_manager_cannot_save_an_invalid_sign_in_email(): void
+    {
+        $manager = User::factory()->create(['permissions' => [
+            'platform.index' => true,
+            'platform.systems.users' => true,
+        ]]);
+        $user = User::factory()->create();
+
+        $this->actingAs($manager)->post(route('platform.systems.users.edit', $user).'/save', [
+            'user' => [
+                'name' => $user->name,
+                'email' => 'not-an-email',
+                'roles' => [],
+            ],
+        ])->assertSessionHasErrors('user.email');
+
+        $this->assertSame($user->email, $user->fresh()->email);
+    }
+
     /**
      * @return array<string, mixed>
      */

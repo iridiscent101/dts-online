@@ -125,9 +125,12 @@ class UserProfileScreen extends Screen
     public function save(Request $request): void
     {
         $request->validate([
-            'user.name' => 'required|string',
+            'user.name' => ['required', 'string', 'max:255'],
             'user.email' => [
                 'required',
+                'string',
+                'email:rfc,filter',
+                'max:255',
                 Rule::unique(User::class, 'email')->ignore($request->user()),
             ],
             'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($request->user()?->notification_email)],

@@ -5286,9 +5286,11 @@ select:focus-visible,
         justify-content: center;
     }
 
+    /* !important: the profile name block carries Bootstrap's d-flex (also !important). Left showing, it wraps
+       letter by letter at zero width and grows tall enough to cover the whole menu. */
     .dts-sidebar-collapsed .aside .nav-item:has(> small),
     .dts-sidebar-collapsed .aside .profile-container small {
-        display: none;
+        display: none !important;
     }
 
     .dts-sidebar-collapsed .aside .dts-brand>span:last-child,
@@ -7969,9 +7971,10 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     justify-content: center;
     gap: 10px;
     width: 100%;
-    background: var(--dts-green);
-    border-color: var(--dts-green);
-    color: #fff;
+    /* !important: Orchid's .btn-default forces a white button with !important. */
+    background-color: var(--dts-green) !important;
+    border-color: var(--dts-green) !important;
+    color: #fff !important;
     font-weight: 700;
 }
 
@@ -8134,6 +8137,45 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 .dts-email-alerts-status.is-active {
     background: var(--dts-green-soft);
     color: var(--dts-green-dark);
+}
+
+/* My account: recovery email status under the profile form. */
+.dts-recovery-status {
+    margin: 0 0 var(--dts-space-4, 16px);
+}
+
+.dts-recovery-status-note {
+    margin: 6px 0 0;
+    color: var(--dts-text-muted);
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
+/* Recovery email verified: centred tick, heading and a full-width way back to sign in. */
+.dts-auth-done {
+    text-align: center;
+}
+
+.dts-auth-done-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    border-radius: 999px;
+    background: var(--dts-green-soft);
+    color: var(--dts-green-dark);
+    font-size: 2rem;
+}
+
+.dts-auth-done .dts-auth-submit {
+    text-decoration: none;
+}
+
+/* Auth buttons that say what they are doing while the request runs. */
+.dts-auth-submit[aria-disabled="true"] {
+    opacity: 0.75;
+    cursor: progress;
 }
 
 

@@ -6,7 +6,6 @@ use App\Models\Document;
 use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\File;
 
@@ -33,7 +32,7 @@ class StoreClientDocumentSubmissionRequest extends FormRequest
             'contact_reference' => ['prohibited'],
             'name' => ['required', 'string', 'max:180'],
             'office' => ['required', 'string', 'max:180'],
-            'email' => ['bail', 'nullable', 'string', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail, $this->emailNotOverused(...)],
+            'email' => ['bail', 'nullable', 'string', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail],
             'delivery_method' => ['required', 'string', Rule::in(Document::DELIVERY_METHODS)],
             'title' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', Rule::in(Document::typeOptions())],
@@ -46,26 +45,6 @@ class StoreClientDocumentSubmissionRequest extends FormRequest
             // Data Privacy Act of 2012: the sender agrees to the privacy notice before personal data is stored.
             'privacy_consent' => ['accepted'],
         ];
-    }
-
-    /**
-     * One address may be given on only a few online submissions a day, so the form cannot flood someone's inbox.
-     * Sending the same submission again (same key) does not count against it.
-     */
-    private function emailNotOverused(string $attribute, mixed $value, \Closure $fail): void
-    {
-        $address = Str::lower(trim((string) $value));
-        // Removed submissions still count, so deleting spam does not reopen the address to more of it.
-        $used = Document::withTrashed()
-            ->whereNotNull('client_submission_key')
-            ->where('client_submission_key', '!=', (string) $this->input('submission_key'))
-            ->where('client_email', $address)
-            ->where('created_at', '>=', now()->subDay())
-            ->count();
-
-        if ($used >= config('dts.client_email.submissions_per_address_per_day')) {
-            $fail('This email was already used on several documents today. Leave it blank to send your document now, or try again tomorrow.');
-        }
     }
 
     public function messages(): array

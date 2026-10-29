@@ -2,14 +2,14 @@
      the fields (Orchid's own form printed them through its field helpers, which these plain inputs do not use). --}}
 @if (session('dts_signed_out') && ! $errors->any())
     <div class="alert alert-info d-flex gap-2 align-items-start mb-3" role="status">
-        <x-orchid-icon path="bs.clock-history" class="mt-1 flex-shrink-0"/>
+        <x-orchid-icon path="bs.clock-history" class="mt-1 shrink-0"/>
         <p class="mb-0">{{ session('dts_signed_out') }}</p>
     </div>
 @endif
 
 @if ($errors->any())
     <div id="login-errors" class="alert alert-danger d-flex gap-2 align-items-start mb-3" role="alert">
-        <x-orchid-icon path="bs.exclamation-circle" class="mt-1 flex-shrink-0"/>
+        <x-orchid-icon path="bs.exclamation-circle" class="mt-1 shrink-0"/>
         <div>
             @foreach ($errors->all() as $message)
                 <p class="mb-0">{{ $message }}</p>

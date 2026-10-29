@@ -10,8 +10,10 @@ use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Orchid\Attachment\File;
 use Orchid\Attachment\Models\Attachment;
 use Throwable;
@@ -54,16 +56,32 @@ class ClientDocumentSubmissionController extends Controller
             return $this->alreadySent($existingDocument);
         }
 
+        $email = filled($data['email'] ?? null) ? Str::lower(trim($data['email'])) : null;
+        $emailRateLimitKey = $email === null
+            ? null
+            : 'client-submissions:'.hash('sha256', $email);
+
+        if ($emailRateLimitKey !== null && ! RateLimiter::attempt(
+            $emailRateLimitKey,
+            config('dts.client_email.submissions_per_address_per_day'),
+            static fn (): bool => true,
+            86400,
+        )) {
+            throw ValidationException::withMessages([
+                'email' => 'This email was already used on several documents today. Leave it blank to send your document now, or try again tomorrow.',
+            ]);
+        }
+
         $attachment = null;
         try {
-            $document = DB::transaction(function () use ($data, $request, $notifications, &$attachment): Document {
+            $document = DB::transaction(function () use ($data, $email, $request, $notifications, &$attachment): Document {
                 $physicalSubmission = ! $request->hasFile('attachment');
                 $document = Document::create([
                     'tracking_number' => Document::newTrackingNumber(),
                     'subject' => $data['title'],
                     'document_type' => $data['type'],
                     'sender' => $data['name'],
-                    'client_email' => filled($data['email'] ?? null) ? Str::lower(trim($data['email'])) : null,
+                    'client_email' => $email,
                     'origin' => $data['office'],
                     'delivery_method' => $data['delivery_method'],
                     'current_office' => Office::RECORDS_UNIT_NAME,
@@ -105,6 +123,10 @@ class ClientDocumentSubmissionController extends Controller
                 return $document;
             });
         } catch (Throwable $exception) {
+            if ($emailRateLimitKey !== null) {
+                RateLimiter::decrement($emailRateLimitKey);
+            }
+
             if ($attachment instanceof Attachment && ! Attachment::query()
                 ->where('hash', $attachment->hash)
                 ->where('disk', $attachment->disk)

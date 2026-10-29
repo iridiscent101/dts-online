@@ -9,14 +9,6 @@ ini_set('error_log', 'php://stderr');
 
 $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
 
-if ($path === '/up') {
-    header('Content-Type: text/plain; charset=UTF-8');
-
-    echo 'Application up';
-
-    return;
-}
-
 // Which commit is live. Anyone may ask whether the site is up, but the commit, branch and environment are shown only to
 // a request carrying the cron secret ("Authorization: Bearer <CRON_SECRET>"), so they do not help an attacker.
 if ($path === '/_deploy-check') {

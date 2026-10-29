@@ -8,7 +8,7 @@
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">
-            <x-orchid-icon path="bs.check-circle" class="mt-1 flex-shrink-0"/>
+            <x-orchid-icon path="bs.check-circle" class="mt-1 shrink-0"/>
             <p class="mb-0">{{ session('status') }}</p>
         </div>
     @endif

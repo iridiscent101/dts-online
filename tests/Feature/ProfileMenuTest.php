@@ -92,6 +92,19 @@ class ProfileMenuTest extends TestCase
             ->assertJsonPath('total', 0);
     }
 
+    public function test_notification_messages_escape_user_provided_html(): void
+    {
+        $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create();
+        $user->notify(new DocumentAssignedNotification($document, 'register', '<img src=x onerror=alert(1)>'));
+
+        $this->actingAs($user)
+            ->get(route('platform.notifications'))
+            ->assertOk()
+            ->assertSee('&lt;img src=x onerror=alert(1)&gt;', false)
+            ->assertDontSee('<img src=x onerror=alert(1)>', false);
+    }
+
     public function test_logout_action_from_the_sidebar_signs_the_user_out(): void
     {
         $user = User::factory()->create(['permissions' => ['platform.index' => true]]);

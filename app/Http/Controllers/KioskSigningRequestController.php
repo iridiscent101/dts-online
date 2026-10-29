@@ -79,9 +79,12 @@ class KioskSigningRequestController extends Controller
     {
         $this->authorizeRequester($request, $signing);
 
-        if ($signing->status === KioskSigningRequest::STATUS_PENDING) {
-            $signing->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
-        }
+        KioskSigningRequest::query()
+            ->whereKey($signing->getKey())
+            ->where('status', KioskSigningRequest::STATUS_PENDING)
+            ->update(['status' => KioskSigningRequest::STATUS_CANCELLED]);
+
+        $signing->refresh();
 
         return response()->json(['status' => $signing->displayStatus()]);
     }

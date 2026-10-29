@@ -177,6 +177,9 @@ class UserEditScreen extends Screen
             'user.name' => ['required', 'string', 'max:255'],
             'user.email' => [
                 'required',
+                'string',
+                'email:rfc,filter',
+                'max:255',
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
             'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($user->notification_email)],

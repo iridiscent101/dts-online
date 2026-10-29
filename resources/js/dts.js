@@ -2793,6 +2793,17 @@ function setSubmitBusy(button, busy) {
     button.classList.toggle('dts-is-busy', busy);
     if (busy) button.setAttribute('aria-busy', 'true');
     else button.removeAttribute('aria-busy');
+    // Buttons with data-busy-label say what is happening, e.g. "Resetting password…".
+    const label = button.dataset.busyLabel && button.querySelector('[data-button-label]');
+    if (!label) return;
+    if (busy) {
+        label.dataset.idleLabel ??= label.textContent;
+        label.textContent = button.dataset.busyLabel;
+        button.setAttribute('aria-disabled', 'true');
+    } else {
+        if (label.dataset.idleLabel) label.textContent = label.dataset.idleLabel;
+        button.removeAttribute('aria-disabled');
+    }
 }
 
 // Turbo already disables the submit button while a form is sending; show that it is working.

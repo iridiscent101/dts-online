@@ -575,6 +575,7 @@ class ClientDocumentSubmissionTest extends TestCase
     public function test_notification_failure_rolls_back_submission_and_allows_retry(): void
     {
         Storage::fake('local');
+        config()->set('dts.client_email.submissions_per_address_per_day', 1);
         User::factory()->count(2)->create(['office' => 'SDO-Records Unit']);
         $key = (string) Str::uuid();
         $fail = true;

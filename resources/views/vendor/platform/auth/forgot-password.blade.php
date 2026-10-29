@@ -7,14 +7,14 @@
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">
-            <x-orchid-icon path="bs.envelope-check" class="mt-1 flex-shrink-0"/>
+            <x-orchid-icon path="bs.envelope-check" class="mt-1 shrink-0"/>
             <p class="mb-0">{{ session('status') }}</p>
         </div>
     @endif
 
     @if ($errors->any())
         <div id="forgot-errors" class="alert alert-danger d-flex gap-2 align-items-start mb-3" role="alert">
-            <x-orchid-icon path="bs.exclamation-circle" class="mt-1 flex-shrink-0"/>
+            <x-orchid-icon path="bs.exclamation-circle" class="mt-1 shrink-0"/>
             <div>
                 @foreach ($errors->all() as $message)
                     <p class="mb-0">{{ $message }}</p>
@@ -36,9 +36,9 @@
             </p>
         </div>
 
-        <button type="submit" class="btn btn-default dts-auth-submit">
+        <button type="submit" class="btn btn-default dts-auth-submit" data-busy-label="{{ __('Sending…') }}">
             <x-orchid-icon path="bs.envelope"/>
-            {{ __('Send reset link') }}
+            <span data-button-label>{{ __('Send reset link') }}</span>
         </button>
     </form>
 

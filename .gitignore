@@ -14,6 +14,7 @@
 /.zed
 /auth.json
 avein.md
+/animated.md
 laravel-vercel-deployment-notes.md
 /node_modules
 /public/build

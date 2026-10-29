@@ -157,6 +157,24 @@ class KioskSigningTest extends TestCase
         $this->actingAs($kiosk)->getJson(route('kiosk.current'))->assertJsonPath('request', null);
     }
 
+    public function test_a_signed_request_cannot_be_overwritten_by_cancellation(): void
+    {
+        [$records, $document] = $this->releasableDocument();
+        $sent = $this->actingAs($records)->postJson(route('platform.kiosk-signing.store', $document), [
+            'source_office' => 'SDO-Records Unit',
+        ])->assertCreated();
+        $signing = KioskSigningRequest::query()->sole();
+
+        $this->actingAs($this->kioskAccount())->postJson(route('kiosk.sign', $signing), [
+            'recipient_signature' => self::SIGNATURE,
+        ])->assertOk();
+        $this->actingAs($records)->postJson($sent->json('cancel_url'))
+            ->assertOk()
+            ->assertJsonPath('status', KioskSigningRequest::STATUS_SIGNED);
+
+        $this->assertSame(KioskSigningRequest::STATUS_SIGNED, $signing->fresh()->status);
+    }
+
     public function test_sending_a_replacement_invalidates_an_earlier_signed_request(): void
     {
         [$records, $document] = $this->releasableDocument();
