@@ -112,7 +112,8 @@
         </section>
     </main>
 
-    <footer class="mx-auto flex w-full max-w-4xl justify-end px-6 pb-6">
+    <footer class="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-2 px-6 pb-6">
+        <p class="text-sm text-slate-600">Developed by the SDO ICT Unit</p>
         {{-- For the staff who set up the laptop. --}}
         <form method="POST" action="{{ route('platform.logout') }}">
             @csrf

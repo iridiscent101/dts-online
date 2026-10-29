@@ -182,6 +182,9 @@
         </form>
 @if (! $embedded)
     </main>
+    <footer class="mx-auto w-full max-w-3xl px-5 pb-8 text-center sm:px-8">
+        <p class="text-sm text-slate-600">Department of Education &middot; Document Tracking System &middot; Developed by the SDO ICT Unit</p>
+    </footer>
 @else
         </div>
     </dialog>

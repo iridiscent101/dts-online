@@ -513,6 +513,7 @@
                  links stay in the header only. --}}
             <div class="grid content-end gap-3 self-stretch sm:justify-items-end">
                 <p class="text-sm text-slate-600">Department of Education &middot; Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</p>
+                <p class="text-sm text-slate-600">Developed by the SDO ICT Unit</p>
             </div>
         </section>
     </footer>
