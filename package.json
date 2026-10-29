@@ -8,7 +8,6 @@
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",
-        "@vladmandic/human": "3.3.6",
         "concurrently": "^10.0.3",
         "fontaine": "^0.8.2",
         "laravel-vite-plugin": "^3.1",
