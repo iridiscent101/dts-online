@@ -273,6 +273,32 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertDontSee('data-timeline-office="Administrative Unit" aria-current="true"', false);
     }
 
+    public function test_an_office_that_sent_the_document_back_keeps_its_card_and_a_released_document_says_released(): void
+    {
+        $document = Document::factory()->received()->create([
+            'tracking_number' => 'DTS-2026-000140',
+            'current_office' => 'SDO-Records Unit',
+            'status' => 'Released',
+        ]);
+        // Legal's route went back to Records, so only Records and SDS still hold routes.
+        $document->officeAssignments()->update(['office' => 'SDO-Records Unit', 'status' => 'Released']);
+        $document->officeAssignments()->create(['office' => 'SDO-Schools Division Superintendent (SDS) Office', 'status' => 'Completed']);
+        $document->movements()->create(['action' => 'forwarded', 'from_office' => 'SDO-Records Unit', 'to_office' => 'SDO-Legal Unit', 'from_status' => 'Received', 'to_status' => 'Forwarded']);
+        $document->movements()->create(['action' => 'forwarded', 'from_office' => 'SDO-Legal Unit', 'to_office' => 'SDO-Records Unit', 'from_status' => 'Received', 'to_status' => 'Forwarded']);
+
+        $html = $this->get(route('tracking.index', ['tracking' => 'DTS-2026-000140']))
+            ->assertOk()
+            ->assertSee('data-route-state="done" data-route-office="SDO-Legal Unit"', false)
+            ->assertSee('· sent to SDO-Records Unit')
+            ->assertSee('3 of 3 offices finished')
+            ->assertDontSee('All offices finished')
+            ->getContent();
+
+        // Records forwarded too, but it is the intake desk and keeps a single card.
+        $this->assertSame(1, substr_count($html, 'data-route-office="SDO-Records Unit"'));
+        $this->assertSame(1, substr_count($html, 'data-route-office="SDO-Legal Unit"'));
+    }
+
     public function test_history_is_grouped_by_day_and_names_the_acting_office(): void
     {
         $this->travel(-3)->days();

@@ -174,11 +174,14 @@
             @endif
             @if ($document)
                 @php
-                    $finishedOfficeCount = $assignedOffices->whereIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)->count();
+                    $finishedOfficeCount = $assignedOffices->filter(fn (array $office): bool => ($office['handed_on'] ?? false) || in_array($office['status'], \App\Models\DocumentMovement::FINISHED_STATUSES, true))->count();
                     $allOfficesFinished = $assignedOffices->isNotEmpty() && $finishedOfficeCount === $assignedOffices->count();
-                    $displayStatus = $assignedOffices->count() > 1
-                        ? ($allOfficesFinished ? 'All offices finished' : 'In progress')
-                        : ($assignedOffices->first()['status'] ?? $document->status);
+                    // A released document says so, even when several offices handled it.
+                    $displayStatus = $document->status === \App\Models\DocumentMovement::STATUS_RELEASED
+                        ? $document->status
+                        : ($assignedOffices->count() > 1
+                            ? ($allOfficesFinished ? 'All offices finished' : 'In progress')
+                            : ($assignedOffices->first()['status'] ?? $document->status));
                     $statusMeanings = [
                         ...\App\Models\DocumentMovement::STATUS_MEANINGS,
                         \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the physical document/s after you bring them to the Records Unit.',
@@ -249,6 +252,7 @@
                                                     $routeLinks = $officeCardsFilterTimeline;
                                                     $routeState = match (true) {
                                                         $assignment['pending'] => 'waiting',
+                                                        $assignment['handed_on'] ?? false => 'done',
                                                         in_array($assignment['status'], \App\Models\DocumentMovement::FINISHED_STATUSES, true) => 'done',
                                                         $assignment['status'] === \App\Models\DocumentMovement::STATUS_ON_HOLD => 'paused',
                                                         default => 'active',
@@ -269,7 +273,7 @@
                                                     </span>
                                                     <span class="min-w-0 grow">
                                                         <span class="block text-base font-semibold text-slate-800">{{ $assignment['office'] }}</span>
-                                                        <span class="block text-sm text-slate-600"><span class="font-semibold uppercase tracking-wide">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-600"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
+                                                        <span class="block text-sm text-slate-600"><span class="font-semibold uppercase tracking-wide">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>{{ ($assignment['handed_on'] ?? false) ? ' · sent to '.implode(', ', $assignment['sent_to']) : '' }}@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-600"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
                                                     </span>
                                                     @if ($routeLinks)
                                                         <span class="sr-only">, show history</span>

@@ -2637,6 +2637,32 @@ function updateTableSelection(table) {
         deleteButton.textContent = adminFrame?.dataset.adminBulkDeleteKind === 'user' ? 'Deactivate selected' : 'Delete selected';
         summary.querySelector('.dts-table-selection-actions').insertBefore(deleteButton, summary.querySelector('[data-clear-table-selection]'));
     }
+
+    // Users (administrators only): "Delete selected" removes accounts that are already deactivated.
+    const removeUrl = table.closest('[data-admin-bulk-remove-url]')?.dataset.adminBulkRemoveUrl;
+    if (removeUrl) {
+        let removeButton = summary.querySelector('[data-admin-bulk-remove]');
+        if (!removeButton) {
+            removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.className = 'dts-button dts-button-danger';
+            removeButton.dataset.adminBulkRemove = '';
+            removeButton.dataset.url = removeUrl;
+            removeButton.textContent = 'Delete selected';
+            removeButton.setAttribute('aria-describedby', 'dts-bulk-remove-note');
+            const note = document.createElement('span');
+            note.id = 'dts-bulk-remove-note';
+            note.className = 'dts-table-selection-note';
+            note.dataset.adminBulkRemoveNote = '';
+            note.textContent = 'Only deactivated accounts can be deleted. Untick active ones or deactivate them first.';
+            const actions = summary.querySelector('.dts-table-selection-actions');
+            actions.insertBefore(removeButton, summary.querySelector('[data-clear-table-selection]'));
+            summary.insertBefore(note, actions);
+        }
+        const allDeactivated = checkboxes.filter((checkbox) => checkbox.checked).every((checkbox) => checkbox.hasAttribute('data-row-deactivated'));
+        removeButton.disabled = !allDeactivated;
+        summary.querySelector('[data-admin-bulk-remove-note]').hidden = allDeactivated;
+    }
 }
 
 function syncTableSelections(root = document) {
@@ -2718,6 +2744,38 @@ document.addEventListener('click', (event) => {
         checkbox.checked = false;
     });
     updateTableSelection(table);
+});
+
+document.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-admin-bulk-remove]');
+    if (!button || button.disabled) return;
+
+    const selected = [...button.closest('turbo-frame').querySelectorAll('[data-table-row-select]:checked')];
+    if (selected.length === 0 || selected.some((checkbox) => !checkbox.hasAttribute('data-row-deactivated'))) return;
+    const count = selected.length === 1 ? '1 deactivated account' : `${selected.length} deactivated accounts`;
+    const confirmed = await dtsDialog.confirm(
+        `Permanently delete ${count}? Their uploaded files and kiosk signing requests move to you. Document history keeps their names. This cannot be undone here.`,
+        { title: 'Delete selected accounts', confirmLabel: 'Delete', danger: true },
+    );
+    if (!confirmed) return;
+
+    const token = document.querySelector('meta[name="csrf_token"]')?.content;
+    if (!token) return;
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = button.dataset.url;
+    form.dataset.turbo = 'false';
+    form.hidden = true;
+    for (const [name, value] of [['_token', token], ...selected.map((checkbox) => ['selected[]', checkbox.value])]) {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = name;
+        input.value = value;
+        form.append(input);
+    }
+    document.body.append(form);
+    form.submit();
 });
 
 document.addEventListener('click', async (event) => {

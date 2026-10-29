@@ -27,7 +27,11 @@ class UserListLayout extends Table
     public function columns(): array
     {
         return [
-            $this->selectColumn('Select user', fn (User $user): bool => $user->id === auth()->id() || $user->isAdministrator()),
+            $this->selectColumn(
+                'Select user',
+                fn (User $user): bool => $user->id === auth()->id() || $user->isAdministrator(),
+                fn (User $user): bool => $user->isDeactivated(),
+            ),
 
             $this->numberColumn(),
 

@@ -19,6 +19,70 @@ class DocumentLifecycleTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    public function test_client_document_is_processed_by_five_separate_office_accounts(): void
+    {
+        Notification::fake();
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $officeNames = [
+            'SDO-Budget Unit',
+            'SDO-Accounting Unit',
+            'SDO-Legal Unit',
+            'SDO-Personnel Unit (HRMO)',
+            'SDO-Cash Unit',
+        ];
+        $staff = collect($officeNames)->mapWithKeys(fn (string $office): array => [
+            $office => User::factory()->create(['office' => $office, 'permissions' => ['platform.index' => true]]),
+        ]);
+
+        $this->post(route('submission.store'), [
+            'submission_key' => (string) Str::uuid(),
+            'name' => 'Alex Rivera',
+            'office' => 'School Office',
+            'delivery_method' => 'Hand carry',
+            'title' => 'Request for five offices',
+            'type' => 'Request',
+            'privacy_consent' => true,
+        ])->assertSessionHasNoErrors();
+        $document = Document::query()->sole();
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($staff->first())->get(route('platform.documents.workspace', $document))->assertNotFound();
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Records Unit', 'destinations' => $officeNames],
+        ])->assertOk();
+
+        $this->assertSame(5, $document->officeAssignments()->count());
+        $this->actingAs($staff->first())->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => $officeNames[1]],
+        ])->assertForbidden();
+        foreach ($staff as $office => $officer) {
+            $this->actingAs($officer)->get(route('platform.documents.workspace', $document))->assertOk();
+            $this->postJson($url, [
+                'workflow' => ['action' => 'received', 'source_office' => $office],
+            ])->assertOk();
+            $this->postJson($url, [
+                'workflow' => ['action' => 'completed', 'source_office' => $office, 'remarks' => "Reviewed by {$office}."],
+            ])->assertOk();
+
+            $this->assertDatabaseHas('document_office_assignments', [
+                'document_id' => $document->id,
+                'office' => $office,
+                'status' => DocumentMovement::STATUS_COMPLETED,
+            ]);
+            if ($office !== $officeNames[4]) {
+                $this->assertNotSame(DocumentMovement::STATUS_COMPLETED, $document->fresh()->status);
+            }
+        }
+
+        $this->assertSame(DocumentMovement::STATUS_COMPLETED, $document->fresh()->status);
+        $this->assertSame(5, $document->movements()->where('action', DocumentMovement::ACTION_RECEIVED)->whereIn('to_office', $officeNames)->count());
+        $this->assertSame(5, $document->movements()->where('action', DocumentMovement::ACTION_COMPLETED)->count());
+        $this->assertSame(5, $document->movements()->where('action', DocumentMovement::ACTION_FORWARDED)->count());
+    }
+
     public function test_paper_submission_can_pass_through_parallel_offices_and_return_to_records_for_release(): void
     {
         Notification::fake();

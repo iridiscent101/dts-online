@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
+use App\Auth\AccountActivity;
 use App\Models\User;
 use App\Orchid\Layouts\User\UserFiltersLayout;
 use App\Orchid\Layouts\User\UserListLayout;
@@ -134,6 +135,48 @@ class UserListScreen extends Screen
         });
 
         Toast::success($users->count().' '.str('user')->plural($users->count()).' deactivated.');
+    }
+
+    /**
+     * "Delete selected": permanently removes accounts that are already deactivated. Same rules as Delete on the edit
+     * page; their uploaded files and kiosk signing requests move to the administrator doing it.
+     */
+    public function bulkRemove(Request $request): void
+    {
+        $actor = $request->user();
+        abort_unless($actor?->isAdministrator(), 403);
+
+        $selected = $request->validate([
+            'selected' => ['required', 'array', 'min:1', 'max:100'],
+            'selected.*' => ['required', 'integer', 'distinct', Rule::exists(User::class, 'id')],
+        ])['selected'];
+        $users = User::query()->with('roles')->whereKey($selected)->get();
+
+        if ($users->contains(fn (User $user): bool => $user->id === $actor->id || $user->isAdministrator())) {
+            throw ValidationException::withMessages([
+                'selected' => 'You cannot delete your own account or an administrator account.',
+            ]);
+        }
+
+        if ($users->contains(fn (User $user): bool => ! $user->isDeactivated())) {
+            throw ValidationException::withMessages([
+                'selected' => 'Only deactivated accounts can be deleted. Deactivate them first.',
+            ]);
+        }
+
+        DB::transaction(function () use ($users, $actor): void {
+            foreach ($users as $user) {
+                DB::table('attachments')->where('user_id', $user->id)->update(['user_id' => $actor->id]);
+                DB::table('kiosk_signing_requests')->where('requested_by', $user->id)->update(['requested_by' => $actor->id]);
+                AccountActivity::record(AccountActivity::DELETED, $user, $actor, [
+                    'email' => $user->email,
+                    'transferred_to' => $actor->email,
+                ]);
+                $user->delete();
+            }
+        });
+
+        Toast::success($users->count().' deactivated '.str('account')->plural($users->count()).' deleted. Their uploaded files and signing requests were transferred to you.');
     }
 
     private function perPage(): int

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Services\DocumentTrackingLabel;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -115,6 +116,26 @@ class PublicDocumentTrackingController extends Controller
         $assignedOffices = $document?->assignedOfficeStatuses() ?? collect();
         // The office cards also list a paper submission's offices that are still waiting for the paper copy.
         $routeOffices = $document?->officeRouteStatuses() ?? collect();
+        // An office that forwarded the document on hands its route to the next office, so it would drop off the cards.
+        // Keep it as a finished card ("Forwarded, sent to ...") so the client still sees that it took part. The Records
+        // Unit is the intake desk and gets its own card whenever it holds the document.
+        $handedOnOffices = $document ? $document->movements
+            ->filter(fn (DocumentMovement $movement): bool => $movement->action === DocumentMovement::ACTION_FORWARDED
+                && filled($movement->from_office)
+                && ! in_array($movement->from_office, Office::RECORDS_UNIT_NAMES, true))
+            ->sortBy('id')
+            ->groupBy('from_office')
+            ->reject(fn ($movements, string $office): bool => $routeOffices->contains('office', $office))
+            ->map(fn ($movements, string $office): array => [
+                'office' => $office,
+                'status' => DocumentMovement::STATUS_FORWARDED,
+                'pending' => false,
+                'handed_on' => true,
+                'sent_to' => $movements->pluck('to_office')->filter()->unique()->values()->all(),
+            ])
+            ->values() : collect();
+        $assignedOffices = $assignedOffices->concat($handedOnOffices)->values();
+        $routeOffices = $routeOffices->concat($handedOnOffices)->sortBy('office', SORT_NATURAL | SORT_FLAG_CASE)->values();
         $timelineOffices = $document?->movements
             ->flatMap(fn (DocumentMovement $movement): array => [$movement->from_office, $movement->to_office])
             ->merge($routeOffices->pluck('office'))

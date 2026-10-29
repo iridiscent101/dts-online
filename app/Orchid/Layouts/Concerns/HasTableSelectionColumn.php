@@ -10,7 +10,8 @@ use Orchid\Screen\TD;
 
 trait HasTableSelectionColumn
 {
-    protected function selectColumn(string $label, ?Closure $cannotSelect = null): TD
+    /** $isDeactivated marks rows (users) that "Delete selected" may remove. */
+    protected function selectColumn(string $label, ?Closure $cannotSelect = null, ?Closure $isDeactivated = null): TD
     {
         return TD::make('__select', '<input type="checkbox" class="dts-table-checkbox" data-table-select-all aria-label="'.e(__('Select all rows on this page')).'">')
             ->align(TD::ALIGN_CENTER)
@@ -20,6 +21,7 @@ trait HasTableSelectionColumn
                 'value' => $row->getKey(),
                 'label' => __($label),
                 'disabled' => $cannotSelect?->__invoke($row) ?? false,
+                'deactivated' => $isDeactivated?->__invoke($row) ?? false,
             ]));
     }
 

@@ -482,6 +482,23 @@ body::before {
     gap: 8px;
 }
 
+/* Users: why "Delete selected" is greyed out (an active account is ticked). */
+.dts-table-selection-note {
+    flex: 1 1 260px;
+    color: var(--dts-text-muted);
+    font-size: 0.9375rem;
+    font-weight: 500;
+}
+
+.dts-table-selection-note[hidden] {
+    display: none;
+}
+
+.dts-table-selection-actions .dts-button-danger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .dts-table-selection-actions .dts-button {
     padding: 6px 10px;
 }
