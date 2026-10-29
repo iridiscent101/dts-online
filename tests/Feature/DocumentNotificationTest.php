@@ -9,13 +9,17 @@ use App\Notifications\DocumentAssignedNotification;
 use App\Notifications\DocumentChangedNotification;
 use App\Notifications\DocumentNotificationDispatcher;
 use App\Notifications\DocumentRoutedClientNotification;
+use App\Notifications\VerifyRecoveryEmail;
 use App\Support\EmailLink;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Notifications\Events\NotificationSending;
 use Illuminate\Notifications\Events\NotificationSent;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Sleep;
 use Illuminate\Support\Str;
 use Orchid\Platform\Models\Role;
 use Orchid\Platform\Notifications\DashboardMessage;
@@ -217,8 +221,9 @@ class DocumentNotificationTest extends TestCase
         $this->assertSame('Deped Nueva Vizcaya Records Unit', $email->getFrom()[0]->getName());
     }
 
-    public function test_client_email_is_sent_without_a_queue_worker(): void
+    public function test_client_email_is_retried_after_a_temporary_delivery_failure(): void
     {
+        $this->freezeTime();
         config()->set('mail.document_assignment_notifications_enabled', true);
         config()->set('queue.default', 'database');
         config()->set('mail.default', 'array');
@@ -229,11 +234,81 @@ class DocumentNotificationTest extends TestCase
             'workflow' => ['action' => 'forward', 'destination' => 'Administrative Unit'],
         ])->assertRedirect();
 
-        // Nothing waits in the jobs table; the email went out once the page answered.
+        $this->assertDatabaseCount('jobs', 1);
+        $attempts = 0;
+        Event::listen(NotificationSending::class, function ($event) use (&$attempts): void {
+            if ($event->notification instanceof DocumentRoutedClientNotification && ++$attempts === 1) {
+                throw new \RuntimeException('Temporary mail failure');
+            }
+        });
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--sleep' => 0, '--tries' => 1]);
+        $this->assertDatabaseCount('jobs', 1);
+        $this->assertDatabaseCount('failed_jobs', 0);
+        $this->travel(61)->seconds();
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--sleep' => 0, '--tries' => 1]);
         $this->assertDatabaseCount('jobs', 0);
+        $this->assertSame(2, $attempts);
         $sent = app('mailer')->getSymfonyTransport()->messages();
         $this->assertCount(1, $sent);
         $this->assertSame('client@gmail.com', $sent->first()->getEnvelope()->getRecipients()[0]->getAddress());
+    }
+
+    public function test_client_email_is_recorded_as_failed_after_three_delivery_failures(): void
+    {
+        $this->freezeTime();
+        config()->set('mail.document_assignment_notifications_enabled', true);
+        config()->set('queue.default', 'database');
+        $actor = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
+        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
+
+        Event::listen(NotificationSending::class, function ($event): void {
+            if ($event->notification instanceof DocumentRoutedClientNotification) {
+                throw new \RuntimeException('Mail unavailable');
+            }
+        });
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--sleep' => 0]);
+        $this->travel(61)->seconds();
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--sleep' => 0]);
+        $this->travel(301)->seconds();
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true, '--sleep' => 0]);
+        $this->assertDatabaseCount('jobs', 0);
+        $this->assertDatabaseCount('failed_jobs', 1);
+    }
+
+    public function test_synchronous_delivery_retries_a_temporary_failure(): void
+    {
+        Sleep::fake();
+        config()->set('mail.document_assignment_notifications_enabled', true);
+        config()->set('queue.default', 'sync');
+        config()->set('mail.default', 'array');
+        $actor = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
+        $attempts = 0;
+        Event::listen(NotificationSending::class, function ($event) use (&$attempts): void {
+            if ($event->notification instanceof DocumentRoutedClientNotification && ++$attempts === 1) {
+                throw new \RuntimeException('Temporary mail failure');
+            }
+        });
+        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
+
+        $this->assertSame(2, $attempts);
+        $this->assertCount(1, app('mailer')->getSymfonyTransport()->messages());
+        Sleep::assertSleptTimes(1);
+    }
+
+    public function test_rolled_back_document_changes_do_not_queue_client_email(): void
+    {
+        config()->set('mail.document_assignment_notifications_enabled', true);
+        config()->set('queue.default', 'database');
+        $actor = User::factory()->create(['permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
+
+        DB::beginTransaction();
+        app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
+        DB::rollBack();
+
+        $this->assertDatabaseCount('jobs', 0);
     }
 
     public function test_no_client_email_is_sent_without_an_address_or_while_mail_is_off(): void
@@ -311,8 +386,7 @@ class DocumentNotificationTest extends TestCase
         ])->assertSessionHasNoErrors();
 
         $this->assertNull($user->fresh()->notification_email);
-        // There is no confirmation email: the address works as soon as it is saved.
-        Notification::assertNothingSent();
+        Notification::assertSentTo($user, VerifyRecoveryEmail::class);
     }
 
     public function test_profile_shows_the_email_alert_toggle_on_only_when_an_address_is_saved(): void
@@ -332,8 +406,7 @@ class DocumentNotificationTest extends TestCase
         $html = $this->get(route('platform.profile'))->assertOk()->getContent();
         $this->assertMatchesRegularExpression('/data-email-alerts-toggle[^>]*checked/', $html);
         $this->assertStringContainsString('value="alerts@gmail.com"', $html);
-        $this->assertStringContainsString('there is no confirmation email', $html);
-        $this->assertStringNotContainsString('Check your inbox to confirm this address', $html);
+        $this->assertStringContainsString('Not verified', $html);
     }
 
     public function test_notification_email_must_be_a_valid_address(): void

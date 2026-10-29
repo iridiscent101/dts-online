@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use App\Support\EmailLink;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\HtmlString;
@@ -11,8 +13,16 @@ use Illuminate\Support\HtmlString;
  * Tells the sender (the email they gave on the form, if any) that their document was routed to an office.
  * Staff are not emailed; they see document alerts in the app.
  */
-class DocumentRoutedClientNotification extends Notification
+class DocumentRoutedClientNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
+
+    public int $tries = 3;
+
+    public array $backoff = [60, 300];
+
+    public int $timeout = 60;
+
     public const SPAM_NOTE = 'If you do not see our emails in your Inbox, please check your Spam folder and mark them as "Report not spam" so future updates reach your Inbox.';
 
     /**

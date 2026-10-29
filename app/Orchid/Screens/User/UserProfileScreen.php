@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Orchid\Screens\User;
 
 use App\Auth\AccountActivity;
+use App\Http\Controllers\RecoveryEmailController;
 use App\Models\User;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
@@ -100,12 +101,18 @@ class UserProfileScreen extends Screen
             Layout::block(UserEditLayout::class)
                 ->title(__('Profile Information'))
                 ->description(__("Update your account's profile information and email address."))
-                ->commands(
+                ->commands([
                     Button::make(__('Save'))
                         ->class('btn dts-button dts-button-primary')
                         ->icon('bs.check-circle')
-                        ->method('save')
-                ),
+                        ->method('save'),
+                    Button::make(__('Send recovery email verification'))
+                        ->novalidate()
+                        ->method('verifyRecoveryEmail')
+                        ->canSee(filled(request()->user()?->notification_email) && ! request()->user()?->notification_email_verified_at),
+                ]),
+
+            Layout::view('orchid.recovery-email-status'),
 
             Layout::block(Layout::view('orchid.profile-account'))
                 ->title(__('Account access'))
@@ -131,9 +138,22 @@ class UserProfileScreen extends Screen
             $user->setNotificationEmail($request->input('user.notification_email'));
         }
 
+        $changed = $user->isDirty('notification_email');
         $user->fill($request->collect('user')->only(['name', 'email'])->toArray())->save();
+        if ($changed && filled($user->notification_email)) {
+            RecoveryEmailController::sendVerification($user);
+        }
 
         Toast::success(__('Profile updated.'));
+    }
+
+    public function verifyRecoveryEmail(Request $request): void
+    {
+        $user = $request->user();
+        if (filled($user->notification_email) && ! $user->notification_email_verified_at) {
+            RecoveryEmailController::sendVerification($user);
+            Toast::info(__('If your recovery email can receive messages, a verification link has been sent.'));
+        }
     }
 
     public function changePassword(Request $request): ?RedirectResponse

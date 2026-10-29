@@ -2,44 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Auth\AccountActivity;
 use App\Models\User;
-use App\Notifications\TemporaryPasswordNotification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Support\Timebox;
 use Throwable;
 
 use function Illuminate\Support\defer;
 
-/**
- * Forgot password for staff: a temporary password is emailed to the account's recovery email. The real password keeps
- * working until one of the two is used to sign in (DtsUserProvider), so nobody can lock a colleague out by asking for
- * their reset. Signing in with the temporary one means setting a new password right away (RequirePasswordChange). The
- * page answers the same way whether or not the account exists, so it cannot be used to find out which emails have
- * accounts.
- */
 class ForgotPasswordController extends Controller
 {
-    public const SENT_MESSAGE = 'If that account has a recovery email, a temporary password was sent to it. Check your Spam folder if it is not in your Inbox, and mark it "Report not spam".';
-
-    // One temporary password per account in this many seconds, so nobody can keep resetting a colleague's password.
-    public const ACCOUNT_COOLDOWN_SECONDS = 600;
-
-    // Readable characters only (no 0/O, 1/l/I), so the password is easy to type from the email.
-    private const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-
-    private const LOWER = 'abcdefghijkmnpqrstuvwxyz';
-
-    private const DIGITS = '23456789';
-
-    private const SYMBOLS = '!@#$%*?';
+    public const SENT_MESSAGE = 'If that account has a verified recovery email, a password reset link was sent to it. Check your Spam folder if it is not in your Inbox.';
 
     public function show(): View
     {
@@ -48,34 +24,20 @@ class ForgotPasswordController extends Controller
 
     public function send(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'email' => ['required', 'string', 'email', 'max:255'],
-        ], [
-            'email.required' => 'Enter the email address you sign in with.',
-            'email.email' => 'Enter a valid email address.',
-        ]);
-
+        $data = $request->validate(['email' => ['required', 'string', 'email', 'max:255']]);
         $email = Str::lower(trim($data['email']));
-        self::trace('request received (queue: '.config('queue.default').')');
         $work = function () use ($email): void {
-            self::trace('started');
             $user = User::query()->where('email', $email)->first();
-
-            // One server-log line per request saying where it stopped, so a missing email can be traced. The page itself
-            // still answers the same way every time, and the log holds no email address or password.
-            $outcome = match (true) {
-                ! $user instanceof User => 'no matching account',
-                ! $this->canReceiveTemporaryPassword($user) => 'account cannot receive one ('.$this->ineligibleReason($user).')',
-                ! RateLimiter::attempt('temporary-password:'.$user->id, 1, fn () => true, self::ACCOUNT_COOLDOWN_SECONDS) => 'cooldown: one was sent in the last 10 minutes',
-                default => $this->sendTemporaryPassword($user),
-            };
-
-            self::trace($outcome.($user ? ' (user #'.$user->id.')' : ''));
+            if (! $user || $user->isDeactivated() || ! $user->canChangeOwnPassword() || ! $user->notification_email_verified_at || ! filled($user->notification_email)) {
+                return;
+            }
+            try {
+                Password::sendResetLink(['email' => $email]);
+            } catch (Throwable $exception) {
+                Password::deleteToken($user);
+                report($exception);
+            }
         };
-
-        // Sending the email takes seconds, so answering only after it would show who has a recovery email. Every answer
-        // must take the same time: on a normal server the work runs after the page has answered; on Vercel (sync queue),
-        // where work after the answer may never run, every answer waits the same minimum time instead.
         if (config('queue.default') === 'sync') {
             (new Timebox)->call(fn () => $work(), (int) round((float) config('dts.forgot_password_answer_seconds') * 1_000_000));
         } else {
@@ -83,86 +45,5 @@ class ForgotPasswordController extends Controller
         }
 
         return redirect()->route('password.forgot')->with('status', self::SENT_MESSAGE);
-    }
-
-    private function canReceiveTemporaryPassword(User $user): bool
-    {
-        return ! $user->isDeactivated()
-            && $user->canChangeOwnPassword()
-            && filled($user->notification_email);
-    }
-
-    /**
-     * Goes to the app log and straight to stderr, which is the only log Vercel keeps whatever LOG_CHANNEL says.
-     */
-    private static function trace(string $message): void
-    {
-        Log::info('Forgot password: '.$message);
-
-        if (! app()->runningUnitTests()) {
-            error_log('FORGOT_PASSWORD '.$message);
-        }
-    }
-
-    private function ineligibleReason(User $user): string
-    {
-        return match (true) {
-            $user->isDeactivated() => 'deactivated',
-            ! $user->canChangeOwnPassword() => 'kiosk-only account',
-            default => 'no recovery email saved',
-        };
-    }
-
-    /**
-     * @return string What happened, for the server log.
-     */
-    private function sendTemporaryPassword(User $user): string
-    {
-        $temporaryPassword = self::generate();
-
-        try {
-            // The temporary password sits beside the real one, which keeps working: asking for someone else's reset only
-            // sends them an email. It is saved only if the email goes out (User::settleTemporaryPasswordAfterSignIn).
-            DB::transaction(function () use ($user, $temporaryPassword): void {
-                $user->forceFill([
-                    'temporary_password' => Hash::make($temporaryPassword),
-                    'temporary_password_expires_at' => now()->addMinutes((int) config('dts.temporary_password_minutes')),
-                ])->save();
-                AccountActivity::record(AccountActivity::TEMPORARY_PASSWORD_SENT, $user, null);
-                $user->notifyNow(new TemporaryPasswordNotification($temporaryPassword));
-            });
-        } catch (Throwable $exception) {
-            report($exception);
-            RateLimiter::clear('temporary-password:'.$user->id);
-
-            return 'sending failed ('.$exception::class.': '.Str::limit($exception->getMessage(), 300).')';
-        }
-
-        return 'temporary password sent';
-    }
-
-    /**
-     * 14 characters with capitals, small letters, numbers and symbols, so it meets the password rule.
-     */
-    public static function generate(): string
-    {
-        $pick = fn (string $set, int $count): array => array_map(
-            fn (): string => $set[random_int(0, strlen($set) - 1)],
-            range(1, $count),
-        );
-        $characters = [
-            ...$pick(self::UPPER, 3),
-            ...$pick(self::LOWER, 6),
-            ...$pick(self::DIGITS, 3),
-            ...$pick(self::SYMBOLS, 2),
-        ];
-
-        // Fisher-Yates with random_int, so the order is as unpredictable as the characters.
-        for ($i = count($characters) - 1; $i > 0; $i--) {
-            $j = random_int(0, $i);
-            [$characters[$i], $characters[$j]] = [$characters[$j], $characters[$i]];
-        }
-
-        return implode('', $characters);
     }
 }

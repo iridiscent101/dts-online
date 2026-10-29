@@ -1,10 +1,9 @@
-{{-- Forgot password (ForgotPasswordController): a temporary password is emailed to the recovery email. --}}
 @extends('platform::auth')
 @section('title', __('Forgot password'))
 
 @section('content')
     <h1 class="dts-auth-title">{{ __('Forgot your password?') }}</h1>
-    <p class="dts-auth-subtitle">{{ __('We will email a temporary password to the recovery email saved in your profile.') }}</p>
+    <p class="dts-auth-subtitle">{{ __('We will email a reset link to your verified recovery email.') }}</p>
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">
@@ -33,13 +32,13 @@
             <input id="forgot-email" type="email" name="email" @class(['form-control', 'is-invalid' => $errors->has('email')]) value="{{ old('email') }}" required autofocus autocomplete="username" inputmode="email" placeholder="{{ __('The email you sign in with') }}" @if ($errors->any()) aria-invalid="true" @endif aria-describedby="{{ $errors->any() ? 'forgot-errors ' : '' }}forgot-email-help">
             <p class="form-text dts-forgot-hint" id="forgot-email-help">
                 <strong>{{ __('Type the email you use to sign in to this system,') }}</strong>
-                {{ __('not your recovery (Gmail) address. The temporary password goes to your recovery email.') }}
+                {{ __('not your recovery email. The reset link goes to your verified recovery email.') }}
             </p>
         </div>
 
         <button type="submit" class="btn btn-default dts-auth-submit">
             <x-orchid-icon path="bs.envelope"/>
-            {{ __('Send temporary password') }}
+            {{ __('Send reset link') }}
         </button>
     </form>
 

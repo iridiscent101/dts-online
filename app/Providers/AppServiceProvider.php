@@ -4,11 +4,14 @@ namespace App\Providers;
 
 use App\Auth\AccountActivity;
 use App\Auth\DtsUserProvider;
+use App\Auth\ResetUserPassword;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
+use App\Support\EmailLink;
 use App\View\Components\OrchidIcon;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Validated;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,6 +20,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use Laravel\Fortify\Fortify;
 use Orchid\Icons\IconComponent;
 
 class AppServiceProvider extends ServiceProvider
@@ -26,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        Fortify::ignoreRoutes();
         $this->app->bind(IconComponent::class, OrchidIcon::class);
     }
 
@@ -46,6 +51,10 @@ class AppServiceProvider extends ServiceProvider
 
         Event::subscribe(AccountActivity::class);
         Event::listen(Validated::class, [EnsureAccountIsActive::class, 'refuseSignIn']);
+        Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
+        Fortify::resetPasswordView(fn (Request $request) => view('platform::auth.reset-password', ['request' => $request]));
+        config(['fortify.views' => false, 'fortify.redirects.password-reset' => rtrim(config('platform.prefix', '/admin'), '/').'/login']);
+        ResetPassword::createUrlUsing(fn (User $user, string $token): string => EmailLink::route('password.reset', ['token' => $token, 'email' => $user->email]));
 
         // Sign-in accepts the real password or a pending temporary one (forgot password); after sign-in only the one
         // that was used is kept.

@@ -3,16 +3,26 @@
 namespace App\Notifications;
 
 use App\Support\EmailLink;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\HtmlString;
 
 /**
  * Tells the sender (the email they gave, if any) that their document is done: released to them, or finished by every
- * office it was routed to. Sent right away like the routing emails (DocumentNotificationDispatcher::finished).
+ * office it was routed to.
  */
-class DocumentFinishedClientNotification extends Notification
+class DocumentFinishedClientNotification extends Notification implements ShouldQueue
 {
+    use Queueable;
+
+    public int $tries = 3;
+
+    public array $backoff = [60, 300];
+
+    public int $timeout = 60;
+
     public const RELEASED = 'released';
 
     public const COMPLETED = 'completed';

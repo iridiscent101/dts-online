@@ -8,7 +8,7 @@
     <title>Signing kiosk | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css', 'resources/js/signature-pad.js'])
+    @vite(['resources/css/app.css', 'resources/js/signature-pad.js', 'resources/js/kiosk-face-check.js'])
 </head>
 {{-- The laptop outside the Records Unit (KioskController). It waits for a clerk's "Send to kiosk", shows only the
      tracking number and type of that one document, and sends back the recipient's name and signature. --}}
@@ -71,6 +71,19 @@
                 </div>
             </dl>
 
+            <dts-face-check data-model-path="{{ asset('models/human') }}" class="grid gap-4 rounded-sm border border-slate-300 bg-slate-50 p-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-900">Optional camera check</h2>
+                    <p class="mt-1 text-base text-slate-700">This checks that one live person is present. Processing stays on this device; no image or face data is sent or saved.</p>
+                </div>
+                <video data-face-video class="mx-auto aspect-video w-full max-w-lg -scale-x-100 rounded-sm bg-slate-900 object-cover" autoplay muted playsinline hidden></video>
+                <p data-face-status class="text-base font-semibold text-slate-700" role="status" aria-live="polite"></p>
+                <div class="flex flex-wrap gap-3">
+                    <button type="button" data-face-start class="min-h-12 rounded-sm bg-[#216E39] px-5 text-base font-semibold text-white hover:bg-[#18542B] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#F2C230]">Start camera check</button>
+                    <button type="button" data-face-skip class="min-h-12 rounded-sm border-2 border-slate-400 bg-white px-5 text-base font-semibold text-slate-700 hover:bg-slate-100 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#F2C230]">Use signature only</button>
+                </div>
+            </dts-face-check>
+
             <div>
                 <label for="kiosk-name" class="block text-lg font-semibold text-slate-800">Your full name <span class="text-base font-normal text-slate-600">(optional)</span></label>
                 <input id="kiosk-name" name="recipient_name" maxlength="255" autocomplete="off" class="mt-2 block min-h-14 w-full rounded-sm border-2 border-[#B3843F] bg-white px-4 text-xl text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#F2C230]">
@@ -132,6 +145,7 @@
             const error = form.querySelector('[data-kiosk-error]');
             const submit = form.querySelector('[data-kiosk-submit]');
             const submitLabel = form.querySelector('[data-kiosk-submit-label]');
+            const faceCheck = form.querySelector('dts-face-check');
             const nameInput = form.querySelector('[name="recipient_name"]');
             const csrf = document.querySelector('meta[name="csrf-token"]').content;
             let current = null;
@@ -145,6 +159,10 @@
                 error.hidden = true;
                 submit.disabled = false;
                 submitLabel.textContent = 'Submit signature';
+                customElements.whenDefined('dts-face-check').then(() => {
+                    faceCheck.reset();
+                    faceCheck.querySelector('[data-face-start]').focus();
+                });
             };
 
             const open = (request) => {
@@ -159,10 +177,16 @@
 
             const backToIdle = (section, seconds) => {
                 current = null;
+                faceCheck.reset?.();
                 show(section);
                 pauseUntil = Date.now() + seconds * 1000;
                 setTimeout(() => { if (!current) show(idle); }, seconds * 1000);
             };
+
+            faceCheck.addEventListener('face-check-complete', () => {
+                submit.disabled = false;
+                nameInput.focus();
+            });
 
             async function poll() {
                 if (Date.now() >= pauseUntil && !submit.disabled) {

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Support\SendAfterResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
@@ -107,8 +108,13 @@ class DocumentNotificationDispatcher
             return;
         }
 
-        // Sent after the routing is saved; no queue worker needed.
-        SendAfterResponse::mail(fn () => Notification::route('mail', $email)->notifyNow($notification));
+        if (config('queue.default') === 'sync') {
+            SendAfterResponse::mail(fn () => retry(3, fn () => Notification::route('mail', $email)->notifyNow($notification), 1000));
+
+            return;
+        }
+
+        DB::afterCommit(fn () => rescue(fn () => Notification::route('mail', $email)->notify($notification)));
     }
 
     /**

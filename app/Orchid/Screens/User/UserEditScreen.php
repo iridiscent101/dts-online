@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Orchid\Screens\User;
 
 use App\Auth\AccountActivity;
+use App\Http\Controllers\RecoveryEmailController;
 use App\Models\Office;
 use App\Models\User;
 use App\Orchid\Layouts\User\UserEditLayout;
@@ -206,6 +207,7 @@ class UserEditScreen extends Screen
 
         $passwordChanged = $user->exists && $request->filled('user.password');
 
+        $previousRecoveryEmail = $user->notification_email;
         DB::transaction(function () use ($request, $user, $passwordChanged): void {
             if ($request->has('user.notification_email')) {
                 $user->setNotificationEmail($request->input('user.notification_email'));
@@ -234,6 +236,10 @@ class UserEditScreen extends Screen
                 AccountActivity::record(AccountActivity::PASSWORD_CHANGED, $user, $request->user(), ['set_by_admin' => true]);
             }
         });
+
+        if ($previousRecoveryEmail !== $user->notification_email && filled($user->notification_email)) {
+            RecoveryEmailController::sendVerification($user);
+        }
 
         Toast::success(__('User was saved.'));
 

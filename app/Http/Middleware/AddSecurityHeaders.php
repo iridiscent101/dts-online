@@ -24,7 +24,8 @@ class AddSecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
         $response->headers->set('Referrer-Policy', 'same-origin');
-        $response->headers->set('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
+        $cameraPolicy = $request->routeIs('kiosk') ? 'camera=(self)' : 'camera=()';
+        $response->headers->set('Permissions-Policy', $cameraPolicy.', geolocation=(), microphone=()');
 
         // Browsers remember to use HTTPS for a year once they have reached the live site over HTTPS.
         if ($request->isSecure() && app()->isProduction()) {
@@ -34,7 +35,11 @@ class AddSecurityHeaders
         $mode = config('app.csp_mode');
         if ($mode !== 'off') {
             $header = $mode === 'report-only' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
-            $response->headers->set($header, $this->contentSecurityPolicy($nonce, $request->routeIs('platform.documents.attachments.preview')));
+            $response->headers->set($header, $this->contentSecurityPolicy(
+                $nonce,
+                $request->routeIs('platform.documents.attachments.preview'),
+                $request->routeIs('kiosk'),
+            ));
         }
 
         return $response;
@@ -47,7 +52,7 @@ class AddSecurityHeaders
      * The attachment preview page is the file viewer package's own HTML: it loads its libraries from CDNs, runs inline
      * scripts without a nonce and embeds Google's document viewer, so that one page gets those sources instead.
      */
-    private function contentSecurityPolicy(string $nonce, bool $filePreview = false): string
+    private function contentSecurityPolicy(string $nonce, bool $filePreview = false, bool $camera = false): string
     {
         // While `npm run dev` runs, assets and hot reload come from the Vite dev server.
         $dev = Vite::isRunningHot() ? rtrim(trim((string) file_get_contents(Vite::hotFile())), '/') : null;
@@ -81,6 +86,10 @@ class AddSecurityHeaders
             $directives['font-src'] = [...$directives['font-src'], ...$cdns];
             $directives['connect-src'] = [...$directives['connect-src'], ...$cdns];
             $directives['frame-src'] = ["'self'", 'https://docs.google.com'];
+            $directives['media-src'] = ["'self'", 'blob:'];
+        }
+
+        if ($camera) {
             $directives['media-src'] = ["'self'", 'blob:'];
         }
 

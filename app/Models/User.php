@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Auth\AccountActivity;
 use App\Notifications\TemporaryPasswordNotification;
+use App\Notifications\VerifyRecoveryEmail;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -40,6 +42,9 @@ class User extends Authenticatable
         // Any new password (changed in the profile, set by an administrator, or taken from the temporary one) ends a
         // pending temporary password.
         static::saving(function (User $user): void {
+            if ($user->exists && ($user->isDirty('notification_email') || $user->isDirty('password') || $user->isDirty('email'))) {
+                DB::table('password_reset_tokens')->where('email', $user->getOriginal('email'))->delete();
+            }
             if ($user->isDirty('password') && ! $user->isDirty('temporary_password')) {
                 $user->temporary_password = null;
                 $user->temporary_password_expires_at = null;
@@ -73,6 +78,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'temporary_password',
+        'recovery_email_verification_token',
         'remember_token',
         'permissions',
     ];
@@ -233,18 +239,20 @@ class User extends Authenticatable
 
     public function routeNotificationForMail(Notification $notification): ?string
     {
-        // A temporary password goes to the recovery email, never to the sign-in email.
-        return $notification instanceof TemporaryPasswordNotification
+        // Recovery notifications go to the separate recovery address.
+        return $notification instanceof TemporaryPasswordNotification || $notification instanceof ResetPassword || $notification instanceof VerifyRecoveryEmail
             ? $this->notification_email
             : $this->email;
     }
 
-    /**
-     * The recovery email is used as soon as it is saved: there is no confirmation email to click first.
-     */
     public function setNotificationEmail(?string $address): void
     {
-        $this->notification_email = filled($address) ? Str::lower(trim($address)) : null;
+        $address = filled($address) ? Str::lower(trim($address)) : null;
+        if ($address !== $this->notification_email) {
+            $this->notification_email_verified_at = null;
+            $this->recovery_email_verification_token = null;
+        }
+        $this->notification_email = $address;
     }
 
     public function canManageRole(Role $role): bool

@@ -448,7 +448,9 @@ class KioskSigningTest extends TestCase
         $this->actingAs($kiosk)->get(route('kiosk'))
             ->assertOk()
             ->assertSee('Please wait')
-            ->assertSee('<dts-signature-pad', false);
+            ->assertSee('<dts-signature-pad', false)
+            ->assertSee('<dts-face-check', false)
+            ->assertHeader('Permissions-Policy', 'camera=(self), geolocation=(), microphone=()');
         // Signing in at /admin/login lands on the dashboard: the kiosk account is sent to its screen instead.
         $this->get(route('platform.main'))->assertRedirect(route('kiosk'));
         $this->get(route('platform.documents'))->assertRedirect(route('kiosk'));

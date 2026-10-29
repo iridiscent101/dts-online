@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\User;
 use App\Notifications\DocumentNotificationDispatcher;
 use App\Notifications\DocumentRoutedClientNotification;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Illuminate\Foundation\Testing\RefreshDatabaseState;
 use Illuminate\Support\Facades\DB;
@@ -61,19 +62,21 @@ class SynchronousDocumentMailTest extends TestCase
         $this->assertTrue($committed);
     }
 
-    public function test_vercel_sends_before_the_response_and_other_servers_after_it(): void
+    public function test_vercel_sends_before_the_response_and_other_servers_queue_it_with_retries(): void
     {
         config()->set('mail.document_assignment_notifications_enabled', true);
-        Notification::fake();
         $actor = User::factory()->create(['office' => 'Records Unit']);
         $document = Document::factory()->received()->create(['client_email' => 'client@gmail.com']);
 
-        // A normal server leaves the email for after the response (nothing is sent yet at this point).
+        // A server with a queue worker hands the email to the queue, which retries it if the mail server fails.
+        Notification::fake();
         config()->set('queue.default', 'database');
         app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
-        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 0);
+        Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
+        $this->assertInstanceOf(ShouldQueue::class, new DocumentRoutedClientNotification($document->tracking_number, ['Administrative Unit']));
 
         // Vercel (sync queue) sends it straight away, before its function can be frozen.
+        Notification::fake();
         config()->set('queue.default', 'sync');
         app(DocumentNotificationDispatcher::class)->assigned($document, 'forward', $actor, ['Administrative Unit']);
         Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
