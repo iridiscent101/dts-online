@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Models\User;
 use App\Support\SendAfterResponse;
 use Illuminate\Database\Eloquent\Builder;
@@ -35,7 +36,7 @@ class DocumentNotificationDispatcher
             new DocumentAssignedNotification($document, 'submitted', 'a client'),
         );
 
-        $this->emailClient($document, ['SDO-Records Unit']);
+        $this->emailClient($document, [Office::RECORDS_UNIT_NAME]);
     }
 
     public function changed(Document $document, string $change, User $actor): void

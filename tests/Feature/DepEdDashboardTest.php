@@ -1375,8 +1375,8 @@ class DepEdDashboardTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSeeInOrder(['<span>Needs action</span>', '<strong>1</strong>'], false)
-            // Client document/s waiting are part of Needs action, so they have no card of their own.
-            ->assertDontSee('<span>Document/s waiting</span>', false)
+            // Client submissions waiting for physical document/s are part of Needs action, so they have no card of their own.
+            ->assertDontSee('<span>Physical document/s waiting</span>', false)
             // Queue: "Quick action" column without a View icon.
             ->assertSee('<th scope="col">Quick action</th>', false)
             ->assertDontSee('data-tooltip="View"', false)
@@ -1656,7 +1656,7 @@ class DepEdDashboardTest extends TestCase
         $this->actingAs($records)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSeeInOrder(['<th scope="col">Offices and status</th>', '<th scope="col">Date registered</th>', '<th scope="col">Quick action</th>'], false)
+            ->assertSeeInOrder(['<th scope="col">Offices and status</th>', '<th scope="col">Date added</th>', '<th scope="col">Quick action</th>'], false)
             ->assertSee('<td class="dts-queue-registered"><time datetime="'.$document->created_at->toIso8601String().'">Oct 20, 2026<span class="dts-muted">10:30 AM</span></time></td>', false);
     }
 }

@@ -37,7 +37,7 @@ class DocumentReceiptTest extends TestCase
             ->assertSee('src="data:image/svg+xml;base64,', false)
             ->assertSee('Request')
             ->assertSee('Hand carry')
-            ->assertSee('Bring the document/s and this receipt to the Records Unit counter.')
+            ->assertSee('Bring the physical document/s and this receipt to the Records Unit counter.')
             ->assertSee('data-print-receipt', false)
             ->assertDontSee('Private client title')
             ->assertDontSee('Private Sender');
@@ -50,7 +50,7 @@ class DocumentReceiptTest extends TestCase
         $this->get(route('tracking.receipt', 'sdonv98765432198'))
             ->assertOk()
             ->assertSee('Memorandum on travel')
-            ->assertDontSee('Bring the document/s');
+            ->assertDontSee('Bring the physical document/s');
 
         $this->get(route('tracking.receipt', 'SDONV11111111111'))->assertNotFound();
         $this->get('/receipt/not-a-number')->assertNotFound();

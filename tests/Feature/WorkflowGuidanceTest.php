@@ -95,9 +95,9 @@ class WorkflowGuidanceTest extends TestCase
             ->assertOk()
             ->assertSee('Status guide')
             ->assertSee('>Pending</span>', false)
-            ->assertSeeInOrder(['Being reviewed:', 'the office is checking the document before acting on it.'])
-            ->assertSeeInOrder(['Awaiting acknowledgment of receipt:', 'sent to the office, which has not received it yet.'])
-            ->assertSeeInOrder(['Waiting for document/s:', 'the document/s are not at the Records Unit yet.']);
+            ->assertDontSee('Being reviewed:')
+            ->assertSeeInOrder(['Awaiting receipt:', 'sent to the office, which has not received it yet.'])
+            ->assertSeeInOrder(['Waiting for physical document/s:', 'the physical document/s are not at the Records Unit yet.']);
     }
 
     public function test_client_sees_what_to_do_next_while_the_paper_copy_is_pending(): void
@@ -113,9 +113,9 @@ class WorkflowGuidanceTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => 'DTS-PAPER-NEXT']))
             ->assertOk()
-            // The status card shows the office card ("Pending · Waiting for document/s"); the separate "What happens
+            // The status card shows the office card ("Pending · Waiting for physical document/s"); the separate "What happens
             // next" steps and the per-status explanation box were removed (the status guide still explains them).
-            ->assertSee('Waiting for document/s')
+            ->assertSee('Waiting for physical document/s')
             ->assertDontSee('The Records Unit must receive the document before processing can start.')
             ->assertDontSee('What happens next');
 

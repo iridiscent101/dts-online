@@ -745,7 +745,7 @@ class DocumentEditingTest extends TestCase
             ->assertSee('Not received')
             ->assertSee('<span>Date received </span>', false)
             ->assertSee('aria-describedby="workspace-dates-pending"', false)
-            ->assertSee('The date is set when the Records Unit receives the document/s.')
+            ->assertSee('The date is set when the Records Unit receives the physical document/s.')
             ->assertDontSee('name="document[due]"', false);
 
         $this->get(route('platform.documents.edit', $document))

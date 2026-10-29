@@ -26,7 +26,7 @@ class PlatformScreen extends Screen
     // "Rows per page" choices for the dashboard queue, as in the document registry.
     private const OFFICE_QUEUE_PAGE_SIZES = [10, 25, 50, 100];
 
-    // Sent to an office that has not received it yet ("Pending · Awaiting acknowledgment of receipt").
+    // Sent to an office that has not received it yet ("Pending · Awaiting receipt").
     private const NOT_RECEIVED_STATUSES = [
         DocumentMovement::STATUS_AWAITING_RECEIPT,
         DocumentMovement::STATUS_FORWARDED,

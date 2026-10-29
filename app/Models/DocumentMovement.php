@@ -12,29 +12,34 @@ class DocumentMovement extends Model
     /** @use HasFactory<DocumentMovementFactory> */
     use HasFactory;
 
-    public const ACTION_ACKNOWLEDGE = 'acknowledge';
-
-    public const ACTION_ARCHIVE = 'archive';
-
-    public const ACTION_CANCELLED = 'cancelled';
-
-    public const ACTION_APPROVED = 'approved';
-
-    public const ACTION_COMPLETED = 'completed';
-
-    public const ACTION_FORWARD = 'forward';
+    /** Staff-selectable workflow actions. */
+    public const ACTION_RECEIVED = 'received';
 
     public const ACTION_FORWARDED = 'forwarded';
 
-    public const ACTION_ON_HOLD = 'on_hold';
-
-    public const ACTION_RECEIVED = 'received';
-
-    public const ACTION_REJECTED = 'rejected';
+    public const ACTION_COMPLETED = 'completed';
 
     public const ACTION_RELEASED = 'released';
 
     public const ACTION_RESTORED = 'restore';
+
+    /** System-generated history events; staff do not select these. */
+    public const ACTION_SENT = 'sent';
+
+    public const ACTION_CANCELLED = 'cancelled';
+
+    /** Historical action names retained so older movement history remains readable. */
+    public const ACTION_ACKNOWLEDGE = 'acknowledge';
+
+    public const ACTION_ARCHIVE = 'archive';
+
+    public const ACTION_APPROVED = 'approved';
+
+    public const ACTION_FORWARD = 'forward';
+
+    public const ACTION_ON_HOLD = 'on_hold';
+
+    public const ACTION_REJECTED = 'rejected';
 
     public const ACTION_RETURNED = 'returned';
 
@@ -42,7 +47,13 @@ class DocumentMovement extends Model
 
     public const ACTION_REVIEWED = 'reviewed';
 
-    public const ACTION_SENT = 'sent';
+    public const USER_ACTIONS = [
+        self::ACTION_RECEIVED,
+        self::ACTION_FORWARDED,
+        self::ACTION_COMPLETED,
+        self::ACTION_RELEASED,
+        self::ACTION_RESTORED,
+    ];
 
     public const STATUS_APPROVED = 'Approved';
 
@@ -110,24 +121,6 @@ class DocumentMovement extends Model
         self::STATUS_REVIEWED,
         self::STATUS_APPROVED,
         self::STATUS_ON_HOLD,
-    ];
-
-    public const ROUTING_ACTIONS = [
-        self::ACTION_SENT,
-        self::ACTION_RECEIVED,
-        self::ACTION_FORWARD,
-        self::ACTION_FORWARDED,
-        self::ACTION_RETURNED,
-        self::ACTION_RESUBMITTED,
-        self::ACTION_REVIEWED,
-        self::ACTION_APPROVED,
-        self::ACTION_REJECTED,
-        self::ACTION_ON_HOLD,
-        self::ACTION_RELEASED,
-        self::ACTION_COMPLETED,
-        self::ACTION_ACKNOWLEDGE,
-        self::ACTION_ARCHIVE,
-        self::ACTION_RESTORED,
     ];
 
     /** Actions by which an office sends a document on; they put it in that office's Outgoing tab. */
@@ -226,7 +219,7 @@ class DocumentMovement extends Model
         return match ($this->action) {
             self::ACTION_ACKNOWLEDGE, self::ACTION_RECEIVED => "{$this->to_office} received the document",
             self::ACTION_SENT => $this->from_office ? "{$this->from_office} sent it to {$this->to_office}" : "Sent to {$this->to_office}",
-            self::ACTION_FORWARD, self::ACTION_FORWARDED => "Document/s forwarded to {$this->to_office}",
+            self::ACTION_FORWARD, self::ACTION_FORWARDED => "Document forwarded to {$this->to_office}",
             self::ACTION_RETURNED => "{$actingOffice} returned it to {$this->to_office}",
             self::ACTION_RESUBMITTED => "{$actingOffice} resubmitted it to {$this->to_office}",
             self::ACTION_REVIEWED => "{$actingOffice} reviewed the document",
@@ -239,7 +232,7 @@ class DocumentMovement extends Model
             self::ACTION_RESTORED => "Restored to {$this->to_office}",
             self::ACTION_CANCELLED => "Route to {$this->to_office} cancelled",
             default => match (true) {
-                $this->from_office !== $this->to_office => "Document/s forwarded to {$this->to_office}",
+                $this->from_office !== $this->to_office => "Document forwarded to {$this->to_office}",
                 $this->from_status !== $this->to_status => "{$actingOffice} changed the status to {$this->to_status}",
                 default => "{$actingOffice} added a routing note",
             },
@@ -330,9 +323,9 @@ class DocumentMovement extends Model
     }
 
     /**
-     * Whether an office in this status is still waiting to acknowledge receipt.
+     * Whether an office in this status is still waiting to receive the document.
      */
-    public static function requiresAcknowledgement(string $status): bool
+    public static function requiresReceipt(string $status): bool
     {
         return in_array($status, [
             self::STATUS_AWAITING_PHYSICAL_DOCUMENT,

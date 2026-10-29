@@ -1,5 +1,5 @@
 @php
-    // Outgoing list only: Correct route and Send to another office (App\Support\RouteFixActions); the dashboard queue
+    // Outgoing list only: Correct route and Add office route (App\Support\RouteFixActions); the dashboard queue
     // shows the same two fixes as icons.
     ['correction' => $routeCorrection, 'additional' => $additionalRoute] = request()->routeIs('platform.outgoing')
         ? \App\Support\RouteFixActions::for($document, request()->user())
@@ -13,7 +13,7 @@
         @include('orchid.partials.route-fix-offices')
     @endif
     @if ($additionalRoute)
-        <button type="button" class="btn dts-row-action dts-row-action-send" data-additional-route='@json($additionalRoute)' data-tooltip="Send to another office" aria-label="Send {{ $document->tracking_number }} to another office"><x-orchid-icon path="bs.send-plus" /> Send to another office</button>
+        <button type="button" class="btn dts-row-action dts-row-action-send" data-additional-route='@json($additionalRoute)' data-tooltip="Add office route" aria-label="Add an office route for {{ $document->tracking_number }}"><x-orchid-icon path="bs.send-plus" /> Add office route</button>
     @endif
     @if ($canEdit)
         <a class="btn dts-row-action dts-row-action-edit" href="{{ $editUrl }}" data-workspace-url="{{ $workspaceUrl }}" data-workspace-edit-open data-tooltip="Edit"><x-orchid-icon path="bs.pencil" /> Edit</a>

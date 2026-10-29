@@ -701,7 +701,7 @@ document.addEventListener('click', async (event) => {
             const notice = routing.querySelector('[data-workspace-route-readonly]');
             notice.hidden = canAct;
             if (!canAct) notice.textContent = route.hasAttribute('data-workspace-route-waiting')
-                ? 'This office receives the document/s once the Records Unit receives them.'
+                ? 'This office receives the physical document/s once the Records Unit receives them.'
                 : (isAssignedOffice
                     ? 'No routing action is available for this office.'
                     : "You don't have permission to edit this office's routing information.");
@@ -1910,7 +1910,7 @@ class WorkflowRouting extends HTMLElement {
 
 if (!customElements.get('dts-workflow-routing')) customElements.define('dts-workflow-routing', WorkflowRouting);
 
-// Outgoing list and dashboard: "Send to another office" (orchid/cells/document-row-actions). Adds one more office to an
+// Outgoing list and dashboard: "Add office route" (orchid/cells/document-row-actions). Adds one more office to an
 // active document, with the reason, which the history keeps; the original routes are not touched.
 function additionalRouteDialog() {
     let dialog = document.querySelector('#dts-additional-route-dialog');
@@ -1921,7 +1921,7 @@ function additionalRouteDialog() {
     dialog.className = 'dts-app-dialog dts-additional-route-dialog';
     dialog.setAttribute('aria-labelledby', 'dts-additional-route-title');
     dialog.innerHTML = `
-        <div class="dts-app-dialog-header"><h2 id="dts-additional-route-title">Send to another office</h2></div>
+        <div class="dts-app-dialog-header"><h2 id="dts-additional-route-title">Add office route</h2></div>
         <div class="dts-app-dialog-content dts-additional-route-fields">
             <p class="dts-additional-route-document"><strong data-additional-route-tracking></strong><span data-additional-route-subject></span></p>
             <p class="dts-field-hint">The offices it already went to stay as they are. This adds one more office.</p>
@@ -2883,8 +2883,8 @@ async function confirmPaperReceipt(lookupUrl, data) {
 
 function paperSentText(offices) {
     return offices.length === 0
-        ? 'Document/s received.'
-        : `Document/s sent to ${offices.length} ${offices.length === 1 ? 'office' : 'offices'}`;
+        ? 'Physical document/s received.'
+        : `Physical document/s sent to ${offices.length} ${offices.length === 1 ? 'office' : 'offices'}`;
 }
 
 // Dashboard action queue: reveal the rows past the first five in place, then offer the next dashboard page.
@@ -2900,7 +2900,7 @@ document.addEventListener('click', (event) => {
     extraRows[0]?.querySelector('a, button')?.focus();
 });
 
-// One button, no confirmation: the document/s are received and the queue reloads with the row's next actions.
+// One button, no confirmation: the physical document/s are received and the queue reloads with the row's next actions.
 document.addEventListener('click', async (event) => {
     const button = event.target.closest('[data-paper-received]');
     if (!button || button.disabled) return;

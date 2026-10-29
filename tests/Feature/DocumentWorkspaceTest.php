@@ -378,7 +378,7 @@ class DocumentWorkspaceTest extends TestCase
             ->assertForbidden();
 
         $this->postJson(route('platform.documents.movements.store', $document), [
-            'workflow' => ['source_office' => 'Records Unit', 'action' => 'reviewed'],
+            'workflow' => ['source_office' => 'Records Unit', 'action' => 'completed'],
         ])->assertForbidden();
 
         $this->postJson(route('platform.documents.movements.store', $document), [

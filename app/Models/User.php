@@ -274,21 +274,21 @@ class User extends Authenticatable
      */
     public function canViewFullDocumentHistory(): bool
     {
-        return $this->isAdministrator() || $this->isAssignedToOffice('SDO-Records Unit');
+        return $this->isAdministrator() || $this->isAssignedToOffice(Office::RECORDS_UNIT_NAME);
     }
 
     public function canConfirmPaperIntake(): bool
     {
         return ! $this->isReadOnlySupervisor()
             && $this->hasAccess('platform.index')
-            && ($this->isAdministrator() || $this->isAssignedToOffice('SDO-Records Unit'));
+            && ($this->isAdministrator() || $this->isAssignedToOffice(Office::RECORDS_UNIT_NAME));
     }
 
     public function canRegisterDocument(): bool
     {
         return ! $this->isReadOnlySupervisor()
             && $this->hasAccess('platform.index')
-            && ($this->isAdministrator() || $this->assignedOfficeNames()->intersect(['SDO-Records Unit', 'Records Unit'])->isNotEmpty());
+            && ($this->isAdministrator() || $this->assignedOfficeNames()->intersect(Office::RECORDS_UNIT_NAMES)->isNotEmpty());
     }
 
     public function offices(): BelongsToMany

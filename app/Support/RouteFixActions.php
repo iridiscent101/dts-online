@@ -10,7 +10,7 @@ use App\Models\User;
 /**
  * The two fixes for a document an office already sent, shown on the Outgoing list and the dashboard queue:
  * "Correct route" swaps a destination chosen by mistake while that office has not received it yet
- * (Document::correctableRoutesFor), and "Send to another office" adds one more route while the original routes stay
+ * (Document::correctableRoutesFor), and "Add office route" adds one more route while the original routes stay
  * as they are (DocumentRoutingService::addAdditionalRoute). Each is null when it does not apply; otherwise it holds the
  * data its dialog in dts.js needs.
  */
@@ -76,7 +76,7 @@ class RouteFixActions
 
         $unavailableOffices = $document->officeAssignments
             ->filter(fn (DocumentOfficeAssignment $assignment): bool => in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true)
-                || DocumentMovement::requiresAcknowledgement($assignment->status))
+                || DocumentMovement::requiresReceipt($assignment->status))
             ->pluck('office');
         $sendingOffices = $sendingOffices->diff($unavailableOffices)->values();
 

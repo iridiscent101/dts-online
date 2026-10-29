@@ -16,10 +16,10 @@
                  below; the cards that open a menu page carry that page's name (Incoming, Outgoing, Archived). --}}
             @php
                 $summaryCards = [
-                    ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' waiting for your office', 'bs.inbox', 'green', '#office-queue-title'],
+                    ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' waiting for your office', 'bs.list-task', 'green', '#office-queue-title'],
                     ['Incoming', $notReceivedCount, 'not received yet; receive these first', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
                     ['Outgoing', $sentWaitingCount, 'sent; the next office has not received '.($sentWaitingCount === 1 ? 'it' : 'them').' yet', 'bs.send', 'blue', route('platform.outgoing')],
-                    ['Archived', $archivedCount, Str::plural('document', $archivedCount).' completed or released', 'bs.check2-circle', 'teal', route('platform.archived')],
+                    ['Archived', $archivedCount, Str::plural('document', $archivedCount).' completed or released', 'bs.archive', 'teal', route('platform.archived')],
                 ];
             @endphp
             <ul class="dts-metrics dts-metrics-bold" aria-label="Work summary" data-metric-count="{{ count($summaryCards) }}">
@@ -40,7 +40,7 @@
                         <h3 id="office-queue-title">{{ $workspaceOffice === 'All offices' ? 'Action queue' : $workspaceOffice }}</h3>
                         <p class="dts-section-caption">{{ $workspaceOffice === 'All offices' ? 'All offices' : 'Documents waiting for your office' }}</p>
                         @if (($paperWaitingCount ?? 0) > 0)
-                            <p class="dts-section-description">Client document/s: receive them, print the label, then send them to the offices.</p>
+                            <p class="dts-section-description">Client submissions: receive the physical document/s, print the labels, then send them to the offices.</p>
                         @endif
                     </div>
                     <div class="tw:flex tw:flex-wrap tw:items-center tw:gap-2">
@@ -50,7 +50,7 @@
                 <div class="dts-table-frame">
                     <div class="dts-table-scroll">
                       <table class="dts-table dts-office-queue-table">
-                        <thead><tr><th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Date registered</th><th scope="col">Quick action</th></tr></thead>
+                        <thead><tr><th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Date added</th><th scope="col">Quick action</th></tr></thead>
                         <tbody>
                             @forelse ($officeQueue as $queueItem)
                                 @php
@@ -58,7 +58,7 @@
                                         \App\Models\DocumentMovement::ACTION_RECEIVED => ['bs.box-arrow-in-down', 'Receive'],
                                         \App\Models\DocumentMovement::ACTION_FORWARDED => ['bs.send', 'Forward'],
                                         \App\Models\DocumentMovement::ACTION_COMPLETED => ['bs.check2-circle', 'Complete'],
-                                        \App\Models\DocumentMovement::ACTION_RELEASED => ['bs.box-arrow-up-right', 'Release'],
+                                        \App\Models\DocumentMovement::ACTION_RELEASED => ['bs.file-earmark-arrow-up', 'Release'],
                                     ];
                                     $document = $queueItem['document'];
                                     $queueOffices = $queueItem['offices'];
@@ -115,7 +115,7 @@
                                         {{-- Icon-only buttons; each label shows as a tooltip on hover and on keyboard focus. --}}
                                         <div class="dts-queue-icons">
                                             @if (($canConfirmPaperIntake ?? false) && $awaitsPaper)
-                                                <button type="button" class="dts-queue-icon is-primary dts-paper-received" data-paper-received="{{ $document->tracking_number }}" data-lookup-url="{{ route('platform.documents.intake') }}" data-tooltip="Document/s received" aria-label="Document/s received for {{ $document->tracking_number }}"><x-orchid-icon path="bs.check2-circle" /></button>
+                                                <button type="button" class="dts-queue-icon is-primary dts-paper-received" data-paper-received="{{ $document->tracking_number }}" data-lookup-url="{{ route('platform.documents.intake') }}" data-tooltip="Physical document/s received" aria-label="Physical document/s received for {{ $document->tracking_number }}"><x-orchid-icon path="bs.clipboard-check" /></button>
                                             @endif
                                             @foreach ($queueActions as $action => $actionOffice)
                                                 @if ($action === \App\Models\DocumentMovement::ACTION_RECEIVED)
@@ -137,9 +137,9 @@
                                                 <button type="button" class="dts-queue-icon" data-route-correction='@json($routeCorrection)' data-tooltip="Correct route" aria-label="Correct the route of {{ $document->tracking_number }}"><x-orchid-icon path="bs.arrow-left-right" /></button>
                                             @endif
                                             @if ($additionalRoute)
-                                                <button type="button" class="dts-queue-icon" data-additional-route='@json($additionalRoute)' data-tooltip="Send to another office" aria-label="Send {{ $document->tracking_number }} to another office"><x-orchid-icon path="bs.send-plus" /></button>
+                                                <button type="button" class="dts-queue-icon" data-additional-route='@json($additionalRoute)' data-tooltip="Add office route" aria-label="Add an office route for {{ $document->tracking_number }}"><x-orchid-icon path="bs.send-plus" /></button>
                                             @endif
-                                            {{-- The label is printed only once the document/s are received; Document/s received adds it to the row then. --}}
+                                            {{-- The label is printed only once the physical document/s are received; the receipt action adds it to the row then. --}}
                                             @unless ($awaitsPaper || $receiveOffices->isNotEmpty())
                                                 <a class="dts-queue-icon" href="{{ route('platform.documents.label', $document) }}" target="_blank" rel="noopener" data-turbo="false" data-tooltip="Print label" aria-label="Print label for {{ $document->tracking_number }}"><x-orchid-icon path="bs.printer" /></a>
                                             @endunless

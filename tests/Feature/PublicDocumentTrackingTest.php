@@ -112,7 +112,7 @@ class PublicDocumentTrackingTest extends TestCase
             'created_at' => '2026-09-25 01:00:00',
         ]);
         $document->movements()->create([
-            'action' => 'forward',
+            'action' => 'forwarded',
             'from_office' => 'Records Unit',
             'to_office' => 'Administrative Unit',
             'from_status' => 'Received',
@@ -123,7 +123,7 @@ class PublicDocumentTrackingTest extends TestCase
             'updated_at' => '2026-09-25 03:00:00',
         ]);
         $document->movements()->create([
-            'action' => 'acknowledge',
+            'action' => 'received',
             'from_office' => 'Administrative Unit',
             'to_office' => 'Administrative Unit',
             'from_status' => 'Forwarded',
@@ -150,7 +150,7 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSeeInOrder([
                 'Current status',
                 'Administrative Unit received the document',
-                'Document/s forwarded to Administrative Unit',
+                'Document forwarded to Administrative Unit',
                 'Document registered',
             ])
             ->assertSee('data-kind="received"', false)
@@ -171,7 +171,7 @@ class PublicDocumentTrackingTest extends TestCase
         $actor = User::factory()->create(['name' => '<script>alert("staff")</script>']);
         $document = Document::factory()->create(['tracking_number' => 'DTS-2026-000125']);
         $document->movements()->create([
-            'action' => 'acknowledge',
+            'action' => 'received',
             'from_office' => 'Records Unit',
             'to_office' => 'Records Unit',
             'from_status' => 'Forwarded',
@@ -321,7 +321,7 @@ class PublicDocumentTrackingTest extends TestCase
             ]);
         }
         $document->movements()->create([
-            'action' => 'acknowledge',
+            'action' => 'received',
             'from_office' => 'Administrative Unit',
             'to_office' => 'Administrative Unit',
             'to_status' => 'Received',
@@ -347,7 +347,7 @@ class PublicDocumentTrackingTest extends TestCase
             'created_at' => '2026-09-25 01:00:00',
         ]);
         $document->movements()->create([
-            'action' => 'forward',
+            'action' => 'forwarded',
             'from_office' => 'Records Unit',
             'to_office' => 'Administrative Unit',
             'from_status' => 'Received',
@@ -364,7 +364,7 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertOk()
             ->assertSee('data-kind="remark"', false)
             // The writer is named once, before the remark ("Remark Author: ..."), with no separate "Added by" row.
-            ->assertSeeInOrder(['Administrative Unit added a remark', 'Remark Author', 'Waiting for the signed annex.', 'Document/s forwarded to Administrative Unit', 'Document registered'])
+            ->assertSeeInOrder(['Administrative Unit added a remark', 'Remark Author', 'Waiting for the signed annex.', 'Document forwarded to Administrative Unit', 'Document registered'])
             ->assertDontSee('Added by');
 
         // The office filter treats it as one of that office's steps.

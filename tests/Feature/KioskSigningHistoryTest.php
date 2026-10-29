@@ -38,7 +38,7 @@ class KioskSigningHistoryTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertSeeInOrder(['Ian Nico Perillo signed for the document/s', 'Document registered']);
+            ->assertSeeInOrder(['Ian Nico Perillo signed for the document', 'Document registered']);
         $this->actingAs($records)->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Signed for by the recipient')
@@ -63,7 +63,7 @@ class KioskSigningHistoryTest extends TestCase
 
         $this->assertFalse($document->activities()->where('description', 'Release signed')->exists());
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertOk()->assertDontSee('signed for the document/s');
+            ->assertOk()->assertDontSee('signed for the document');
     }
 
     public function test_backfill_adds_only_signings_a_release_used_and_only_once(): void

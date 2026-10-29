@@ -16,6 +16,10 @@ class Office extends Model
 {
     use AsSource, Filterable;
 
+    public const RECORDS_UNIT_NAME = 'SDO-Records Unit';
+
+    public const RECORDS_UNIT_NAMES = [self::RECORDS_UNIT_NAME, 'Records Unit'];
+
     protected $fillable = [
         'name',
         'sort_order',
@@ -67,7 +71,7 @@ class Office extends Model
 
     public function canBeDeleted(): bool
     {
-        if ($this->name === 'SDO-Records Unit' || $this->users()->exists()) {
+        if (in_array($this->name, self::RECORDS_UNIT_NAMES, true) || $this->users()->exists()) {
             return false;
         }
 

@@ -97,7 +97,7 @@ class DocumentLabelTest extends TestCase
             'to_status' => DocumentMovement::STATUS_RECEIVED,
         ]);
         DocumentMovement::factory()->for($document)->for($forwarder, 'actor')->create([
-            'action' => DocumentMovement::ACTION_FORWARD,
+            'action' => DocumentMovement::ACTION_FORWARDED,
             'from_office' => 'SDO-Records Unit',
         ]);
 

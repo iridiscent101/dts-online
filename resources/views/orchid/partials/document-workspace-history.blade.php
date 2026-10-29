@@ -1,7 +1,7 @@
 {{-- Laid out like the Fast Track "Document movement" timeline: a day heading, a colored step icon on a line, the
      step title, then From / destination / status / date / who, and the remarks in full. --}}
 @php
-    $historyIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.pencil-square', 'remark' => 'bs.chat-left-text', 'registered' => 'bs.file-earmark-check', 'signed' => 'bs.pen'];
+    $historyIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.box-arrow-in-down', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.pencil-square', 'remark' => 'bs.chat-left-text', 'registered' => 'bs.file-earmark-check', 'signed' => 'bs.pen'];
     $historyToday = now('Asia/Manila');
     $previousDay = null;
 @endphp
@@ -33,7 +33,7 @@
         $eventFrom = $isMovement ? $event->from_office : data_get($event->properties, 'from_office', data_get($event->properties, 'office'));
         $eventTo = $isMovement ? $event->to_office : data_get($event->properties, 'to_office');
         $eventBy = $isMovement ? $event->actor?->name : ($eventKind === 'signed' ? data_get($event->properties, 'signed_by') : $event->causer?->name);
-        // Correct route and Send to another office: say which office changed, not just where it went.
+        // Correct route and Add office route: say which office changed, not just where it went.
         $routeChange = match ($isMovement ? null : $event->description) {
             'Document route corrected' => ['Route corrected', ['Sending office' => $eventFrom, 'Wrong office' => data_get($event->properties, 'old_destination'), 'Corrected to' => data_get($event->properties, 'new_destination', $eventTo)]],
             'Document route added' => ['Office added', ['Sending office' => $eventFrom, 'Office added' => $eventTo]],

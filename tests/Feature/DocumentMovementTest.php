@@ -106,7 +106,7 @@ class DocumentMovementTest extends TestCase
         ]);
     }
 
-    public function test_every_assigned_office_can_acknowledge_independently(): void
+    public function test_every_assigned_office_can_receive_independently(): void
     {
         $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
         $administrativeOffice = Office::create(['name' => 'Administrative Unit', 'sort_order' => 2, 'is_active' => true]);
@@ -135,7 +135,7 @@ class DocumentMovementTest extends TestCase
                 ->post(route('platform.documents.movements.store', $document), [
                     'workflow' => [
                         'source_office' => $office,
-                        'action' => 'acknowledge',
+                        'action' => 'received',
                         'remarks' => "Received by {$office}.",
                     ],
                 ])
@@ -164,7 +164,7 @@ class DocumentMovementTest extends TestCase
             ->assertSee('value="Records Unit"', false);
     }
 
-    public function test_document_view_defaults_to_an_office_still_awaiting_acknowledgement(): void
+    public function test_document_view_defaults_to_an_office_still_awaiting_receipt(): void
     {
         $recordsOffice = Office::create(['name' => 'Records Unit', 'sort_order' => 1, 'is_active' => true]);
         $administrativeOffice = Office::create(['name' => 'Administrative Unit', 'sort_order' => 2, 'is_active' => true]);
@@ -189,7 +189,7 @@ class DocumentMovementTest extends TestCase
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
                     'source_office' => 'Records Unit',
-                    'action' => 'acknowledge',
+                    'action' => 'received',
                     'remarks' => 'Received by Records Unit.',
                 ],
             ])
@@ -264,8 +264,8 @@ class DocumentMovementTest extends TestCase
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'acknowledge',
-                    'remarks' => 'Attempted acknowledgement.',
+                    'action' => 'received',
+                    'remarks' => 'Attempted receipt.',
                 ],
             ])
             ->assertForbidden();
@@ -290,7 +290,7 @@ class DocumentMovementTest extends TestCase
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'acknowledge',
+                    'action' => 'received',
                     'remarks' => 'Received by shared office handler.',
                 ],
             ])
@@ -408,7 +408,7 @@ class DocumentMovementTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => ['action' => 'acknowledge'],
+                'workflow' => ['action' => 'received'],
             ])
             ->assertForbidden();
 
@@ -420,7 +420,7 @@ class DocumentMovementTest extends TestCase
         $document = Document::factory()->create();
 
         $this->post(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'acknowledge'],
+            'workflow' => ['action' => 'received'],
         ])->assertRedirectToRoute('platform.login');
 
         $this->assertDatabaseCount('document_movements', 0);
@@ -437,7 +437,7 @@ class DocumentMovementTest extends TestCase
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destination' => 'Administrative Unit',
                     'remarks' => 'For review and appropriate action.',
                 ],
@@ -484,7 +484,7 @@ class DocumentMovementTest extends TestCase
             ->from(route('platform.documents.view', $document))
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destinations' => ['Administrative Unit', 'Curriculum Implementation Division'],
                 ],
             ])
@@ -514,7 +514,7 @@ class DocumentMovementTest extends TestCase
             ->from(route('platform.documents.view', $document))
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destinations' => ['Administrative Unit', 'Curriculum Implementation Division'],
                     'destination_remarks' => ['For admin review.', ''],
                 ],
@@ -573,7 +573,7 @@ class DocumentMovementTest extends TestCase
         $this->actingAs($recordsUser)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destinations' => [
                         'Administrative Unit',
                         'Curriculum Implementation Division',
@@ -703,7 +703,7 @@ class DocumentMovementTest extends TestCase
         $this->actingAs($recordsUser)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destinations' => ['Administrative Unit', 'Curriculum Implementation Division'],
                     'destination_remarks' => ['Administrative review.', 'Curriculum review.'],
                 ],
@@ -722,7 +722,7 @@ class DocumentMovementTest extends TestCase
         $this->from(route('platform.documents.view', $document))
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'source_office' => 'Administrative Unit',
                     'destinations' => ['Curriculum Implementation Division'],
                     'destination_remarks' => ['Duplicate route.'],
@@ -745,7 +745,7 @@ class DocumentMovementTest extends TestCase
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
-                'action' => 'forward',
+                'action' => 'forwarded',
                 'source_office' => 'Administrative Unit',
                 'destinations' => ['SDO-Budget Unit'],
                 'destination_remarks' => ['Budget review after administrative receipt.'],
@@ -866,7 +866,7 @@ class DocumentMovementTest extends TestCase
             ->from(route('platform.documents.view', $document))
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'source_office' => 'Records Unit',
                     'destinations' => ['Administrative Unit'],
                     'destination_remarks' => ['Please review this document.'],
@@ -1427,7 +1427,7 @@ class DocumentMovementTest extends TestCase
         $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
         $url = route('platform.documents.movements.store', $document);
 
-        foreach (['approved', 'rejected', 'on_hold', 'reviewed', 'returned', 'resubmitted', 'archive'] as $action) {
+        foreach (['acknowledge', 'forward', 'approved', 'rejected', 'on_hold', 'reviewed', 'returned', 'resubmitted', 'archive'] as $action) {
             $this->actingAs($staff)->postJson($url, [
                 'workflow' => ['action' => $action, 'destination' => 'Records Unit'],
             ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
@@ -1799,7 +1799,7 @@ class DocumentMovementTest extends TestCase
             ->from(route('platform.documents.view', $document))
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destination' => 'Records Unit',
                     'remarks' => 'Forward for review.',
                 ],
@@ -1824,7 +1824,7 @@ class DocumentMovementTest extends TestCase
             ->from(route('platform.documents.view', $document))
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destinations' => [
                         'Administrative Unit',
                         'Administrative Unit',

@@ -68,7 +68,7 @@ class AdministratorAuthorizationTest extends TestCase
         $this->actingAs($admin)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'acknowledge',
+                    'action' => 'received',
                     'remarks' => 'Administrator confirmed receipt.',
                 ],
             ])

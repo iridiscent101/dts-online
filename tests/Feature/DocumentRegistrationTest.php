@@ -349,7 +349,7 @@ class DocumentRegistrationTest extends TestCase
             ->get(route('platform.documents.workspace', $document))
             ->assertOk()
             ->assertSee('Sent to Administrative Unit')
-            ->assertSee('title="Pending: Awaiting acknowledgment of receipt">Pending</span>', false)
+            ->assertSee('title="Pending: Awaiting receipt">Pending</span>', false)
             ->assertSee('Review the records.')
             ->assertDontSee('Sent to Curriculum Implementation Division')
             ->assertDontSee('Review the curriculum.');

@@ -27,7 +27,7 @@ class PublicReleaseSignatureTest extends TestCase
 
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
-            ->assertDontSee('Sign to confirm you received the document/s')
+            ->assertDontSee('Sign to confirm you received the document')
             ->assertDontSee('name="recipient_signature"', false);
 
         $this->post('/tracking/'.$document->tracking_number.'/signature', [

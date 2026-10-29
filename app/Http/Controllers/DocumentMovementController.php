@@ -6,6 +6,7 @@ use App\Http\Requests\StoreDocumentMovementRequest;
 use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\KioskSigningRequest;
+use App\Models\Office;
 use App\Notifications\DocumentNotificationDispatcher;
 use App\Services\DocumentRoutingService;
 use Illuminate\Http\JsonResponse;
@@ -40,30 +41,30 @@ class DocumentMovementController extends Controller
                 $document->update([
                     'received_at' => today('Asia/Manila')->toDateString(),
                     'registered_by' => $user->getAuthIdentifier(),
-                    'registered_office' => 'SDO-Records Unit',
+                    'registered_office' => Office::RECORDS_UNIT_NAME,
                 ]);
                 $requestedRoutes = DB::table('document_route_steps')
                     ->where('document_id', $document->id)
                     ->orderBy('sequence')
                     ->get();
-                $forwardRoutes = $requestedRoutes->where('office', '!=', 'SDO-Records Unit')->values();
+                $forwardRoutes = $requestedRoutes->where('office', '!=', Office::RECORDS_UNIT_NAME)->values();
 
                 if ($forwardRoutes->isNotEmpty()) {
                     $dispatch = $routing->route($document, $user, [
                         'action' => DocumentMovement::ACTION_FORWARDED,
-                        'source_office' => 'SDO-Records Unit',
+                        'source_office' => Office::RECORDS_UNIT_NAME,
                         'destinations' => $forwardRoutes->pluck('office')->all(),
                         'destination_remarks' => $forwardRoutes->pluck('remarks')->all(),
                     ]);
                     $document->refresh();
-                    if ($requestedRoutes->contains('office', 'SDO-Records Unit')) {
+                    if ($requestedRoutes->contains('office', Office::RECORDS_UNIT_NAME)) {
                         $receipt = $document->movements()
                             ->where('action', DocumentMovement::ACTION_RECEIVED)
-                            ->where('to_office', 'SDO-Records Unit')
+                            ->where('to_office', Office::RECORDS_UNIT_NAME)
                             ->latest('id')
                             ->firstOrFail();
                         $document->officeAssignments()->create([
-                            'office' => 'SDO-Records Unit',
+                            'office' => Office::RECORDS_UNIT_NAME,
                             'status' => DocumentMovement::STATUS_RECEIVED,
                             'assigned_by' => $user->getAuthIdentifier(),
                             'movement_id' => $receipt->id,
@@ -87,8 +88,6 @@ class DocumentMovementController extends Controller
             if (in_array($transition['action'], [
                 DocumentMovement::ACTION_SENT,
                 DocumentMovement::ACTION_FORWARDED,
-                DocumentMovement::ACTION_RETURNED,
-                DocumentMovement::ACTION_RESUBMITTED,
                 DocumentMovement::ACTION_RESTORED,
             ], true)) {
                 $notifications->assigned($document, $transition['action'], $user, $transition['offices']);

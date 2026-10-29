@@ -7,6 +7,7 @@ namespace App\Orchid\Screens;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -81,10 +82,8 @@ class DocumentRegistrationScreen extends Screen
                         ? trim($routeRemarks[count($destinations) - 1])
                         : null,
                     'registered_by' => $request->user()?->getAuthIdentifier(),
-                    'registered_office' => $request->user()?->isAssignedToOffice('Records Unit')
-                        && ! $request->user()->isAssignedToOffice('SDO-Records Unit')
-                            ? 'Records Unit'
-                            : 'SDO-Records Unit',
+                    'registered_office' => $request->user()?->assignedOfficeNames()->intersect(Office::RECORDS_UNIT_NAMES)->first()
+                        ?? Office::RECORDS_UNIT_NAME,
                 ]);
 
                 foreach ($destinations as $index => $office) {

@@ -132,7 +132,7 @@
                         {{-- A paper submission has no received date until Records confirms the paper copy. --}}
                         <label><span>Date received @if ($document->received_at !== null)<span aria-hidden="true">*</span>@endif</span><input type="date" name="document[received]" value="{{ $document->received_at?->toDateString() }}" @readonly($detailsLocked) @required($document->received_at !== null) @disabled($document->received_at === null) @if ($document->received_at === null) aria-describedby="workspace-dates-pending" @endif></label>
                         @if ($document->received_at === null)
-                            <p id="workspace-dates-pending" class="dts-field-hint dts-workspace-field-wide">Not received yet. The date is set when the Records Unit receives the document/s.</p>
+                            <p id="workspace-dates-pending" class="dts-field-hint dts-workspace-field-wide">Not received yet. The date is set when the Records Unit receives the physical document/s.</p>
                         @endif
                         <label class="dts-workspace-field-wide">Description<textarea name="document[description]" rows="4" maxlength="3000" @readonly($detailsLocked)>{{ $document->description }}</textarea></label>
                     </div>
@@ -179,7 +179,7 @@
                 @foreach ($waitingOffices as $waitingOffice)
                     <button type="button" class="dts-workspace-entry dts-workspace-route" data-workspace-route="{{ $waitingOffice }}" data-workspace-route-waiting data-workspace-route-history-access="{{ $canViewAllHistory || $historyOfficeNames->contains($waitingOffice) ? 'true' : 'false' }}" aria-pressed="false">
                         <span class="dts-workspace-entry-heading"><strong>{{ $waitingOffice }}</strong><span class="dts-record-status" data-status="waiting-for-paper-copy">{{ \App\Models\Document::ROUTE_WAITING_FOR_PAPER }}</span></span>
-                        <span class="dts-muted">Receives it after the document/s reach the Records Unit</span>
+                        <span class="dts-muted">Receives it after the physical document/s reach the Records Unit</span>
                     </button>
                 @endforeach
             </div>

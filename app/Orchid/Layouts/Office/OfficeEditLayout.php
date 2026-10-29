@@ -76,7 +76,7 @@ class OfficeEditLayout extends Rows
             return null;
         }
 
-        if ($office->name === 'SDO-Records Unit') {
+        if (in_array($office->name, Office::RECORDS_UNIT_NAMES, true)) {
             return __('The Records intake office cannot be renamed.');
         }
 

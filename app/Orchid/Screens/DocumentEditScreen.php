@@ -5,6 +5,7 @@ namespace App\Orchid\Screens;
 use App\Http\Requests\UpdateDocumentRequest;
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Models\User;
 use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Http\JsonResponse;
@@ -271,7 +272,7 @@ class DocumentEditScreen extends Screen
         $currentOffice = in_array($document->current_office, $destinations, true)
             ? $document->current_office
             : (collect($destinations)->first(fn (string $office): bool => $unfinished($office)
-                && ! in_array($office, ['SDO-Records Unit', 'Records Unit'], true))
+                && ! in_array($office, Office::RECORDS_UNIT_NAMES, true))
                 ?? collect($destinations)->first($unfinished)
                 ?? $destinations[0]);
 

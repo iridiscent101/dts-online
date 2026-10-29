@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\DocumentOfficeAssignment;
 use App\Models\KioskSigningRequest;
+use App\Models\Office;
 use App\Models\User;
 use App\Support\StatusLabel;
 use Illuminate\Support\Collection;
@@ -14,7 +15,7 @@ use Illuminate\Validation\ValidationException;
 
 class DocumentRoutingService
 {
-    private const RECORDS_OFFICES = ['SDO-Records Unit', 'Records Unit'];
+    private const RECORDS_OFFICES = Office::RECORDS_UNIT_NAMES;
 
     public function correctPendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, string $replacementOffice, string $reason): string
     {
@@ -116,7 +117,7 @@ class DocumentRoutingService
                     'source_office' => 'This office has finished its route. Restore it before sending to another office.',
                 ]);
             }
-            if (DocumentMovement::requiresAcknowledgement((string) $sourceStatus)) {
+            if (DocumentMovement::requiresReceipt((string) $sourceStatus)) {
                 throw ValidationException::withMessages([
                     'source_office' => 'Receive the document in this office before sending it to another office.',
                 ]);
@@ -196,7 +197,7 @@ class DocumentRoutingService
             $workflowState = $this->workflowState($user, $currentDocument, $sourceOffice);
             abort_unless($workflowState !== null, 403, 'This document is assigned to another office.');
 
-            $action = $this->normalizeAction($workflow['action']);
+            $action = $workflow['action'];
             abort_if($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestore($user), 403);
             $this->ensureTransitionIsAllowed($user, $currentDocument, $workflowState, $action);
 
@@ -333,18 +334,11 @@ class DocumentRoutingService
         $destinationLabel = $this->officeLabel($destination);
 
         return match ($action) {
-            DocumentMovement::ACTION_ACKNOWLEDGE, DocumentMovement::ACTION_RECEIVED => "{$document->tracking_number} was received.",
+            DocumentMovement::ACTION_RECEIVED => "{$document->tracking_number} was received.",
             DocumentMovement::ACTION_SENT => "{$document->tracking_number} was sent to {$destinationLabel}.",
-            DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED => "{$document->tracking_number} was forwarded to {$destinationLabel}.",
-            DocumentMovement::ACTION_RETURNED => "{$document->tracking_number} was returned to {$destinationLabel}.",
-            DocumentMovement::ACTION_RESUBMITTED => "{$document->tracking_number} was resubmitted to {$destinationLabel}.",
-            DocumentMovement::ACTION_REVIEWED => "{$document->tracking_number} was reviewed.",
-            DocumentMovement::ACTION_APPROVED => "{$document->tracking_number} was approved.",
-            DocumentMovement::ACTION_REJECTED => "{$document->tracking_number} was rejected.",
-            DocumentMovement::ACTION_ON_HOLD => "{$document->tracking_number} was placed on hold.",
+            DocumentMovement::ACTION_FORWARDED => "{$document->tracking_number} was forwarded to {$destinationLabel}.",
             DocumentMovement::ACTION_RELEASED => "{$document->tracking_number} was released.",
             DocumentMovement::ACTION_COMPLETED => "{$document->tracking_number} was completed.",
-            DocumentMovement::ACTION_ARCHIVE => "{$document->tracking_number} was archived.",
             DocumentMovement::ACTION_RESTORED => "{$document->tracking_number} was restored to {$destinationLabel}.",
         };
     }
@@ -471,15 +465,6 @@ class DocumentRoutingService
             ->values();
     }
 
-    private function normalizeAction(string $action): string
-    {
-        return match ($action) {
-            DocumentMovement::ACTION_ACKNOWLEDGE => DocumentMovement::ACTION_RECEIVED,
-            DocumentMovement::ACTION_FORWARD => DocumentMovement::ACTION_FORWARDED,
-            default => $action,
-        };
-    }
-
     /**
      * @param  array{office: string, status: string}  $state
      */
@@ -539,20 +524,11 @@ class DocumentRoutingService
     {
         return match ($action) {
             DocumentMovement::ACTION_SENT,
-            DocumentMovement::ACTION_FORWARD,
             DocumentMovement::ACTION_FORWARDED => DocumentMovement::STATUS_FORWARDED,
-            DocumentMovement::ACTION_RETURNED => DocumentMovement::STATUS_RETURNED,
-            DocumentMovement::ACTION_RESUBMITTED => DocumentMovement::STATUS_RESUBMITTED,
-            DocumentMovement::ACTION_ACKNOWLEDGE,
             DocumentMovement::ACTION_RECEIVED,
             DocumentMovement::ACTION_RESTORED => DocumentMovement::STATUS_RECEIVED,
-            DocumentMovement::ACTION_REVIEWED => DocumentMovement::STATUS_REVIEWED,
-            DocumentMovement::ACTION_APPROVED => DocumentMovement::STATUS_APPROVED,
-            DocumentMovement::ACTION_REJECTED => DocumentMovement::STATUS_REJECTED,
-            DocumentMovement::ACTION_ON_HOLD => DocumentMovement::STATUS_ON_HOLD,
             DocumentMovement::ACTION_RELEASED => DocumentMovement::STATUS_RELEASED,
             DocumentMovement::ACTION_COMPLETED => DocumentMovement::STATUS_COMPLETED,
-            DocumentMovement::ACTION_ARCHIVE => DocumentMovement::STATUS_ARCHIVED,
         };
     }
 
@@ -571,15 +547,8 @@ class DocumentRoutingService
             DocumentMovement::ACTION_RECEIVED => 'received',
             DocumentMovement::ACTION_SENT => 'sent',
             DocumentMovement::ACTION_FORWARDED => 'forwarded',
-            DocumentMovement::ACTION_RETURNED => 'returned',
-            DocumentMovement::ACTION_RESUBMITTED => 'resubmitted',
-            DocumentMovement::ACTION_REVIEWED => 'reviewed',
-            DocumentMovement::ACTION_APPROVED => 'approved',
-            DocumentMovement::ACTION_REJECTED => 'rejected',
-            DocumentMovement::ACTION_ON_HOLD => 'placed on hold',
             DocumentMovement::ACTION_RELEASED => 'released',
             DocumentMovement::ACTION_COMPLETED => 'completed',
-            DocumentMovement::ACTION_ARCHIVE => 'archived',
             DocumentMovement::ACTION_RESTORED => 'restored',
             default => $action,
         };

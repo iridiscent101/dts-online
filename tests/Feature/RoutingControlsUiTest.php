@@ -11,7 +11,7 @@ use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
 /**
- * Screens for Receive-first routing, Add remark, and Send to another office.
+ * Screens for Receive-first routing, Add remark, and Add office route.
  */
 class RoutingControlsUiTest extends TestCase
 {
@@ -30,7 +30,7 @@ class RoutingControlsUiTest extends TestCase
             ->assertSee('Add remark');
     }
 
-    public function test_sending_office_sees_send_to_another_office_in_outgoing(): void
+    public function test_sending_office_sees_add_office_route_in_outgoing(): void
     {
         $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $document = $this->forwardedDocument();
@@ -39,7 +39,7 @@ class RoutingControlsUiTest extends TestCase
             ->get(route('platform.outgoing'))
             ->assertOk()
             ->assertSee($document->tracking_number)
-            ->assertSee('Send '.$document->tracking_number.' to another office')
+            ->assertSee('Add an office route for '.$document->tracking_number)
             ->assertSee('data-additional-route=', false)
             ->assertSee(str_replace('/', '\/', route('platform.documents.additional-routes.store', $document)), false)
             ->assertSee('id="additional-route-offices"', false);
@@ -47,7 +47,7 @@ class RoutingControlsUiTest extends TestCase
         // The same document in the full registry has no such button: it belongs to the Outgoing list.
         $this->get(route('platform.documents'))
             ->assertOk()
-            ->assertDontSee('to another office');
+            ->assertDontSee('Add an office route for '.$document->tracking_number);
     }
 
     public function test_dashboard_queue_offers_the_same_fixes_for_a_forwarded_document(): void
@@ -66,7 +66,7 @@ class RoutingControlsUiTest extends TestCase
         $this->actingAs($admin)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('Send '.$document->tracking_number.' to another office')
+            ->assertSee('Add an office route for '.$document->tracking_number)
             ->assertSee('Correct the route of '.$document->tracking_number)
             ->assertSee('id="additional-route-offices"', false);
 
@@ -76,7 +76,7 @@ class RoutingControlsUiTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertDontSee('Correct the route of '.$document->tracking_number)
-            ->assertDontSee('Send '.$document->tracking_number.' to another office');
+            ->assertDontSee('Add an office route for '.$document->tracking_number);
     }
 
     public function test_each_office_route_card_names_who_received_it(): void

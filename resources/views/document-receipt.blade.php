@@ -50,8 +50,8 @@
         @if ($awaitsDocuments)
             <p class="mt-5 rounded-sm border border-[#F2C230] bg-[#FFF8E1] px-4 py-3 text-sm font-medium leading-6 text-[#5B4300]">
                 {{ $document->delivery_method === 'Official channel'
-                    ? 'Send the document/s through official mail or your school or office messenger. Processing starts once the Records Unit receives them.'
-                    : 'Bring the document/s and this receipt to the Records Unit counter. Processing starts once the Records Unit receives them.' }}
+                    ? 'Send the physical document/s through official mail or your school or office messenger. Processing starts once the Records Unit receives them.'
+                    : 'Bring the physical document/s and this receipt to the Records Unit counter. Processing starts once the Records Unit receives them.' }}
             </p>
         @endif
 

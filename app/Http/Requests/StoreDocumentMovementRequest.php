@@ -30,7 +30,7 @@ class StoreDocumentMovementRequest extends FormRequest
         $requiresDestination = DocumentMovement::requiresDestination($action);
 
         return [
-            'workflow.action' => ['required', 'string', Rule::in(DocumentMovement::ROUTING_ACTIONS)],
+            'workflow.action' => ['required', 'string', Rule::in(DocumentMovement::USER_ACTIONS)],
             'workflow.source_office' => [
                 'nullable',
                 'string',

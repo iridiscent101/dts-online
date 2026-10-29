@@ -152,7 +152,7 @@
                 <ol class="grid gap-3 sm:grid-cols-3">
                     @foreach ([
                         ['bs.send', 'Send', 'Fill in the form online or bring your document to the Records Unit.'],
-                        ['bs.inbox', 'Records Unit receives', 'Records staff receive it and send it to the right office.'],
+                        ['bs.box-arrow-in-down', 'Records Unit receives', 'Records staff receive it and send it to the right office.'],
                         ['bs.search', 'Track', 'Use your tracking number to see each office, status and remarks.'],
                     ] as [$icon, $title, $text])
                         <li class="flex gap-3 rounded-sm border border-province-line-strong bg-white p-4">
@@ -181,7 +181,7 @@
                         : ($assignedOffices->first()['status'] ?? $document->status);
                     $statusMeanings = [
                         ...\App\Models\DocumentMovement::STATUS_MEANINGS,
-                        \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the document/s after you bring them to the Records Unit.',
+                        \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the physical document/s after you bring them to the Records Unit.',
                         // Same wording as the status guide.
                         \App\Models\DocumentMovement::STATUS_FORWARDED => 'The document was sent on to the next office. It waits there until that office receives it.',
                         \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released the document. Processing is finished.',
@@ -335,7 +335,7 @@
                             $latestEventIndex = $timelineEvents->first(fn (array $event): bool => $event['visible'])['index'] ?? null;
                             $timelineDays = $timelineEvents->groupBy(fn (array $event): string => $event['at']->copy()->timezone('Asia/Manila')->toDateString());
                             $timelineToday = now('Asia/Manila');
-                            $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.inbox', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.dot', 'remark' => 'bs.chat-left-text', 'signed' => 'bs.pen'];
+                            $timelineIcons = ['moved' => 'bs.arrow-right', 'received' => 'bs.box-arrow-in-down', 'done' => 'bs.check-lg', 'hold' => 'bs.pause-fill', 'returned' => 'bs.arrow-return-left', 'cancelled' => 'bs.slash-circle', 'note' => 'bs.dot', 'remark' => 'bs.chat-left-text', 'signed' => 'bs.pen'];
                         @endphp
                         @if ($timelineOffices->count() > 1)
                             <form id="timeline-filter" method="GET" action="{{ route('tracking.index') }}#movement-heading" class="mt-4 flex flex-wrap items-end gap-3" data-registration-offices='@json($registrationOffices?->values()->all() ?? [])' data-initial-office="{{ $initialOffice }}">
@@ -372,7 +372,7 @@
                                                     <span class="dts-timeline-dot" aria-hidden="true"><x-orchid-icon :path="$timelineIcons[$isSigning ? 'signed' : 'remark']" /></span>
                                                     <div class="min-w-0 pt-1">
                                                         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                                                            <strong class="text-base font-semibold text-slate-900">{{ $isSigning ? ($remark['by'] ?: 'The recipient').' signed for the document/s' : ($remark['office'] ?: 'The office').' added a remark' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
+                                                            <strong class="text-base font-semibold text-slate-900">{{ $isSigning ? ($remark['by'] ?: 'The recipient').' signed for the document' : ($remark['office'] ?: 'The office').' added a remark' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
                                                         </div>
                                                         @unless ($isSigning)
                                                             {{-- Who wrote it comes first, as "Name: remark". --}}
@@ -397,7 +397,7 @@
                                                         <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                                                             <strong class="text-base font-semibold text-slate-900">{{ $document->client_submission_key ? 'Document submitted' : 'Document registered' }} <span class="dts-timeline-latest" data-timeline-latest @if ($event['index'] !== $latestEventIndex) hidden @endif>Latest</span></strong>
                                                         </div>
-                                                        <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting document/s at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
+                                                        <p id="registration-office" class="mt-1 text-sm text-slate-600">{{ $document->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT ? 'Awaiting physical document/s at ' : 'Assigned to ' }}{{ $selectedOffice ?: $initialOffice }}</p>
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-600">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $document->created_at->toIso8601String() }}">{{ $document->created_at->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $document->created_at->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
                                                         </dl>

@@ -58,11 +58,11 @@ class DocumentListLayout extends Table
                 ->sort()
                 ->render(fn (Document $document): string => $document->received_at?->format('M d, Y') ?? 'Not received'),
 
-            TD::make('created_at', 'Date registered')
+            TD::make('created_at', 'Date added')
                 ->sort()
                 ->render(fn (Document $document): string => $document->created_at->timezone('Asia/Manila')->format('M d, Y')),
 
-            // Not sortable on its own: "Date registered" already sorts by the full registration time.
+            // Not sortable on its own: "Date added" already sorts by the full registration time.
             TD::make('registered_time', 'Time registered')
                 ->render(fn (Document $document): string => $document->created_at->timezone('Asia/Manila')->format('g:i A')),
 
@@ -98,9 +98,9 @@ class DocumentListLayout extends Table
     protected function iconNotFound(): string
     {
         return match ($this->section()) {
-            'incoming' => 'bs.inbox',
+            'incoming' => 'bs.box-arrow-in-down',
             'outgoing' => 'bs.send',
-            'archived' => 'bs.check2-circle',
+            'archived' => 'bs.archive',
             default => 'bs.folder2-open',
         };
     }

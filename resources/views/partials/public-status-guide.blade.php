@@ -10,9 +10,8 @@
         \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released the document. Processing is finished.',
     ];
     $pendingKinds = [
-        'Being reviewed' => 'the office is checking your document before acting on it.',
-        'Awaiting acknowledgment of receipt' => 'the office has not received the document yet.',
-        'Waiting for document/s' => 'bring the document/s to the Records Unit so processing can start.',
+        'Awaiting receipt' => 'the office has not received the document yet.',
+        'Waiting for physical document/s' => 'bring the physical document/s to the Records Unit so processing can start.',
     ];
 @endphp
 <details class="dts-public-status-guide rounded-sm border border-province-line-strong bg-white {{ $class ?? '' }}">

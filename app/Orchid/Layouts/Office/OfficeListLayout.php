@@ -64,7 +64,7 @@ class OfficeListLayout extends Table
                         ->rawClick(false)
                         ->icon('bs.pencil'),
                     // The Records Unit receives every paper submission and can never be deleted.
-                    'deleteAction' => $office->name === 'SDO-Records Unit' ? null : Button::make(__('Delete'))
+                    'deleteAction' => in_array($office->name, Office::RECORDS_UNIT_NAMES, true) ? null : Button::make(__('Delete'))
                         ->class('btn dts-row-action dts-row-action-delete')
                         ->icon('bs.trash3')
                         ->confirm(__('Delete :office? Only an office never used by documents or staff can be deleted; deactivate it otherwise.', ['office' => $office->name]))

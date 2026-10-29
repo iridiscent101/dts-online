@@ -108,13 +108,13 @@ class OfficeEditScreen extends Screen
                 $office = Office::query()->lockForUpdate()->findOrFail($office->getKey());
             }
 
-            if ($office->name === 'SDO-Records Unit' && $validated['office']['name'] !== $office->name) {
+            if (in_array($office->name, Office::RECORDS_UNIT_NAMES, true) && $validated['office']['name'] !== $office->name) {
                 throw ValidationException::withMessages([
                     'office.name' => 'The Records intake office cannot be renamed.',
                 ]);
             }
 
-            if ($office->name === 'SDO-Records Unit' && ! $request->boolean('office.is_active')) {
+            if (in_array($office->name, Office::RECORDS_UNIT_NAMES, true) && ! $request->boolean('office.is_active')) {
                 throw ValidationException::withMessages([
                     'office.is_active' => 'The Records intake office must remain active.',
                 ]);

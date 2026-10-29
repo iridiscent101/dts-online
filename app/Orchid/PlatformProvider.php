@@ -35,9 +35,9 @@ class PlatformProvider extends OrchidServiceProvider
                 ->route(config('platform.index')),
 
             Menu::make('All documents')->icon('bs.files')->route('platform.documents')->title('DOCUMENT REGISTRY'),
-            Menu::make('Incoming')->icon('bs.inbox')->route('platform.incoming'),
+            Menu::make('Incoming')->icon('bs.box-arrow-in-down')->route('platform.incoming'),
             Menu::make('Outgoing')->icon('bs.send')->route('platform.outgoing'),
-            Menu::make('Archived')->icon('bs.check2-circle')->route('platform.archived')
+            Menu::make('Archived')->icon('bs.archive')->route('platform.archived')
                 ->divider(),
 
             Menu::make(__('Users'))
@@ -57,12 +57,12 @@ class PlatformProvider extends OrchidServiceProvider
                 ->permission('platform.systems.offices'),
 
             Menu::make(__('Schools'))
-                ->icon('bs.buildings')
+                ->icon('bs.mortarboard')
                 ->route('platform.systems.schools')
                 ->permission('platform.systems.schools'),
 
             Menu::make(__('Sign-in activity'))
-                ->icon('bs.shield-lock')
+                ->icon('bs.box-arrow-in-right')
                 ->route('platform.systems.sign-in-activity')
                 ->permission('platform.systems.sign-in-activity'),
 

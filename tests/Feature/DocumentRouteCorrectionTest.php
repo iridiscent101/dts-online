@@ -519,7 +519,7 @@ class DocumentRouteCorrectionTest extends TestCase
             ->get(route('platform.outgoing'))
             ->assertOk()
             ->assertSee('Correct route')
-            ->assertSee('Send to another office');
+            ->assertSee('Add office route');
         foreach ($documents as $document) {
             $response->assertSee($document->tracking_number);
         }

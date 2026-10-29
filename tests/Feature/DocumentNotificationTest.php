@@ -38,7 +38,7 @@ class DocumentNotificationTest extends TestCase
         User::factory()->create(['office' => 'Administrative Unit']);
         $document = Document::factory()->received()->create(['current_office' => 'Records Unit']);
         $workflow = ['workflow' => [
-            'action' => 'forward',
+            'action' => 'forwarded',
             'destination' => 'Administrative Unit',
             'remarks' => 'For administrative review.',
         ]];
@@ -161,7 +161,7 @@ class DocumentNotificationTest extends TestCase
         $this->actingAs($actor)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destination' => 'Administrative Unit',
                     'remarks' => 'For administrative review.',
                 ],
@@ -192,7 +192,7 @@ class DocumentNotificationTest extends TestCase
 
         $this->actingAs($actor)
             ->post(route('platform.documents.movements.store', $document), [
-                'workflow' => ['action' => 'forward', 'destination' => 'Administrative Unit'],
+                'workflow' => ['action' => 'forwarded', 'destination' => 'Administrative Unit'],
             ])
             ->assertRedirectToRoute('platform.main');
 
@@ -231,7 +231,7 @@ class DocumentNotificationTest extends TestCase
         $document = Document::factory()->received()->create(['current_office' => 'Records Unit', 'client_email' => 'client@gmail.com']);
 
         $this->actingAs($actor)->post(route('platform.documents.movements.store', $document), [
-            'workflow' => ['action' => 'forward', 'destination' => 'Administrative Unit'],
+            'workflow' => ['action' => 'forwarded', 'destination' => 'Administrative Unit'],
         ])->assertRedirect();
 
         $this->assertDatabaseCount('jobs', 1);
@@ -454,7 +454,7 @@ class DocumentNotificationTest extends TestCase
         $this->actingAs($actor)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'forward',
+                    'action' => 'forwarded',
                     'destination' => 'Administrative Unit',
                     'remarks' => 'For administrative review.',
                 ],
@@ -471,7 +471,7 @@ class DocumentNotificationTest extends TestCase
         Notification::assertNotSentTo($unrelatedUser, DocumentAssignedNotification::class);
     }
 
-    public function test_acknowledging_a_document_does_not_send_an_assignment_notification(): void
+    public function test_receiving_a_document_does_not_send_an_assignment_notification(): void
     {
         Notification::fake();
         $user = User::factory()->create([
@@ -483,7 +483,7 @@ class DocumentNotificationTest extends TestCase
         $this->actingAs($user)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'acknowledge',
+                    'action' => 'received',
                     'remarks' => 'Received by the records desk.',
                 ],
             ])

@@ -230,7 +230,7 @@ class DocumentIntakeTest extends TestCase
             ->assertOk()
             ->assertSee('data-paper-received="'.$document->tracking_number.'"', false)
             ->assertSee(route('platform.documents.intake'), false)
-            ->assertSee('Document/s received')
+            ->assertSee('Physical document/s received')
             ->assertDontSee('data-paper-receive-all', false);
 
         $this->actingAs($budget)
@@ -246,12 +246,12 @@ class DocumentIntakeTest extends TestCase
         $document->update(['client_submission_key' => 'counter-test-key']);
         $document->officeAssignments()->updateOrCreate(['office' => 'SDO-Records Unit'], ['status' => DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT]);
         // The Records Unit's holding row is left out: Paper received completes its part.
-        $rows = ['SDO-Budget Unit', 'Waiting for document/s', 'SDO-Legal Unit', 'Waiting for document/s'];
+        $rows = ['SDO-Budget Unit', 'Waiting for physical document/s', 'SDO-Legal Unit', 'Waiting for physical document/s'];
         $recordsRow = 'aria-label="View SDO-Records Unit workflow, Awaiting physical document"';
 
         $this->actingAs($staff)->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('Client document/s: receive them, print the label, then send them to the offices.')
+            ->assertSee('Client submissions: receive the physical document/s, print the labels, then send them to the offices.')
             ->assertSeeInOrder($rows)
             ->assertDontSee($recordsRow, false);
         $this->get(route('platform.documents'))->assertOk()->assertSeeInOrder($rows)->assertDontSee($recordsRow, false);
@@ -267,7 +267,7 @@ class DocumentIntakeTest extends TestCase
             ->assertSee('>Pending</span>', false)
             ->assertDontSee('data-route-office="SDO-Records Unit"', false)
             ->assertSeeInOrder($rows)
-            ->assertDontSee('This office receives the document/s after you bring them to the Records Unit.')
+            ->assertDontSee('This office receives the physical document/s after you bring them to the Records Unit.')
             ->assertSee(route('tracking.index', ['tracking' => $document->tracking_number, 'office' => 'SDO-Budget Unit']));
 
         // Waiting rows are clickable like the others: the office's page and its (still empty) history open normally.

@@ -9,7 +9,7 @@
 <td class="header">
 <a href="{{ config('app.url') }}" style="display: inline-block;">
 @if ($embedder && is_file(public_path('images/qr-seal.jpg')))
-<img src="{{ $embedder->embed(public_path('images/qr-seal.jpg')) }}" class="header-seal" width="64" height="64" alt="SDO Nueva Vizcaya seal">
+<img src="{{ $embedder->embedData(file_get_contents(public_path('images/qr-seal.jpg')), 'qr-seal.jpg') }}" class="header-seal" width="64" height="64" alt="SDO Nueva Vizcaya seal">
 @endif
 <span class="header-title">{{ config('mail.from.name') }}</span>
 <span class="header-subtitle">Document Tracking System</span>

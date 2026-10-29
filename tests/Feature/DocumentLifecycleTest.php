@@ -162,7 +162,7 @@ class DocumentLifecycleTest extends TestCase
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
-                'action' => 'acknowledge',
+                'action' => 'received',
                 'remarks' => 'Received by the Records Unit.',
             ],
         ])->assertRedirectToRoute('platform.documents.view', $document);
@@ -188,7 +188,7 @@ class DocumentLifecycleTest extends TestCase
 
         $this->post(route('platform.documents.movements.store', $document), [
             'workflow' => [
-                'action' => 'forward',
+                'action' => 'forwarded',
                 'destination' => 'Administrative Unit',
                 'remarks' => 'Forwarded for administrative action.',
             ],
@@ -197,7 +197,7 @@ class DocumentLifecycleTest extends TestCase
         $this->actingAs($administrativeOfficer)
             ->post(route('platform.documents.movements.store', $document), [
                 'workflow' => [
-                    'action' => 'acknowledge',
+                    'action' => 'received',
                     'remarks' => 'Received by the Administrative Unit.',
                 ],
             ])

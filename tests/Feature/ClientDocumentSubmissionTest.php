@@ -186,7 +186,7 @@ class ClientDocumentSubmissionTest extends TestCase
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
             ->assertOk()
             ->assertDontSee('Submit your document to the Records staff.')
-            ->assertSee('title="Pending: Waiting for document/s">Pending</span>', false)
+            ->assertSee('title="Pending: Waiting for physical document/s">Pending</span>', false)
             ->assertDontSee('Assigned to Administrative Unit')
             ->assertSee('Date submitted');
 
@@ -194,7 +194,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSee($document->tracking_number)
-            ->assertSee('Document/s received');
+            ->assertSee('Physical document/s received');
 
         $this->get(route('platform.incoming'))
             ->assertOk()
@@ -623,7 +623,7 @@ class ClientDocumentSubmissionTest extends TestCase
         // Public page: a single office is labelled the receiving unit.
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))->assertSee('Receiving unit');
 
-        // Nobody has received the document/s yet, so "Received by" says so.
+        // Nobody has received the physical document/s yet, so "Received by" says so.
         $this->actingAs($records)->get(route('platform.documents.workspace', $document))
             ->assertSee('<dt>Received by</dt><dd>Not received yet</dd>', false)
             ->assertDontSee('Designation');

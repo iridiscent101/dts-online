@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreClientDocumentSubmissionRequest;
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Notifications\DocumentNotificationDispatcher;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -17,8 +18,6 @@ use Throwable;
 
 class ClientDocumentSubmissionController extends Controller
 {
-    private const RECORDS_OFFICE = 'SDO-Records Unit';
-
     public function create(): View
     {
         return view('client-document-submission', [
@@ -67,7 +66,7 @@ class ClientDocumentSubmissionController extends Controller
                     'client_email' => filled($data['email'] ?? null) ? Str::lower(trim($data['email'])) : null,
                     'origin' => $data['office'],
                     'delivery_method' => $data['delivery_method'],
-                    'current_office' => self::RECORDS_OFFICE,
+                    'current_office' => Office::RECORDS_UNIT_NAME,
                     'status' => $physicalSubmission
                         ? DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
                         : DocumentMovement::STATUS_AWAITING_RECEIPT,
@@ -79,14 +78,14 @@ class ClientDocumentSubmissionController extends Controller
                 $movement = $document->movements()->create([
                     'action' => DocumentMovement::ACTION_SENT,
                     'from_office' => null,
-                    'to_office' => self::RECORDS_OFFICE,
+                    'to_office' => Office::RECORDS_UNIT_NAME,
                     'from_status' => null,
                     'to_status' => $document->status,
                     'remarks' => $data['client_remarks'] ?? null,
                 ]);
 
                 $document->officeAssignments()->create([
-                    'office' => self::RECORDS_OFFICE,
+                    'office' => Office::RECORDS_UNIT_NAME,
                     'status' => $document->status,
                     'movement_id' => $movement->getKey(),
                 ]);
@@ -98,7 +97,7 @@ class ClientDocumentSubmissionController extends Controller
 
                 activity('documents')
                     ->performedOn($document)
-                    ->withProperties(['action' => 'client_submit', 'offices' => [self::RECORDS_OFFICE], 'attachment_count' => $attachment === null ? 0 : 1, 'privacy_consent' => true])
+                    ->withProperties(['action' => 'client_submit', 'offices' => [Office::RECORDS_UNIT_NAME], 'attachment_count' => $attachment === null ? 0 : 1, 'privacy_consent' => true])
                     ->log('Document submitted');
 
                 $notifications->submitted($document);

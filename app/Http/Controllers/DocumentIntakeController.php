@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ class DocumentIntakeController extends Controller
             ->with('actor')
             ->where('action', DocumentMovement::ACTION_RECEIVED)
             ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-            ->where('to_office', 'SDO-Records Unit')
+            ->where('to_office', Office::RECORDS_UNIT_NAME)
             ->first();
         $state = $document->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT
             ? 'awaiting'
@@ -49,7 +50,7 @@ class DocumentIntakeController extends Controller
         $offices = $state === 'received'
             ? $document->movements()
                 ->whereIn('action', [DocumentMovement::ACTION_FORWARDED, DocumentMovement::ACTION_CANCELLED])
-                ->where('from_office', 'SDO-Records Unit')
+                ->where('from_office', Office::RECORDS_UNIT_NAME)
                 ->where('id', '>', $receipt->id)
                 ->oldest('id')
                 ->get(['action', 'to_office'])
@@ -67,7 +68,7 @@ class DocumentIntakeController extends Controller
 
         return response()->json([
             'state' => $state,
-            'source_office' => 'SDO-Records Unit',
+            'source_office' => Office::RECORDS_UNIT_NAME,
             'document' => [
                 'tracking_number' => $document->tracking_number,
                 'subject' => $document->subject,
@@ -81,7 +82,7 @@ class DocumentIntakeController extends Controller
                 'routes' => $routes,
                 'client_remarks' => $document->movements()
                     ->where('action', DocumentMovement::ACTION_SENT)
-                    ->where('to_office', 'SDO-Records Unit')
+                    ->where('to_office', Office::RECORDS_UNIT_NAME)
                     ->oldest('id')
                     ->value('remarks'),
                 'confirm_url' => route('platform.documents.movements.store', $document),

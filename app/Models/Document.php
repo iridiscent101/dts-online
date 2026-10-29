@@ -31,7 +31,7 @@ class Document extends Model
     public const AUDIT_DISPLAY_LIMIT = 20;
 
     /** Shown for a paper submission's offices until the Records Unit confirms the paper copy. */
-    public const ROUTE_WAITING_FOR_PAPER = 'Waiting for document/s';
+    public const ROUTE_WAITING_FOR_PAPER = 'Waiting for physical document/s';
 
     public const PRIORITIES = [
         'Urgent' => 3,
@@ -47,7 +47,7 @@ class Document extends Model
         'Document details updated',
         'Document routes updated',
         'Document route corrected',
-        // "Send to another office" (DocumentRoutingService::addAdditionalRoute), with the reason it was added.
+        // "Add office route" (DocumentRoutingService::addAdditionalRoute), with the reason it was added.
         'Document route added',
         'Attachments added',
         'Attachment replaced',
@@ -123,7 +123,7 @@ class Document extends Model
         'SDO-Administrative Section (AO V)',
         'SDO-Personnel Unit (HRMO)',
         'SDO-Property and Supply Unit',
-        'SDO-Records Unit',
+        Office::RECORDS_UNIT_NAME,
         'SDO-Cash Unit',
         'SDO-School Governance and Operations Division (SGOD) Chief',
         'SDO-SGOD Personnel (SMME/SMAN/EFU/YFP/DRRM/HNU)',
@@ -334,11 +334,11 @@ class Document extends Model
                 // An office keeps read access to what it sent on, so its Outgoing tab can list it.
                 ->orWhere(fn (Builder $sent): Builder => $sent->sentOnBy($offices));
 
-            if ($offices->contains('SDO-Records Unit')) {
+            if ($offices->contains(Office::RECORDS_UNIT_NAME)) {
                 $query->orWhereHas('movements', fn (Builder $movements): Builder => $movements
                     ->where('action', DocumentMovement::ACTION_RECEIVED)
                     ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-                    ->where('to_office', 'SDO-Records Unit'));
+                    ->where('to_office', Office::RECORDS_UNIT_NAME));
             }
         });
     }
@@ -364,11 +364,11 @@ class Document extends Model
             return true;
         }
 
-        return $user->isAssignedToOffice('SDO-Records Unit')
+        return $user->isAssignedToOffice(Office::RECORDS_UNIT_NAME)
             && $this->movements()
                 ->where('action', DocumentMovement::ACTION_RECEIVED)
                 ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-                ->where('to_office', 'SDO-Records Unit')
+                ->where('to_office', Office::RECORDS_UNIT_NAME)
                 ->exists();
     }
 
@@ -387,7 +387,7 @@ class Document extends Model
             && $user->hasAccess('platform.documents.edit')
             && ($this->isAssignedToUserOffice($user)
                 || $user->isAssignedToOffice($this->registered_office))
-            && ($user->isAdministrator() || $user->assignedOfficeNames()->intersect(['SDO-Records Unit', 'Records Unit'])->isNotEmpty())
+            && ($user->isAdministrator() || $user->assignedOfficeNames()->intersect(Office::RECORDS_UNIT_NAMES)->isNotEmpty())
             && (! $this->isClosedRecord() || $user->isAdministrator());
     }
 
@@ -617,7 +617,7 @@ class Document extends Model
         return $this->hasOne(DocumentMovement::class)->ofMany(['id' => 'min'], fn ($query) => $query
             ->where('action', DocumentMovement::ACTION_RECEIVED)
             ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
-            ->where('to_office', 'SDO-Records Unit'));
+            ->where('to_office', Office::RECORDS_UNIT_NAME));
     }
 
     public function officeAssignments(): HasMany
@@ -677,7 +677,7 @@ class Document extends Model
         }
 
         $query = DB::table('document_route_steps')
-            ->where('office', '!=', 'SDO-Records Unit')
+            ->where('office', '!=', Office::RECORDS_UNIT_NAME)
             ->orderBy('sequence');
 
         // Lists show this for every row, so a page view loads the steps of all documents awaiting paper in one query.
