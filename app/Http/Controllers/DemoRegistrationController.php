@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Orchid\Platform\Models\Role;
 
 /**
@@ -28,6 +29,15 @@ class DemoRegistrationController extends Controller
     public const ROLES = [
         'personnel' => 'Personnel',
         'records-unit' => 'Records Unit',
+    ];
+
+    /**
+     * The role slug each choice may have in the database, first match wins. Installs differ: the original seed uses
+     * personnel / records-unit, the live (Vercel) database uses office-staff / records-staff.
+     */
+    private const ROLE_SLUGS = [
+        'personnel' => ['personnel', 'office-staff'],
+        'records-unit' => ['records-unit', 'records-staff'],
     ];
 
     public function show(): View
@@ -86,7 +96,14 @@ class DemoRegistrationController extends Controller
             'recovery_email' => 'Gmail for password resets',
         ]);
 
-        $user = DB::transaction(function () use ($validated): User {
+        $role = self::roleFor($validated['role']);
+        if ($role === null) {
+            throw ValidationException::withMessages([
+                'role' => 'The '.self::ROLES[$validated['role']].' role is not set up in this system yet. Ask the administrator.',
+            ]);
+        }
+
+        $user = DB::transaction(function () use ($validated, $role): User {
             $user = new User;
             $user->forceFill([
                 'name' => trim($validated['name']),
@@ -98,7 +115,7 @@ class DemoRegistrationController extends Controller
             $user->setNotificationEmail($validated['recovery_email'] ?? null);
             $user->save();
 
-            $user->roles()->sync([Role::query()->where('slug', $validated['role'])->firstOrFail()->id]);
+            $user->roles()->sync([$role->id]);
             $user->offices()->sync([Office::query()->where('name', $validated['office'])->firstOrFail()->id]);
 
             AccountActivity::record(AccountActivity::DEMO_REGISTERED, $user, $user, ['office' => $validated['office']]);
@@ -114,6 +131,18 @@ class DemoRegistrationController extends Controller
         return redirect()->route('platform.login')
             ->withInput(['email' => $user->email])
             ->with('status', 'Your demo account is ready. Sign in with your email and the password you chose.');
+    }
+
+    /** The database role for a form choice, whichever slug this install uses. */
+    private static function roleFor(string $choice): ?Role
+    {
+        $slugs = self::ROLE_SLUGS[$choice] ?? [];
+
+        return Role::query()
+            ->whereIn('slug', $slugs)
+            ->get()
+            ->sortBy(fn (Role $role): int => array_search($role->slug, $slugs, true))
+            ->first();
     }
 
     public static function enabled(): bool

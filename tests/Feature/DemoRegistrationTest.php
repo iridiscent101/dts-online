@@ -147,6 +147,33 @@ class DemoRegistrationTest extends TestCase
         Notification::assertSentTo($user, VerifyRecoveryEmail::class);
     }
 
+    public function test_it_works_with_the_live_role_names_office_staff_and_records_staff(): void
+    {
+        // The live database names the roles office-staff / records-staff instead of personnel / records-unit.
+        Role::query()->whereIn('slug', ['personnel', 'records-unit'])->delete();
+        Role::create(['slug' => 'office-staff', 'name' => 'Office Staff']);
+        Role::create(['slug' => 'records-staff', 'name' => 'Records Staff']);
+
+        $this->post(route('demo.register.store'), $this->form())->assertRedirect(route('platform.login'));
+        $this->post(route('demo.register.store'), $this->form(['email' => 'rosa@test.com', 'office' => 'SDO-Records Unit', 'role' => 'records-unit']))
+            ->assertRedirect(route('platform.login'));
+
+        $this->assertSame(['office-staff'], User::query()->where('email', 'juan@test.com')->sole()->roles->pluck('slug')->all());
+        $this->assertSame(['records-staff'], User::query()->where('email', 'rosa@test.com')->sole()->roles->pluck('slug')->all());
+    }
+
+    public function test_a_missing_role_shows_a_message_instead_of_not_found(): void
+    {
+        Role::query()->whereIn('slug', ['personnel', 'office-staff'])->delete();
+
+        $this->from(route('demo.register'))
+            ->post(route('demo.register.store'), $this->form())
+            ->assertRedirect(route('demo.register'))
+            ->assertSessionHasErrors(['role' => 'The Personnel role is not set up in this system yet. Ask the administrator.']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'juan@test.com']);
+    }
+
     public function test_a_typed_office_must_be_picked_from_the_list(): void
     {
         foreach (['legal', 'Budget', 'SDO-Imaginary Unit', ''] as $office) {
