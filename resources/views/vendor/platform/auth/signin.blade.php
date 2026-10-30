@@ -20,12 +20,12 @@
 
 <div class="mb-3">
     <label class="form-label" for="login-email">{{ __('Email address') }}</label>
-    <input id="login-email" type="email" name="email" @class(['form-control', 'is-invalid' => $errors->has('email')]) value="{{ old('email') }}" required autofocus autocomplete="email" inputmode="email" placeholder="{{ __('Enter your email') }}" @if ($errors->any()) aria-invalid="true" aria-describedby="login-errors" @endif>
+    <input id="login-email" type="email" name="email" @class(['form-control', 'is-invalid' => $errors->has('email')]) value="{{ old('email') }}" required @if (! filled(old('email'))) autofocus @endif autocomplete="email" inputmode="email" placeholder="{{ __('Enter your email') }}" @if ($errors->any()) aria-invalid="true" aria-describedby="login-errors" @endif>
 </div>
 
 <div class="mb-3">
     <label class="form-label" for="login-password">{{ __('Password') }}</label>
-    @include('platform::partials.password-input', ['id' => 'login-password', 'invalid' => $errors->has('password'), 'describedBy' => $errors->any() ? 'login-errors' : null])
+    @include('platform::partials.password-input', ['id' => 'login-password', 'autofocus' => filled(old('email')) && ! $errors->has('email'), 'invalid' => $errors->has('password'), 'describedBy' => $errors->any() ? 'login-errors' : null])
 </div>
 
 <label class="form-check dts-remember mb-4">
@@ -44,3 +44,10 @@
     <x-orchid-icon path="bs.question-circle"/>
     <span><a href="{{ route('password.forgot') }}">{{ __('Forgot your password?') }}</a> {{ __('We can email a reset link to your verified recovery email.') }}</span>
 </p>
+
+@if (\App\Http\Controllers\DemoRegistrationController::enabled())
+    <p class="dts-auth-help">
+        <x-orchid-icon path="bs.person-plus"/>
+        <span>{{ __('Joining the demo?') }} <a href="{{ route('demo.register') }}">{{ __('Create a demo account') }}</a></span>
+    </p>
+@endif

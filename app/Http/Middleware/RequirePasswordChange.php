@@ -29,11 +29,20 @@ class RequirePasswordChange
     ];
 
     /**
+     * DTS_REQUIRE_PASSWORD_CHANGE=false turns the whole check off (for example during a demo): nobody is sent to
+     * My Account to change their password at sign-in, whether an administrator set it or it is shorter than the rule.
+     */
+    public static function enabled(): bool
+    {
+        return (bool) config('dts.require_password_change', true);
+    }
+
+    /**
      * Called by LimitLoginAttempts right after a successful sign-in, while the typed password is still at hand.
      */
     public static function checkSignInPassword(User $user, string $password): void
     {
-        if (! $user->canChangeOwnPassword()) {
+        if (! self::enabled() || ! $user->canChangeOwnPassword()) {
             return;
         }
 
@@ -52,7 +61,7 @@ class RequirePasswordChange
     {
         $user = $request->user();
 
-        if (! $user instanceof User || ! $user->must_change_password || $request->routeIs(...self::ALLOWED_ROUTES)) {
+        if (! self::enabled() || ! $user instanceof User || ! $user->must_change_password || $request->routeIs(...self::ALLOWED_ROUTES)) {
             return $next($request);
         }
 

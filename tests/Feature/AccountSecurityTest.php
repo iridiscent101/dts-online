@@ -319,6 +319,29 @@ class AccountSecurityTest extends TestCase
         $this->get(route('platform.main'))->assertOk();
     }
 
+    public function test_the_password_change_step_can_be_switched_off(): void
+    {
+        config(['dts.require_password_change' => false]);
+        $staff = User::factory()->create([
+            'email' => 'clerk@deped.local',
+            'password' => Hash::make('password'),
+            'permissions' => ['platform.index' => true],
+        ]);
+        $setByAdmin = User::factory()->create(['must_change_password' => true, 'permissions' => ['platform.index' => true]]);
+
+        // A short password is not flagged at sign-in, and nothing is blocked.
+        $this->post(route('platform.login.auth'), ['email' => 'clerk@deped.local', 'password' => 'password'])
+            ->assertRedirect(route('platform.main'));
+        $this->assertFalse($staff->fresh()->must_change_password);
+        $this->get(route('platform.main'))->assertOk();
+
+        // An account already marked (an administrator set its password) is not held on My Account either.
+        $this->post(route('platform.logout'));
+        $this->flushSession();
+        $this->actingAs($setByAdmin)->get(route('platform.main'))->assertOk();
+        $this->get(route('platform.profile'))->assertOk()->assertDontSee('Please set a new password');
+    }
+
     public function test_signing_out_still_works_while_a_new_password_is_required(): void
     {
         $staff = User::factory()->create(['must_change_password' => true, 'permissions' => ['platform.index' => true]]);

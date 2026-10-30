@@ -6,6 +6,7 @@ namespace App\Orchid\Screens\User;
 
 use App\Auth\AccountActivity;
 use App\Http\Controllers\RecoveryEmailController;
+use App\Http\Middleware\RequirePasswordChange;
 use App\Models\User;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
@@ -90,7 +91,7 @@ class UserProfileScreen extends Screen
             );
 
         // Sent here by RequirePasswordChange: the notice and the password form come first, nothing else is shown.
-        if (request()->user()?->must_change_password) {
+        if (request()->user()?->must_change_password && RequirePasswordChange::enabled()) {
             return [
                 Layout::view('orchid.password-change-required'),
                 $passwordBlock,

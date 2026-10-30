@@ -3340,3 +3340,15 @@ document.addEventListener('change', (event) => {
 const markPageReady = () => document.documentElement.classList.add('dts-ready');
 document.addEventListener('turbo:load', markPageReady);
 window.addEventListener('load', markPageReady);
+
+// Demo sign-up: choosing an office picks the matching role (Records Unit for its staff, Personnel for everyone else).
+// People can still change it; the server checks the pair.
+document.addEventListener('change', (event) => {
+    const office = event.target.closest?.('[data-demo-office]');
+    if (!office) return;
+    let recordsOffices = [];
+    try { recordsOffices = JSON.parse(office.dataset.recordsOffices || '[]'); } catch { recordsOffices = []; }
+    const role = recordsOffices.includes(office.value) ? 'records-unit' : 'personnel';
+    const radio = office.form?.querySelector(`[data-demo-role][value="${role}"]`);
+    if (radio && office.value) radio.checked = true;
+});

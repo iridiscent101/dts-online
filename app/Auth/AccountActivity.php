@@ -43,6 +43,8 @@ class AccountActivity
 
     public const TEMPORARY_PASSWORD_USED = 'temporary_password_used';
 
+    public const DEMO_REGISTERED = 'demo_registered';
+
     public const LABELS = [
         self::SIGNED_IN => 'Signed in',
         self::SIGN_IN_FAILED => 'Sign-in failed',
@@ -56,6 +58,7 @@ class AccountActivity
         self::PASSWORD_CHANGE_REQUIRED => 'Asked to set a stronger password',
         self::TEMPORARY_PASSWORD_SENT => 'Temporary password emailed (forgot password)',
         self::TEMPORARY_PASSWORD_USED => 'Signed in with a temporary password',
+        self::DEMO_REGISTERED => 'Account created on the demo sign-up page',
     ];
 
     // Set on the request by whoever signs a person out for a reason other than the Sign out button.

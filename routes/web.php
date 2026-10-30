@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ClientDocumentSubmissionController;
+use App\Http\Controllers\DemoRegistrationController;
 use App\Http\Controllers\DocumentReceiptController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\KioskController;
@@ -21,6 +22,15 @@ Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])
 Route::post('/forgot-password', [ForgotPasswordController::class, 'send'])
     ->middleware('throttle:5,1')
     ->name('password.forgot.send');
+
+// Demo sign-up (off unless DEMO_REGISTRATION_ENABLED=true). Participants usually share one office connection, so the
+// limit is per minute and generous.
+Route::get('/demo-register', [DemoRegistrationController::class, 'show'])
+    ->middleware(['guest', 'throttle:60,1'])
+    ->name('demo.register');
+Route::post('/demo-register', [DemoRegistrationController::class, 'store'])
+    ->middleware(['guest', 'throttle:30,1'])
+    ->name('demo.register.store');
 
 Route::get('/recovery-email/verify/{user}/{token}', [RecoveryEmailController::class, 'verify'])
     ->middleware(['signed:relative', 'throttle:30,1'])->name('recovery-email.verify');

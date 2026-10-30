@@ -8000,6 +8000,17 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     border-color: var(--dts-green-dark) !important;
 }
 
+/* Orchid's .btn-default turns the text dark grey on hover/focus/press (!important), unreadable on the dark green. */
+.dts-auth-submit:is(:hover, :focus, :focus-visible, :active),
+.dts-auth-submit:is(:hover, :focus, :focus-visible, :active) svg {
+    color: #fff !important;
+}
+
+.dts-auth-submit:is(:focus, :active) {
+    background-color: var(--dts-green-dark) !important;
+    border-color: var(--dts-green-dark) !important;
+}
+
 .dts-auth-help {
     display: flex;
     gap: 8px;
@@ -8039,8 +8050,15 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
         grid-template-columns: minmax(420px, 5fr) 6fr;
     }
 
+    /* The photo panel is one screen tall and stays put while a long form (demo sign-up) scrolls beside it, instead
+       of stretching to the form's height. */
     .dts-auth-hero {
         display: block;
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100vh;
+        height: 100dvh;
     }
 
     .dts-auth-main {
@@ -8187,6 +8205,74 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 
 .dts-auth-done .dts-auth-submit {
     text-decoration: none;
+}
+
+/* Demo sign-up: wide enough that the longest office name in the Office list fits without being cut off (it needs
+   about 600px). On narrower screens the panel shrinks as usual and a cut-off name ends in "…". */
+.page-demo-register .dts-auth-panel {
+    max-width: 600px;
+}
+
+.dts-auth .form-select {
+    text-overflow: ellipsis;
+}
+
+/* Office search on the sign-up page: suggestions at the same size as the other fields. */
+.dts-auth dts-searchable [data-choice] {
+    min-height: 44px;
+    font-size: 1.0625rem;
+}
+
+/* Demo sign-up: the two role choices as large tappable cards. */
+.dts-demo-roles {
+    display: grid;
+    /* minmax(0, 1fr): the cards stay inside the form instead of growing to their longest line. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+}
+
+.dts-demo-role > span {
+    min-width: 0;
+}
+
+.dts-demo-role {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-height: 48px;
+    padding: 12px 14px;
+    border: 1px solid var(--dts-line);
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+}
+
+.dts-demo-role:has(input:checked) {
+    border-color: var(--dts-green);
+    background: var(--dts-green-soft);
+}
+
+.dts-demo-role.is-invalid {
+    border-color: var(--dts-danger);
+}
+
+.dts-demo-role input {
+    flex: none;
+    margin-top: 3px;
+}
+
+.dts-demo-role strong {
+    display: block;
+    color: var(--dts-heading);
+    font-size: 1.0625rem;
+}
+
+.dts-demo-role small {
+    display: block;
+    color: var(--dts-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    white-space: normal;
 }
 
 /* Auth buttons that say what they are doing while the request runs. */
