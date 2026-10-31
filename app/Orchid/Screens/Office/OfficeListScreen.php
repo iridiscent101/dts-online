@@ -38,7 +38,7 @@ class OfficeListScreen extends Screen
 
     public function description(): ?string
     {
-        return 'Offices used for routing and staff assignments. Deactivate offices in use; only unused offices can be deleted.';
+        return 'Deleting an office transfers pending documents to Records Unit and removes staff assignments. Document history is preserved.';
     }
 
     public function permission(): ?iterable
@@ -75,7 +75,7 @@ class OfficeListScreen extends Screen
     }
 
     /**
-     * Row "Delete". Whether an office is in use is checked here, not per row on the list (that costs several queries a row).
+     * Row "Delete". Document records retain office names; staff memberships are removed by the database.
      */
     public function remove(Request $request): void
     {
@@ -84,12 +84,12 @@ class OfficeListScreen extends Screen
         $office = Office::query()->findOrFail($request->integer('id'));
 
         if (! $office->canBeDeleted()) {
-            Toast::warning(__(':office is used by documents or staff, so it cannot be deleted. Deactivate it instead.', ['office' => $office->name]));
+            Toast::warning(__('The Records intake office cannot be deleted.'));
 
             return;
         }
 
-        $office->delete();
+        $office->deleteAndTransferDocuments($request->user());
 
         Toast::success(__(':office was removed.', ['office' => $office->name]));
     }
@@ -106,13 +106,13 @@ class OfficeListScreen extends Screen
 
         if ($offices->contains(fn (Office $office): bool => ! $office->canBeDeleted())) {
             throw ValidationException::withMessages([
-                'selected' => 'Only unused offices can be deleted. Deactivate an office used by documents or staff.',
+                'selected' => 'The Records intake office cannot be deleted.',
             ]);
         }
 
-        DB::transaction(function () use ($offices): void {
+        DB::transaction(function () use ($offices, $request): void {
             foreach ($offices as $office) {
-                $office->delete();
+                $office->deleteAndTransferDocuments($request->user());
             }
         });
 

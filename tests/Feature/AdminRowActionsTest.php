@@ -63,11 +63,11 @@ class AdminRowActionsTest extends TestCase
         $this->assertSoftDeleted($school);
     }
 
-    public function test_unused_offices_can_be_deleted_from_their_row_but_used_ones_cannot(): void
+    public function test_offices_can_be_deleted_from_their_row_and_used_ones_hand_their_documents_to_records(): void
     {
         $unused = Office::create(['name' => 'Unused Desk', 'sort_order' => 1]);
         $used = Office::create(['name' => 'Busy Desk', 'sort_order' => 2]);
-        Document::factory()->create(['current_office' => 'Busy Desk']);
+        $document = Document::factory()->create(['current_office' => 'Busy Desk']);
         Office::create(['name' => 'SDO-Records Unit', 'sort_order' => 3]);
 
         $this->actingAs($this->manager)
@@ -77,7 +77,9 @@ class AdminRowActionsTest extends TestCase
             ->assertDontSee('Delete SDO-Records Unit?');
 
         $this->post(route('platform.systems.offices', ['method' => 'remove', 'id' => $used->id]))->assertRedirect();
-        $this->assertModelExists($used);
+        // A used office can be deleted too; its open document moves to Records.
+        $this->assertModelMissing($used);
+        $this->assertSame('SDO-Records Unit', $document->fresh()->current_office);
 
         $this->post(route('platform.systems.offices', ['method' => 'remove', 'id' => $unused->id]))->assertRedirect();
         $this->assertModelMissing($unused);

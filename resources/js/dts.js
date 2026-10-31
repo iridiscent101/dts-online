@@ -2758,6 +2758,15 @@ function updateTableSelection(table) {
 
     summary.querySelector('[data-selected-count]').textContent = `${selectedCount} selected on this page`;
 
+    if (table.matches('[data-records-receive-queue]') && !summary.querySelector('[data-records-bulk-receive]')) {
+        const receive = document.createElement('button');
+        receive.type = 'button';
+        receive.className = 'dts-button dts-button-primary';
+        receive.dataset.recordsBulkReceive = '';
+        receive.textContent = 'Receive selected';
+        summary.querySelector('.dts-table-selection-actions').prepend(receive);
+    }
+
     const bulkLabelUrl = table.closest('[data-bulk-label-url]')?.dataset.bulkLabelUrl;
 
     if (bulkLabelUrl) {
@@ -2832,7 +2841,7 @@ function updateTableSelection(table) {
 }
 
 function syncTableSelections(root = document) {
-    root.querySelectorAll('[data-controller="table"]').forEach(updateTableSelection);
+    root.querySelectorAll('[data-controller="table"], [data-records-receive-queue]').forEach(updateTableSelection);
 }
 
 document.addEventListener('turbo:load', () => syncTableSelections());
@@ -2874,7 +2883,7 @@ document.addEventListener('change', (event) => {
     const rowSelect = event.target.closest('[data-table-row-select]');
 
     if (selectAll) {
-        const table = selectAll.closest('[data-controller="table"]');
+        const table = selectAll.closest('[data-controller="table"], [data-records-receive-queue]');
 
         table?.querySelectorAll('[data-table-row-select]:not(:disabled)').forEach((checkbox) => {
             checkbox.checked = selectAll.checked;
@@ -2884,7 +2893,7 @@ document.addEventListener('change', (event) => {
     }
 
     if (rowSelect) {
-        updateTableSelection(rowSelect.closest('[data-controller="table"]'));
+        updateTableSelection(rowSelect.closest('[data-controller="table"], [data-records-receive-queue]'));
     }
 });
 
@@ -2905,11 +2914,58 @@ document.addEventListener('click', (event) => {
 
     if (!clearSelection) return;
 
-    const table = clearSelection.closest('[data-controller="table"]');
+    const table = clearSelection.closest('[data-controller="table"], [data-records-receive-queue]');
     table?.querySelectorAll('[data-table-row-select]').forEach((checkbox) => {
         checkbox.checked = false;
     });
     updateTableSelection(table);
+});
+
+document.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-records-bulk-receive]');
+    if (!button || button.disabled) return;
+    const queue = button.closest('[data-records-receive-queue]');
+    const selected = [...queue.querySelectorAll('[data-table-row-select]:checked:not(:disabled)')];
+    if (selected.length === 0) return;
+    button.disabled = true;
+    const confirmed = await dtsDialog.confirm(`Receive ${selected.length} selected document(s) at Records Unit? Confirm that the physical documents have arrived. Client submissions may also be sent to their selected offices.`, { title: 'Receive documents', confirmLabel: 'Receive selected' });
+    if (!confirmed) { button.disabled = false; return; }
+
+    const failed = [];
+    let received = 0;
+    queue.inert = true;
+    pageLoading.show('Receiving…');
+    try {
+        for (const row of selected) {
+            const body = new FormData();
+            body.append('workflow[action]', 'received');
+            body.append('workflow[source_office]', row.dataset.receiveOffice);
+            try {
+                const response = await fetch(row.dataset.receiveUrl, {
+                    method: 'POST',
+                    headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf_token"]')?.content || '' },
+                    body,
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    failed.push(`${row.dataset.trackingNumber}: ${Object.values(result.errors || {}).flat()[0] || result.message || 'Could not receive.'}`);
+                    continue;
+                }
+                received++;
+                row.checked = false;
+            } catch {
+                failed.push(`${row.dataset.trackingNumber}: Receipt could not be confirmed. Refresh the document before trying again.`);
+            }
+        }
+    } finally {
+        queue.inert = false;
+        pageLoading.hide();
+        button.disabled = false;
+    }
+    if (failed.length) await dtsDialog.alert(failed.join('\n\n'), { title: 'Receipt results need checking' });
+    dtsToastAfterReload(`${received} document(s) received.`, failed.length ? 'warning' : 'success');
+    if (window.Turbo) window.Turbo.visit(window.location.href, { action: 'replace' });
+    else window.location.reload();
 });
 
 document.addEventListener('click', async (event) => {
@@ -2954,7 +3010,7 @@ document.addEventListener('click', async (event) => {
         document: `Remove ${selected.length} selected document(s) from active records? Their routing history and attachments will be kept.`,
         user: `Deactivate ${selected.length} selected user account(s)? They are signed out now and cannot sign in until reactivated. Their document history stays.`,
         role: `Delete ${selected.length} selected role(s)? Users assigned these roles will lose their permissions. This cannot be undone.`,
-        office: `Delete ${selected.length} selected unused office(s)? This cannot be undone.`,
+        office: `Delete ${selected.length} selected office(s)? Pending documents will be transferred to Records Unit with a deletion note. Staff assignments will be removed. Document history will be preserved. This cannot be undone.`,
         school: `Delete ${selected.length} selected school(s)? They will no longer appear in origin suggestions. Existing documents will retain their recorded origins. This cannot be undone.`,
     }[kind];
     if (selected.length === 0) return;

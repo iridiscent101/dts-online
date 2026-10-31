@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Document;
+use App\Models\Office;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Testing\TestResponse;
+use Orchid\Platform\Models\Role;
 use Tests\TestCase;
 
 class RegistryFiltersTest extends TestCase
@@ -122,8 +124,60 @@ class RegistryFiltersTest extends TestCase
         ]);
     }
 
+    public function test_records_action_queue_only_selects_documents_awaiting_records_receipt(): void
+    {
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $pending = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
+        $paper = Document::factory()->create(['current_office' => 'SDO-Records Unit', 'status' => 'Awaiting physical document', 'received_at' => null]);
+        $received = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $other = Document::factory()->incoming()->create(['current_office' => 'SDO-Legal Unit']);
+
+        $page = $this->actingAs($records)->get(route('platform.main'))
+            ->assertSee('data-records-receive-queue', false)
+            ->assertDontSee($other->tracking_number);
+
+        $html = new \DOMDocument;
+        @$html->loadHTML($page->getContent());
+        $xpath = new \DOMXPath($html);
+        $enabled = $xpath->query('//input[@data-table-row-select and not(@disabled)]');
+        $this->assertSame(2, $enabled->length);
+        $this->assertSame(1, $xpath->query('//input[@data-table-row-select and not(@disabled) and @value="'.$pending->id.'"]')->length);
+        $this->assertSame(1, $xpath->query('//input[@data-table-row-select and not(@disabled) and @value="'.$paper->id.'"]')->length);
+        $this->assertSame('SDO-Records Unit', $enabled->item(0)->getAttribute('data-receive-office'));
+        $this->assertSame(1, $xpath->query('//input[@data-table-row-select and @disabled and @value="'.$received->id.'"]')->length);
+
+        $this->actingAs(User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]))
+            ->get(route('platform.main'))->assertDontSee('data-records-receive-queue', false);
+    }
+
     private function registry(array $query): TestResponse
     {
         return $this->actingAs($this->user)->get(route('platform.documents', $query))->assertOk();
+    }
+
+    public function test_admin_and_multi_office_queues_do_not_bulk_receive_another_offices_routes(): void
+    {
+        $adminRole = Role::create(['name' => 'Admin', 'slug' => User::ADMIN_ROLE_SLUG]);
+        $recordsDocument = Document::factory()->incoming()->create(['current_office' => 'SDO-Records Unit']);
+        $legalDocument = Document::factory()->incoming()->create(['current_office' => 'SDO-Legal Unit']);
+        $mixed = Document::factory()->received()->create(['current_office' => 'SDO-Records Unit']);
+        $mixed->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => 'Forwarded']);
+        $staff = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $staff->offices()->syncWithoutDetaching([Office::query()->where('name', 'SDO-Legal Unit')->sole()->id]);
+        $admin = User::factory()->create(['office' => null, 'permissions' => []]);
+        $admin->replaceRoles([$adminRole->id]);
+
+        foreach ([$staff, $admin] as $user) {
+            $page = $this->actingAs($user)->get(route('platform.main'))
+                ->assertSee($legalDocument->tracking_number)
+                ->assertSee($mixed->tracking_number);
+            $html = new \DOMDocument;
+            @$html->loadHTML($page->getContent());
+            $xpath = new \DOMXPath($html);
+            $this->assertSame(1, $xpath->query('//input[@data-table-row-select and not(@disabled) and @value="'.$recordsDocument->id.'"]')->length);
+            foreach ([$legalDocument, $mixed] as $document) {
+                $this->assertSame(1, $xpath->query('//input[@data-table-row-select and @disabled and @value="'.$document->id.'"]')->length);
+            }
+        }
     }
 }

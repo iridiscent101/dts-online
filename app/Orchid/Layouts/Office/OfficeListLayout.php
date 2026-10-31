@@ -67,7 +67,7 @@ class OfficeListLayout extends Table
                     'deleteAction' => in_array($office->name, Office::RECORDS_UNIT_NAMES, true) ? null : Button::make(__('Delete'))
                         ->class('btn dts-row-action dts-row-action-delete')
                         ->icon('bs.trash3')
-                        ->confirm(__('Delete :office? Only an office never used by documents or staff can be deleted; deactivate it otherwise.', ['office' => $office->name]))
+                        ->confirm(__('Delete :office? Pending documents will be transferred to Records Unit with a deletion note. Staff assignments will be removed. Document history will be preserved.', ['office' => $office->name]))
                         ->method('remove', ['id' => $office->id]),
                 ])),
         ];

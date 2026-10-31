@@ -47,10 +47,10 @@
                         <span class="dts-count dts-record-count"><strong>{{ $officeQueueCount }}</strong> {{ Str::plural('action', $officeQueueCount) }}</span>
                     </div>
                 </div>
-                <div class="dts-table-frame">
+                <div class="dts-table-frame" @if ($canConfirmPaperIntake) data-records-receive-queue @endif>
                     <div class="dts-table-scroll">
                       <table class="dts-table dts-office-queue-table">
-                        <thead><tr><th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Date added</th><th scope="col">Quick action</th></tr></thead>
+                        <thead><tr>@if ($canConfirmPaperIntake)<th scope="col"><input type="checkbox" class="dts-table-checkbox" data-table-select-all aria-label="Select all documents awaiting Records receipt on this page"></th>@endif<th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Date added</th><th scope="col">Quick action</th></tr></thead>
                         <tbody>
                             @forelse ($officeQueue as $queueItem)
                                 @php
@@ -88,6 +88,12 @@
                                     }
                                 @endphp
                                 <tr data-office-queue-row>
+                                    @if ($canConfirmPaperIntake)
+                                        @php
+                                            $recordsReceipt = $queueOffices->first(fn (array $state): bool => in_array($state['office'], \App\Models\Office::RECORDS_UNIT_NAMES, true) && array_key_exists(\App\Models\DocumentMovement::ACTION_RECEIVED, app(\App\Services\DocumentRoutingService::class)->availableActionOptions(auth()->user(), $document, $state)));
+                                        @endphp
+                                        <td data-column="select"><input type="checkbox" class="dts-table-checkbox" data-table-row-select value="{{ $document->id }}" aria-label="Select {{ $document->tracking_number }} for Records receipt" @disabled($recordsReceipt === null) data-receive-office="{{ $recordsReceipt['office'] ?? '' }}" data-receive-url="{{ route('platform.documents.movements.store', $document) }}" data-tracking-number="{{ $document->tracking_number }}"></td>
+                                    @endif
                                     <td><div class="dts-record-link"><div class="dts-record-code"><a href="{{ $queueDocumentUrl }}" data-workspace-url="{{ $queueWorkspaceUrl }}"><strong>{{ $document->tracking_number }}</strong></a>@include('orchid.partials.copy-button', ['text' => $document->tracking_number])</div><span>{{ $document->subject }}</span></div></td>
                                     <td>
                                         <div class="dts-office-status-list">
@@ -147,7 +153,7 @@
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4"><div class="dts-empty dts-empty-compact">
+                                <tr><td colspan="{{ $canConfirmPaperIntake ? 5 : 4 }}"><div class="dts-empty dts-empty-compact">
                                     <span class="dts-empty-icon"><x-orchid-icon path="bs.check2-circle" /></span>
                                     <h4>No pending office actions</h4>
                                     <p>{{ $workspaceOffice === 'No office assigned' ? 'Ask an administrator to assign your account to an office.' : 'There are no documents waiting for action in this workspace.' }}</p>
