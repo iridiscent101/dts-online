@@ -4,6 +4,7 @@ namespace App\Orchid\Layouts\Document;
 
 use App\Models\Document;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
+use App\Support\DisplayDate;
 use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Support\Collection;
@@ -58,13 +59,10 @@ class DocumentListLayout extends Table
                 ->sort()
                 ->render(fn (Document $document): string => $document->received_at?->format('M d, Y') ?? 'Not received'),
 
+            // One column for when the document was registered: the date, with the time below (as on the dashboard).
             TD::make('created_at', 'Date added')
                 ->sort()
-                ->render(fn (Document $document): string => $document->created_at->timezone('Asia/Manila')->format('M d, Y')),
-
-            // Not sortable on its own: "Date added" already sorts by the full registration time.
-            TD::make('registered_time', 'Time registered')
-                ->render(fn (Document $document): string => $document->created_at->timezone('Asia/Manila')->format('g:i A')),
+                ->render(fn (Document $document): string => (string) DisplayDate::cell($document->created_at)),
 
             TD::make(__('Actions'))
                 ->align(TD::ALIGN_CENTER)

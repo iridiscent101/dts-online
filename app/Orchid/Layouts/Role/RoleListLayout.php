@@ -6,10 +6,10 @@ namespace App\Orchid\Layouts\Role;
 
 use App\Models\User;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
+use App\Support\DisplayDate;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
-use Orchid\Screen\Components\Cells\DateTimeSplit;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
 
@@ -42,14 +42,12 @@ class RoleListLayout extends Table
                 ->cantHide(),
 
             TD::make('created_at', __('Date created'))
-                ->usingComponent(DateTimeSplit::class)
-                ->align(TD::ALIGN_RIGHT)
+                ->render(fn ($row): string => (string) DisplayDate::cell($row->created_at))
                 ->defaultHidden()
                 ->sort(),
 
             TD::make('updated_at', __('Last updated'))
-                ->usingComponent(DateTimeSplit::class)
-                ->align(TD::ALIGN_RIGHT)
+                ->render(fn ($row): string => (string) DisplayDate::cell($row->updated_at))
                 ->sort(),
 
             TD::make(__('Actions'))

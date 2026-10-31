@@ -194,7 +194,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->get(route('platform.main'))
             ->assertOk()
             ->assertSee($document->tracking_number)
-            ->assertSee('Physical document/s received');
+            ->assertSee('Receive physical document/s');
 
         $this->get(route('platform.incoming'))
             ->assertOk()

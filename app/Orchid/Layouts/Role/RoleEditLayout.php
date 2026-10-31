@@ -12,6 +12,11 @@ use Orchid\Screen\Layouts\Rows;
 class RoleEditLayout extends Rows
 {
     /**
+     * @var string
+     */
+    protected $title = 'Role';
+
+    /**
      * The screen's layout elements.
      *
      * @return Field[]

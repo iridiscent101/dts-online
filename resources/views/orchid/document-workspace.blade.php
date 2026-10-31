@@ -154,7 +154,7 @@
 
     <div id="dts-workspace-routing" class="dts-workspace-panels" role="tabpanel" aria-labelledby="dts-workspace-routing-tab" data-workspace-panel="routing" hidden>
         <section class="dts-workspace-panel" aria-labelledby="dts-workspace-routes-heading">
-            <div class="dts-workspace-section-heading"><div><p class="dts-eyebrow">WORKFLOW</p><h3 id="dts-workspace-routes-heading">Office routes</h3></div>@php($waitingOffices = $document->pendingRouteOffices())@php($routeAssignments = $document->officeAssignments->reject(fn ($assignment) => $waitingOffices->isNotEmpty() && $assignment->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT))<span class="dts-count">{{ $routeAssignments->count() + $waitingOffices->count() }}</span></div>
+            <div class="dts-workspace-section-heading"><div><p class="dts-eyebrow">WORKFLOW</p><h3 id="dts-workspace-routes-heading">Office routes</h3></div>@php($waitingOffices = $document->pendingRouteOffices())@php($routeAssignments = $document->officeAssignments->reject(fn ($assignment) => $waitingOffices->isNotEmpty() && $assignment->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT))@php($routeCount = $routeAssignments->count() + $waitingOffices->count())<span class="dts-count dts-count-strong">{{ $routeCount }} {{ Str::plural('route', $routeCount) }}</span></div>
             <div class="dts-workspace-route-list">
                 {{-- While the client's offices wait for the paper copy, the Records Unit's holding row is left out. --}}
                 @forelse ($routeAssignments as $assignment)

@@ -6,9 +6,9 @@ namespace App\Orchid\Layouts\Office;
 
 use App\Models\Office;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
+use App\Support\DisplayDate;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
-use Orchid\Screen\Components\Cells\DateTimeSplit;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
 
@@ -46,11 +46,12 @@ class OfficeListLayout extends Table
             TD::make('is_active', __('Active'))
                 ->align(TD::ALIGN_CENTER)
                 ->sort()
-                ->render(fn (Office $office): string => $office->is_active ? __('Yes') : __('No')),
+                ->render(fn (Office $office): string => $office->is_active
+                    ? '<span class="dts-record-status" data-status="received">'.e(__('Active')).'</span>'
+                    : '<span class="dts-record-status" data-status="cancelled">'.e(__('Inactive')).'</span>'),
 
             TD::make('updated_at', __('Last updated'))
-                ->usingComponent(DateTimeSplit::class)
-                ->align(TD::ALIGN_RIGHT)
+                ->render(fn ($row): string => (string) DisplayDate::cell($row->updated_at))
                 ->sort(),
 
             TD::make(__('Actions'))

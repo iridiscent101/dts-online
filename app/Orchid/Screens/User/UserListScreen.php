@@ -66,7 +66,7 @@ class UserListScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Link::make(__('Add'))
+            Link::make(__('Add user'))
                 ->icon('bs.plus-circle')
                 ->route('platform.systems.users.create'),
         ];

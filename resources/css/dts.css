@@ -7,15 +7,23 @@
 /* Prevent Tailwind resets and class names from conflicting with Orchid. */
 html:root {
     font-size: 100%; /* 16px body text: staff read these screens all day */
+    /* Staff colour standard. The public pages (app.css) keep the DepEd theme: green, gold, brown and cream. The staff
+       side follows usual system-dashboard rules instead:
+       - cool grey neutrals for text, lines and surfaces;
+       - one brand colour (green) for primary buttons, links and the current menu item;
+       - fixed meanings for status colours: green = done/received, amber = waiting/needs attention,
+         blue = in transit, red = problem, grey = closed or archived;
+       - a blue keyboard-focus ring that is easy to see. */
     --dts-green: #216e39;
     --dts-green-dark: #18542b;
     --dts-green-soft: #e8f1e6;
-    --dts-gold: #f2c230;
-    --dts-brown: #86562d;
-    --dts-cream: #f8f4e7;
-    --dts-charcoal: #26332b;
-    --dts-border: #a99e7e; /* card and panel edges */
-    --dts-border-strong: #b3843f;
+    --dts-gold: #d97706; /* amber accent for notices: 3.2:1 on white */
+    --dts-brown: #475569; /* neutral dark accent (the old brown); the logo keeps its brand brown */
+    --dts-cream: #f1f5f9;
+    --dts-charcoal: #1e293b;
+    --dts-border: #94a3b8; /* card and panel edges */
+    --dts-border-strong: #7c8a9e; /* form fields: 3.5:1 on white */
+    --dts-focus: #1d4ed8; /* keyboard focus ring: 6.7:1 on white */
 
     /* Density */
     --dts-control-h: 36px;
@@ -35,31 +43,31 @@ html:root {
     --dts-radius: 6px;
     --dts-radius-sm: 4px;
 
-    /* Warm neutrals */
-    --dts-ink: #26332b;
-    --dts-ink-2: #4d5a52;
-    --dts-ink-3: #5a645d; /* >= 5.3:1 on every surface */
-    --dts-line: #e6e1d2;
-    --dts-grid: #968a6a; /* table gridlines: >= 3:1 on white, zebra and cream rows (elderly staff rely on them) */
-    --dts-surface: #faf8f2;
+    /* Cool grey neutrals */
+    --dts-ink: #1e293b;
+    --dts-ink-2: #475569;
+    --dts-ink-3: #3f4b5b; /* >= 8:1 on white and grey surfaces */
+    --dts-line: #e2e8f0;
+    --dts-grid: #7d8ba0; /* table gridlines: >= 3.1:1 on white, zebra and hover rows (elderly staff rely on them) */
+    --dts-surface: #f8fafc;
     /* Text, status and surface colors */
-    --dts-text-muted: #526174;
-    --dts-text-body: #425268;
+    --dts-text-muted: #3f4b5b; /* secondary text: >= 8:1 on white and grey surfaces (older staff) */
+    --dts-text-body: #334155; /* body text: >= 7.4:1 even on the coloured dashboard cards */
     --dts-text-strong: #344155;
     --dts-heading: #202b3b;
-    --dts-text-subtle: #556274; /* >= 5.3:1 on every surface */
+    --dts-text-subtle: #3f4b5b; /* >= 8:1 on white and grey surfaces */
     --dts-text-faint: #8a99ad;
     --dts-danger: #b52e3d;
     --dts-danger-dark: #942433;
     --dts-danger-text: #a12837;
     --dts-danger-soft: #fcecef;
     --dts-warning-soft: #fff4d9;
-    --dts-warning-text: #866314;
+    --dts-warning-text: #92400e; /* amber: 6.5:1 on --dts-warning-soft */
     --dts-info-text: #1f5f8b; /* in transit: 5.9:1 on --dts-info-soft */
     --dts-info-soft: #e6f0f7;
-    --dts-surface-2: #f1eee4;
+    --dts-surface-2: #eef2f6;
     --dts-input-border: var(--dts-border-strong); /* form fields need >= 3:1 contrast against white */
-    --dts-zebra: #fcfbf8; /* #f7f4ea at 35% over white; solid so sticky columns stay opaque */
+    --dts-zebra: #f9fafb; /* solid so sticky columns stay opaque */
     --dts-row-hover: color-mix(in srgb, var(--dts-green-soft) 25%, #fff); /* solid for the same reason */
 }
 
@@ -82,7 +90,7 @@ body {
 
 body > .container-fluid > .row > .col-xxl {
     min-height: 100vh;
-    background: rgb(248 244 231 / 10%);
+    background: #fff;
 }
 
 body::before {
@@ -93,7 +101,7 @@ body::before {
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(to right, var(--dts-green) 0 50%, var(--dts-gold) 50% 75%, var(--dts-brown) 75%);
+    background: var(--dts-green);
     z-index: 1100;
 }
 
@@ -116,9 +124,10 @@ body::before {
 }
 
 .aside .nav-link {
-    color: var(--dts-text-muted) !important;
+    color: var(--dts-text-strong) !important; /* menu labels: dark and medium weight, so they don't look thin */
     border-radius: 6px;
     font-size: 1rem;
+    font-weight: 500;
     padding: 7px 12px;
 }
 
@@ -191,7 +200,7 @@ body::before {
 }
 
 .dts-brand-accent {
-    color: var(--dts-brown);
+    color: #86562d; /* logo: brand brown */
 }
 
 .dts-brand-mark {
@@ -205,6 +214,10 @@ body::before {
 .command-bar-wrapper {
     border-bottom: 1px solid var(--dts-border);
     margin-bottom: 16px;
+    /* Orchid blurs what is behind this bar; on every page that drew a faint rounded box around the page title. */
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
 }
 
 .command-bar-wrapper :is(h1, .dts-page-title) {
@@ -217,24 +230,47 @@ body::before {
 }
 
 :is(.page-platform-systems-users, .page-platform-systems-users-create, .page-platform-systems-users-edit, .page-platform-systems-roles, .page-platform-systems-roles-create, .page-platform-systems-roles-edit, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity, .page-platform-systems-offices-create, .page-platform-systems-schools-create, .page-platform-systems-schools-edit, .page-platform-systems-offices-edit, .page-platform-systems-health, .page-platform-notifications, .page-platform-profile) {
+    /* The page title on the left (styled like the document pages' heading), the page's buttons on the right. */
     & .command-bar-wrapper {
             left: auto;
-            width: fit-content;
+            width: 100%;
             max-width: 100%;
-            margin: 0 0 12px auto;
+            margin: 0 0 16px;
             border-bottom: 0;
     }
 
     & .command-bar-wrapper header {
-            display: none !important;
+            display: block !important;
+            min-width: 0;
+    }
+
+    & .command-bar-wrapper .dts-page-title {
+            margin: 0 0 2px !important;
+            color: var(--dts-heading) !important;
+            font-size: 1.375rem;
+            font-weight: 700 !important;
+            line-height: 1.3;
+    }
+
+    & .command-bar-wrapper header small {
+            display: block;
+            max-width: 70ch;
+            color: var(--dts-text-muted) !important;
+            font-size: 0.9375rem;
     }
 
     & .command-bar-wrapper .layout {
+            display: flex !important;
             width: auto;
             padding: 0 !important;
             border: 0;
+            border-radius: 0 !important;
             background: transparent !important;
-            justify-content: flex-end;
+            /* Orchid gives this bar a soft shadow; on a plain heading it showed as a faint rounded box. */
+            box-shadow: none !important;
+            align-items: flex-end !important;
+            justify-content: space-between;
+            gap: 12px 16px;
     }
 
     & .command-bar-wrapper nav {
@@ -420,8 +456,9 @@ body::before {
     white-space: nowrap;
 }
 
+/* Fits a 1366px laptop screen beside the sidebar; Actions stay pinned on the right if it ever scrolls. */
 .page-platform-systems-users [data-controller="table"] .table {
-    min-width: 1210px;
+    min-width: 960px;
 }
 
 /* Sign-in activity: enough room for full emails and details; the table scrolls sideways on narrow screens. */
@@ -438,7 +475,7 @@ body::before {
 }
 
 .page-platform-systems-users [data-controller="table"] [data-column="name"] {
-    min-width: 170px;
+    min-width: 130px;
 }
 
 .page-platform-systems-users [data-controller="table"] [data-column="email"] {
@@ -446,11 +483,11 @@ body::before {
 }
 
 .page-platform-systems-users [data-controller="table"] [data-column="roles"] {
-    min-width: 150px;
+    min-width: 110px;
 }
 
 .page-platform-systems-users [data-controller="table"] [data-column="office"] {
-    min-width: 220px;
+    min-width: 150px;
 }
 
 .dts-table-selection-summary {
@@ -825,7 +862,8 @@ body::before {
 
     & [data-controller="table"] .table {
             width: 100%;
-            min-width: 1180px;
+            /* Fits a 1366px laptop screen beside the sidebar; extra columns from the column menu scroll sideways. */
+            min-width: 1000px;
             margin: 0;
             border-collapse: separate;
             border-spacing: 0;
@@ -921,11 +959,6 @@ body::before {
     & [data-controller="table"] :is(th, td)[data-column="received-at"],
     & [data-controller="table"] :is(th, td)[data-column="created-at"] {
             min-width: 145px;
-            white-space: nowrap;
-    }
-
-    & [data-controller="table"] :is(th, td)[data-column="registered-time"] {
-            min-width: 120px;
             white-space: nowrap;
     }
 
@@ -1185,12 +1218,17 @@ body::before {
     border-bottom: 1px solid var(--dts-border);
 }
 
-/* Date registered and Quick action get fixed widths (four 40px icons per line); the two text columns share the rest. */
-.dts-office-queue-table th:nth-child(3) {
+/* Fixed widths by column name (not position, which shifts when the Records checkbox column shows): the checkbox
+   stays narrow, Date added and Quick action (four 40px icons per line) are fixed, the two text columns share the rest. */
+.dts-office-queue-table th.dts-queue-col-select {
+    width: 52px;
+}
+
+.dts-office-queue-table th.dts-queue-col-date {
     width: 140px;
 }
 
-.dts-office-queue-table th:nth-child(4) {
+.dts-office-queue-table th.dts-queue-col-action {
     width: 212px;
 }
 
@@ -2019,7 +2057,7 @@ a.dts-record-status:hover,
 }
 
 .dts-record-status[data-status="cancelled"] {
-    --dts-status-mark: '98';
+    --dts-status-mark: '\2298';
     --dts-status-mark-size: 1em;
     color: var(--dts-text-muted);
     background: #eceff3;
@@ -2876,7 +2914,7 @@ a.dts-record-status:hover,
     padding: 8px 12px;
     border: 1px solid #cbd5e1;
     border-radius: 4px;
-    background: rgb(248 244 231 / 60%);
+    background: var(--dts-surface);
 }
 
 .dts-workspace-timeline .dts-workspace-history-remarks strong {
@@ -3580,7 +3618,7 @@ a.dts-record-status:hover,
 }
 
 .dts-action-choice:focus-visible {
-    outline: 3px solid var(--dts-gold);
+    outline: 3px solid var(--dts-focus);
     outline-offset: 2px;
 }
 
@@ -7025,7 +7063,7 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 }
 
 .dts-queue-icon:focus-visible {
-    outline: 3px solid var(--dts-gold, #f2c230);
+    outline: 3px solid var(--dts-focus);
     outline-offset: 2px;
 }
 
@@ -7278,14 +7316,7 @@ body .invalid-feedback {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 12px;
     margin: 0 0 22px;
-    padding: 14px;
-    overflow: hidden;
-    border-radius: 16px;
-    background:
-        radial-gradient(circle at 10% 30%, rgb(33 110 57 / 22%), transparent 45%),
-        radial-gradient(circle at 50% 0%, rgb(242 194 48 / 25%), transparent 45%),
-        radial-gradient(circle at 92% 80%, rgb(31 95 139 / 20%), transparent 45%),
-        linear-gradient(135deg, #f4f8f2, #fbf6e8);
+    padding: 0;
     list-style: none;
 }
 
@@ -7302,22 +7333,21 @@ body .invalid-feedback {
     flex-direction: column;
     min-height: 0;
     padding: 12px 14px;
-    border: 1px solid rgb(255 255 255 / 75%);
-    border-top: 3px solid var(--dts-metric-tone);
+    /* Each card is filled with its own colour and edged in a darker shade of it, so the cards stand apart from the
+       white page and from each other. Text keeps at least 4.5:1 contrast on every fill (2026-10-31 check). */
+    border: 1px solid color-mix(in srgb, var(--dts-metric-tone) 45%, #fff);
+    border-top: 4px solid var(--dts-metric-tone);
     border-radius: 12px;
-    /* Each card's own light colour, as frosted glass. */
-    background: linear-gradient(145deg, rgb(var(--dts-metric-tint) / 88%), rgb(255 255 255 / 55%));
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
-    backdrop-filter: blur(14px) saturate(140%);
-    box-shadow: 0 4px 16px rgb(38 51 43 / 10%), inset 0 1px 0 rgb(255 255 255 / 80%);
+    background: rgb(var(--dts-metric-tint));
+    box-shadow: 0 1px 3px rgb(38 51 43 / 10%);
     color: var(--dts-text-strong);
     text-decoration: none;
     transition: transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out;
 }
 
 .dts-metrics-bold .dts-metric:hover {
-    background: linear-gradient(145deg, rgb(var(--dts-metric-tint) / 100%), rgb(255 255 255 / 70%));
-    box-shadow: 0 8px 22px rgb(38 51 43 / 16%), inset 0 1px 0 rgb(255 255 255 / 90%);
+    border-color: var(--dts-metric-tone);
+    box-shadow: 0 6px 16px rgb(38 51 43 / 14%);
     transform: translateY(-2px);
 }
 
@@ -7332,11 +7362,6 @@ body .invalid-feedback {
         transform: none;
         transition: none;
     }
-}
-
-/* Browsers without blur get solid near-white cards, so the text stays readable. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .dts-metrics-bold .dts-metric { background: rgb(var(--dts-metric-tint)); }
 }
 
 .dts-metrics-bold .dts-metric-heading > span:first-child {
@@ -7369,15 +7394,17 @@ body .invalid-feedback {
 
 .dts-metrics-bold .dts-metric > small {
     color: var(--dts-text-body);
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
     line-height: 1.35;
 }
 
-.dts-metrics-bold .dts-metric-green { --dts-metric-tone: #216e39; --dts-metric-tint: 220 238 222; }
-.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: #765709; --dts-metric-tint: 252 239 196; }
-.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: #86562d; --dts-metric-tint: 243 228 212; }
-.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: #1f5f8b; --dts-metric-tint: 219 233 245; }
-.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: #0f6b66; --dts-metric-tint: 213 238 235; }
+.dts-metrics-bold .dts-metric-green { --dts-metric-tone: #216e39; --dts-metric-tint: 200 227 204; }
+.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: #92400e; --dts-metric-tint: 253 230 160; }
+.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: #86562d; --dts-metric-tint: 234 210 185; }
+.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: #1f5f8b; --dts-metric-tint: 199 220 239; }
+.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: #0f6b66; --dts-metric-tint: 191 227 223; }
+.dts-metrics-bold .dts-metric-slate { --dts-metric-tone: #475569; --dts-metric-tint: 218 225 234; }
 
 /* No card left alone on a row: five cards put the two most urgent on top (larger), four go two by two; wide
    screens fit them all in one row. */
@@ -7406,7 +7433,6 @@ body .invalid-feedback {
     .dts-metrics.dts-metrics-bold[data-metric-count] {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
-        padding: 10px;
     }
 
     .dts-metrics-bold[data-metric-count] > li,
@@ -7758,7 +7784,7 @@ body .invalid-feedback {
     inset: 0 0 auto 0;
     z-index: 2147483000;
     height: 4px;
-    background: linear-gradient(90deg, transparent 0, var(--dts-green) 30%, var(--dts-gold) 50%, var(--dts-green) 70%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0, var(--dts-green) 30%, var(--dts-green-dark) 50%, var(--dts-green) 70%, transparent 100%);
     background-size: 200% 100%;
     animation: dts-page-loading-bar 1.2s linear infinite;
 }
@@ -7897,7 +7923,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     position: absolute;
     inset: auto 0 0 0;
     height: 6px;
-    background: linear-gradient(90deg, var(--dts-gold) 0 60%, var(--dts-brown) 60% 100%);
+    background: linear-gradient(90deg, #f2c230 0 60%, #86562d 60% 100%);
 }
 
 .dts-auth-hero__inner {
@@ -8359,4 +8385,498 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 /* Orchid sets "label { white-space: nowrap }"; the sign-in "Keep me signed in…" text must wrap on phones. */
 .dts-remember .form-check-label {
     white-space: normal;
+}
+
+/* Admin filter bars: the search box (always first) gets double width, so its hint text is not cut off. */
+@media (min-width: 768px) {
+    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity) .row > .col-md.mb-3:first-child {
+        flex: 2 1 0;
+        min-width: 240px !important;
+    }
+
+    /* Orchid gives every filter an inline 200px minimum; the short dropdowns need less, which frees room above. */
+    :is(.page-platform-systems-users, .page-platform-systems-roles, .page-platform-systems-offices, .page-platform-systems-schools, .page-platform-systems-sign-in-activity) .row > .col-md.mb-3:not(:first-child) {
+        min-width: 150px !important;
+    }
+}
+
+/* Document window: the acting-office badge is left empty when there is only one office (dts.js), so hide it then. */
+[data-workflow-source-status]:empty {
+    display: none;
+}
+
+/* Dates in staff tables (App\Support\DisplayDate): the date, with the time below it. */
+.dts-date-cell {
+    display: block;
+    white-space: nowrap;
+}
+
+.dts-date-cell > span {
+    display: block;
+}
+
+/* Wide tables: the row actions stay pinned to the right edge, so Edit, Delete and the dashboard's quick actions are
+   always in view while the other columns scroll sideways. Phones show tables as cards, so this starts above them. */
+@media (min-width: 576px) {
+    [data-controller="table"] :is(th, td)[data-column="actions"],
+    .dts-office-queue-table :is(th, td):last-child {
+        position: sticky;
+        right: 0;
+        z-index: 1;
+        background: #fff;
+        box-shadow: -1px 0 var(--dts-grid), -6px 0 8px -6px rgb(38 51 43 / 18%);
+    }
+
+    [data-controller="table"] th[data-column="actions"],
+    .dts-office-queue-table th:last-child {
+        z-index: 2;
+        background: var(--dts-surface);
+    }
+}
+
+/* Sidebar brand block: the DocuTrackS name on the dark brand green, so the top of the menu reads as the system's
+   header. White name (9:1), gold "TrackS" (5.4:1), pale green subtitles (7.1:1). The sign-in page's logo is not in
+   .aside, so it keeps its light look. */
+.aside > header {
+    background: var(--dts-green-dark);
+    border-bottom: 1px solid var(--dts-green-dark);
+}
+
+.aside > header .dts-brand,
+.aside > header .dts-brand strong {
+    color: #fff;
+}
+
+.aside > header .dts-brand-accent {
+    color: #f2c230; /* brand gold */
+}
+
+.aside > header .dts-brand small {
+    color: #dbe9dd;
+}
+
+/* The app icon is green itself, so a white backing keeps it visible on the green block. */
+.aside > header .dts-brand-mark {
+    padding: 2px;
+    background: #fff;
+}
+
+.aside > header .header-toggler {
+    color: #fff !important;
+}
+
+.aside > header .header-brand:focus-visible,
+.aside > header .header-toggler:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+}
+
+@media (min-width: 992px) {
+    .aside > header {
+        padding-bottom: 18px !important;
+        margin-bottom: 12px;
+    }
+}
+
+/* The brand fits inside the green block: it may shrink, and the subtitles wrap instead of being cut off. */
+.aside > header .header-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.aside > header .dts-brand {
+    max-width: 100%;
+}
+
+.aside > header .dts-brand small {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Edge to edge: the sidebar has 12px side padding, so the green block reaches past it to both sides. */
+.aside > header {
+    width: calc(100% + 24px) !important;
+    margin-inline: -12px;
+    padding-inline: 28px !important;
+}
+
+/* The collapsed sidebar has 6px side padding instead of 12px. */
+.dts-sidebar-collapsed .aside > header {
+    width: calc(100% + 12px) !important;
+    margin-inline: -6px;
+    padding-inline: 0 !important;
+}
+
+/* Collapsed: the hidden subtitles must not wrap, or at zero width they stack letter by letter and stretch the block. */
+.dts-sidebar-collapsed .aside > header .dts-brand small {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+
+.dts-sidebar-collapsed .aside > header .header-brand {
+    flex: 0 0 auto;
+}
+
+.dts-sidebar-collapsed .aside > header .dts-brand {
+    gap: 0;
+}
+
+/* Signed-in person at the bottom of the sidebar: a soft brand gold, edge to edge, so the menu sits between the
+   green brand block on top and the gold block below. Name 11.9:1, role 7:1 (dark gold-brown). The wrapper is
+   coloured because it clips the block's edges. */
+.aside footer > .bg-dark {
+    margin-inline: -12px;
+    padding-bottom: 10px !important;
+    background: #fbe7a1 !important;
+    border-top: 1px solid #e3c25a;
+}
+
+.dts-sidebar-collapsed .aside footer > .bg-dark {
+    margin-inline: -6px;
+}
+
+.aside .profile-container {
+    padding-inline: 28px !important;
+    background: transparent !important;
+    border-top: 0;
+}
+
+.dts-sidebar-collapsed .aside .profile-container {
+    padding-inline: 0 !important;
+    align-items: center !important;
+    justify-content: center;
+}
+
+.aside .profile-container .text-white {
+    color: #1e293b !important;
+}
+
+.aside .profile-container .text-muted {
+    color: #5c4a0b !important;
+}
+
+.aside .profile-container [data-dts-notification] {
+    color: #1e293b !important;
+}
+
+/* Collapsed sidebar: one centre line for every icon (logo, menu, avatar, bell). The menu's scrollbar would take 10px
+   on the right and the hidden label's 16px gap would push each icon left, so both go while collapsed. The menu still
+   scrolls with the mouse wheel or touch. */
+.dts-sidebar-collapsed .aside .nav {
+    scrollbar-width: none;
+}
+
+.dts-sidebar-collapsed .aside .nav::-webkit-scrollbar {
+    display: none;
+}
+
+/* !important: the menu links carry Bootstrap's gap-3, which is !important itself. */
+.dts-sidebar-collapsed .aside .nav-link {
+    gap: 0 !important;
+}
+
+/* Edit role: permissions as a compact list. Each group has a heading with its "X of Y on" count; each permission is
+   one full-width row: checkbox and name, its one-line summary beside the name (below it on narrow screens), and a
+   "More" toggle on the right for the few with fine print. */
+.dts-permission-group-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--dts-grid);
+}
+
+.dts-permission-group-heading h4 {
+    margin: 0;
+    color: var(--dts-heading);
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.dts-permission-group-count {
+    color: var(--dts-text-muted);
+    font-size: var(--dts-text-sm);
+    white-space: nowrap;
+}
+
+.dts-permission-group-count strong {
+    color: var(--dts-green);
+}
+
+.dts-permission-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 4px 16px;
+    padding: 8px 4px;
+    border-bottom: 1px solid var(--dts-line);
+}
+
+.dts-permission-row .form-check {
+    flex: 1 1 420px;
+    min-width: 0;
+    margin: 0;
+}
+
+.dts-permission-row .form-check-label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 12px;
+    white-space: normal;
+}
+
+.dts-permission-name {
+    flex: 0 0 auto;
+    min-width: 15rem;
+    color: var(--dts-text-strong);
+    font-weight: 600;
+}
+
+.dts-permission-row .dts-permission-description {
+    display: inline;
+    flex: 1 1 18rem;
+    margin: 0;
+    font-size: var(--dts-text-sm);
+}
+
+.dts-permission-more {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.dts-permission-more > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: var(--dts-radius-sm);
+    color: var(--dts-green);
+    font-size: var(--dts-text-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.dts-permission-more > summary:hover {
+    background: var(--dts-green-soft);
+}
+
+.dts-permission-more > summary:focus-visible {
+    outline: 3px solid var(--dts-focus);
+    outline-offset: 2px;
+}
+
+/* Opened: "Less" stays where "More" was (top right of the row) and the fine print follows straight under the row,
+   lined up with the name, with no empty line between. */
+.dts-permission-row {
+    position: relative;
+}
+
+.dts-permission-row:has(.dts-permission-more[open]) .dts-permission-more {
+    flex-basis: 100%;
+    margin-left: 0;
+}
+
+.dts-permission-row:has(.dts-permission-more[open]) .form-check {
+    padding-right: 72px;
+}
+
+.dts-permission-more[open] > summary {
+    position: absolute;
+    top: 8px;
+    right: 13px;
+}
+
+.dts-permission-more > p {
+    margin: 0 0 4px 2.25rem;
+    padding: 8px 12px;
+    border-left: 3px solid var(--dts-gold);
+    background: var(--dts-surface);
+    color: var(--dts-text-body);
+    font-size: var(--dts-text-sm);
+}
+
+/* Orchid puts each field in a .form-group with its own bottom margin; the rows' borders already separate them. */
+.page-platform-systems-roles-edit .form-group:has(> .dts-permission-row),
+.page-platform-systems-roles-create .form-group:has(> .dts-permission-row) {
+    margin-bottom: 0;
+}
+
+/* Orchid spaces every field 16px apart (gap-3, !important); the permission rows have their own borders, so they sit
+   flush and only the group headings get space above them. */
+:is(.page-platform-systems-roles-edit, .page-platform-systems-roles-create) .d-flex.flex-column:has(> .form-group > .dts-permission-row) {
+    gap: 0 !important;
+}
+
+.dts-permission-group-heading:not(:first-child) {
+    margin-top: 20px;
+}
+
+.dts-permission-more .dts-less-label,
+.dts-permission-more[open] .dts-more-label {
+    display: none;
+}
+
+.dts-permission-more[open] .dts-less-label {
+    display: inline;
+}
+
+/* Readability for older staff: small supporting text is 15px instead of 14px, and section titles that Orchid
+   draws in a light weight are bold. */
+.dts-section-caption,
+.dts-dashboard-activity small,
+.dts-footer {
+    font-size: 0.9375rem;
+}
+
+.dts-main fieldset > .col > legend {
+    color: var(--dts-heading) !important;
+    font-size: 1.125rem;
+    font-weight: 650;
+}
+
+/* The current menu item and the small tracking numbers in lists use the darker brand green (8:1 and 9:1). */
+.aside .nav-link.active {
+    color: var(--dts-green-dark) !important;
+}
+
+.dts-record-code a,
+.dts-record-code a strong {
+    color: var(--dts-green-dark);
+}
+
+/* Timeline remarks stand out: the brand cream with a gold edge on the left (text 9.4:1 on cream). */
+.dts-workspace-timeline .dts-workspace-history-remarks {
+    border: 1px solid #e3d6b3;
+    border-left: 4px solid #d9a521;
+    background: #f8f4e7;
+}
+
+.dts-workspace-timeline .dts-workspace-history-remarks strong {
+    color: var(--dts-green-dark);
+}
+
+.dts-workspace-timeline .dts-workspace-history-remarks p {
+    font-size: 0.9375rem;
+}
+
+/* Sidebar menu: no scrollbar at all. The menu still scrolls with the mouse wheel, touchpad, touch and arrow keys. */
+.aside > .aside-collapse > .nav {
+    scrollbar-width: none;
+}
+
+.aside > .aside-collapse > .nav::-webkit-scrollbar {
+    display: none;
+}
+
+/* Keyboard focus in the sidebar menu (Tab or the arrow keys): the blue ring, drawn inside the link so the menu's
+   scrolling area does not clip it. */
+.aside .nav-link:focus-visible {
+    outline: 3px solid var(--dts-focus);
+    outline-offset: -3px;
+}
+
+/* Tables and the keyboard (dts.js moves between rows with ↑ and ↓): the row that holds focus is highlighted, and the
+   focused link, checkbox or button gets the blue ring. */
+:is(.dts-table, [data-controller="table"] table) tbody tr:focus-within > td {
+    background: var(--dts-row-hover) !important;
+}
+
+:is(.dts-table, [data-controller="table"] table) tbody :is(a, button, input[type="checkbox"]):focus-visible {
+    outline: 3px solid var(--dts-focus) !important;
+    outline-offset: 2px;
+}
+
+/* Document window, easier to read: the document title and section headings are bold (they were medium weight and
+   looked thin); the history details are 15px with values a little heavier; the route count says what it counts. */
+.dts-workspace-header h2,
+.dts-workspace-section-heading h3 {
+    color: var(--dts-heading);
+    font-weight: 700;
+}
+
+.dts-workspace-routing h4 {
+    color: var(--dts-heading);
+    font-weight: 700;
+}
+
+.dts-workspace-step-details :is(dt, dd),
+.dts-workspace-step-details time {
+    font-size: 0.9375rem;
+}
+
+.dts-workspace-step-details dt {
+    color: var(--dts-text-muted);
+    font-weight: 600;
+}
+
+.dts-workspace-step-details dd {
+    color: var(--dts-heading);
+    font-weight: 500;
+}
+
+.dts-route-when {
+    color: var(--dts-heading);
+    font-weight: 500;
+}
+
+[data-workspace-history-label] {
+    color: var(--dts-text-strong);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+/* Counts beside a heading ("1 route", "2 / 5"): bold and outlined so they read as information, not decoration. */
+.dts-count {
+    border: 1px solid var(--dts-border);
+    color: var(--dts-text-strong);
+    font-weight: 600;
+}
+
+.dts-count-strong {
+    border-color: color-mix(in srgb, var(--dts-green) 40%, #fff);
+    background: var(--dts-green-soft);
+    color: var(--dts-green-dark);
+    font-weight: 700;
+}
+
+/* Placeholders (the grey hint inside an empty field) use their own medium grey: readable (4.8:1) but clearly lighter
+   than typed text (14.6:1), so an empty field never looks filled in. */
+:root {
+    --dts-placeholder: #64748b;
+}
+
+.form-control::placeholder,
+.dts-field input::placeholder,
+.dts-field textarea::placeholder,
+.dts-main :is(input, textarea)::placeholder,
+.dts-record-dialog :is(input, textarea)::placeholder {
+    color: var(--dts-placeholder);
+    opacity: 1;
+}
+
+/* Office and type pickers: 15px, slightly heavier options; the highlighted one is bold dark green with a bar on the
+   left, so it is clear which office Enter will pick. */
+dts-searchable [data-choice] {
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--dts-heading);
+}
+
+dts-searchable [data-choice]:is(:hover, :focus, [aria-selected="true"]) {
+    color: var(--dts-green-dark);
+    font-weight: 600;
+    box-shadow: inset 4px 0 var(--dts-green);
+}
+
+dts-searchable [data-suggestions] p {
+    color: var(--dts-text-strong);
+    font-size: 0.9375rem;
+}
+
+/* The document window's destination search box matches the other fields (it was 14px). */
+dts-workflow-routing input[data-destination-select] {
+    font-size: 1rem;
 }

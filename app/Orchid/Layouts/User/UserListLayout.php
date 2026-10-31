@@ -6,9 +6,9 @@ namespace App\Orchid\Layouts\User;
 
 use App\Models\User;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
+use App\Support\DisplayDate;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
-use Orchid\Screen\Components\Cells\DateTimeSplit;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
 
@@ -51,18 +51,19 @@ class UserListLayout extends Table
                 ->render(fn (User $user): string => e($user->assignedOfficeNames()->join(', ') ?: __('Not assigned'))),
 
             TD::make('deactivated_at', __('Status'))
+                // The same badges as document statuses: green for active, grey with a stop mark for deactivated.
                 ->render(fn (User $user): string => $user->isDeactivated()
-                    ? '<strong>'.e(__('Deactivated')).'</strong>'
-                    : e(__('Active'))),
+                    ? '<span class="dts-record-status" data-status="cancelled">'.e(__('Deactivated')).'</span>'
+                    : '<span class="dts-record-status" data-status="received">'.e(__('Active')).'</span>'),
 
             TD::make('created_at', __('Date created'))
-                ->usingComponent(DateTimeSplit::class)
-                ->align(TD::ALIGN_RIGHT)
+                ->render(fn ($row): string => (string) DisplayDate::cell($row->created_at))
                 ->sort(),
 
+            // Hidden by default so the table fits a laptop screen; the column menu can show it.
             TD::make('updated_at', __('Last updated'))
-                ->usingComponent(DateTimeSplit::class)
-                ->align(TD::ALIGN_RIGHT)
+                ->render(fn ($row): string => (string) DisplayDate::cell($row->updated_at))
+                ->defaultHidden()
                 ->sort(),
 
             TD::make(__('Actions'))

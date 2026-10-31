@@ -230,7 +230,7 @@ class DocumentIntakeTest extends TestCase
             ->assertOk()
             ->assertSee('data-paper-received="'.$document->tracking_number.'"', false)
             ->assertSee(route('platform.documents.intake'), false)
-            ->assertSee('Physical document/s received')
+            ->assertSee('Receive physical document/s')
             ->assertDontSee('data-paper-receive-all', false);
 
         $this->actingAs($budget)

@@ -19,7 +19,7 @@
                     ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' waiting for your office', 'bs.list-task', 'green', '#office-queue-title'],
                     ['Incoming', $notReceivedCount, 'not received yet; receive these first', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
                     ['Outgoing', $sentWaitingCount, 'sent; the next office has not received '.($sentWaitingCount === 1 ? 'it' : 'them').' yet', 'bs.send', 'blue', route('platform.outgoing')],
-                    ['Archived', $archivedCount, Str::plural('document', $archivedCount).' completed or released', 'bs.archive', 'teal', route('platform.archived')],
+                    ['Archived', $archivedCount, Str::plural('document', $archivedCount).' completed or released', 'bs.archive', 'slate', route('platform.archived')],
                 ];
             @endphp
             <ul class="dts-metrics dts-metrics-bold" aria-label="Work summary" data-metric-count="{{ count($summaryCards) }}">
@@ -50,7 +50,7 @@
                 <div class="dts-table-frame" @if ($canConfirmPaperIntake) data-records-receive-queue @endif>
                     <div class="dts-table-scroll">
                       <table class="dts-table dts-office-queue-table">
-                        <thead><tr>@if ($canConfirmPaperIntake)<th scope="col"><input type="checkbox" class="dts-table-checkbox" data-table-select-all aria-label="Select all documents awaiting Records receipt on this page"></th>@endif<th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col">Date added</th><th scope="col">Quick action</th></tr></thead>
+                        <thead><tr>@if ($canConfirmPaperIntake)<th scope="col" class="dts-queue-col-select"><input type="checkbox" class="dts-table-checkbox" data-table-select-all aria-label="Select all documents awaiting Records receipt on this page"></th>@endif<th scope="col">Tracking no. / Subject</th><th scope="col">Offices and status</th><th scope="col" class="dts-queue-col-date">Date added</th><th scope="col" class="dts-queue-col-action">Quick action</th></tr></thead>
                         <tbody>
                             @forelse ($officeQueue as $queueItem)
                                 @php
@@ -121,7 +121,7 @@
                                         {{-- Icon-only buttons; each label shows as a tooltip on hover and on keyboard focus. --}}
                                         <div class="dts-queue-icons">
                                             @if (($canConfirmPaperIntake ?? false) && $awaitsPaper)
-                                                <button type="button" class="dts-queue-icon is-primary dts-paper-received" data-paper-received="{{ $document->tracking_number }}" data-lookup-url="{{ route('platform.documents.intake') }}" data-tooltip="Physical document/s received" aria-label="Physical document/s received for {{ $document->tracking_number }}"><x-orchid-icon path="bs.clipboard-check" /></button>
+                                                <button type="button" class="dts-queue-icon is-primary dts-paper-received" data-paper-received="{{ $document->tracking_number }}" data-lookup-url="{{ route('platform.documents.intake') }}" data-tooltip="Receive physical document/s" aria-label="Receive physical document/s for {{ $document->tracking_number }}"><x-orchid-icon path="bs.clipboard-check" /></button>
                                             @endif
                                             @foreach ($queueActions as $action => $actionOffice)
                                                 @if ($action === \App\Models\DocumentMovement::ACTION_RECEIVED)

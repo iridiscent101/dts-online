@@ -54,7 +54,7 @@ class OfficeListScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Link::make(__('Add'))
+            Link::make(__('Add office'))
                 ->icon('bs.plus-circle')
                 ->route('platform.systems.offices.create'),
         ];

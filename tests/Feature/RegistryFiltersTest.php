@@ -70,8 +70,8 @@ class RegistryFiltersTest extends TestCase
             ->assertDontSee('id="registry-priority"', false)
             ->assertSee('1 filter active')
             ->assertSee('Date added')
-            ->assertSee('Time registered')
-            ->assertSee('data-column="registered-time"', false)
+            ->assertSee('class="dts-date-cell"', false)
+            ->assertDontSee('data-column="registered-time"', false)
             ->assertDontSee('Last updated');
     }
 

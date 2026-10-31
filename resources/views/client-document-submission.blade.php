@@ -10,7 +10,7 @@
     @fonts
     @vite('resources/css/app.css')
 </head>
-<body class="min-h-screen bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
+<body class="min-h-screen bg-white font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
         <span class="bg-[#216E39]"></span>
         <span class="bg-[#F2C230]"></span>

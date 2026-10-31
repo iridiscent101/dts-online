@@ -48,7 +48,7 @@ class SchoolListScreen extends Screen
     public function commandBar(): iterable
     {
         return [
-            Link::make(__('Add'))
+            Link::make(__('Add school'))
                 ->icon('bs.plus-circle')
                 ->route('platform.systems.schools.create'),
         ];

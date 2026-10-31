@@ -6,9 +6,9 @@ namespace App\Orchid\Layouts\School;
 
 use App\Models\School;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
+use App\Support\DisplayDate;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
-use Orchid\Screen\Components\Cells\DateTimeSplit;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
 
@@ -36,8 +36,7 @@ class SchoolListLayout extends Table
                 ->cantHide(),
 
             TD::make('updated_at', __('Last updated'))
-                ->usingComponent(DateTimeSplit::class)
-                ->align(TD::ALIGN_RIGHT)
+                ->render(fn ($row): string => (string) DisplayDate::cell($row->updated_at))
                 ->sort(),
 
             // Edit opens the school's own page (like Users, Offices and Roles); missing schools are added with "Add".

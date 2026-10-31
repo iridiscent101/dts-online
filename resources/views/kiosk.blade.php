@@ -12,7 +12,7 @@
 </head>
 {{-- The laptop outside the Records Unit (KioskController). It waits for a clerk's "Send to kiosk", shows only the
      tracking number and type of that one document, and sends back the recipient's name and signature. --}}
-<body class="min-h-screen bg-[#F8F4E7] font-sans text-[#26332B] antialiased" data-kiosk data-current-url="{{ route('kiosk.current') }}">
+<body class="min-h-screen bg-white font-sans text-[#26332B] antialiased" data-kiosk data-current-url="{{ route('kiosk.current') }}">
     <div class="fixed inset-x-0 top-0 grid h-1.5 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
         <span class="bg-[#216E39]"></span>
         <span class="bg-[#F2C230]"></span>

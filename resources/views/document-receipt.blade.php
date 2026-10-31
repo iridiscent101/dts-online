@@ -10,7 +10,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/client-updates.js'])
 </head>
-<body class="dts-public-page dts-receipt-page bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
+<body class="dts-public-page dts-receipt-page bg-white font-sans text-[#26332B] antialiased">
     {{-- Screen only: back to tracking and Print. The receipt itself is one A4/Letter-friendly card. --}}
     <div class="dts-receipt-actions mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-3 px-5 pt-6">
         <a href="{{ $trackingUrl }}" class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-4 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7]"><x-orchid-icon path="bs.arrow-left" class="size-4" /> Back to tracking</a>

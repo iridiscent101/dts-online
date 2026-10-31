@@ -1810,8 +1810,11 @@ class WorkflowRouting extends HTMLElement {
         const sourceOffice = source?.value || '';
         const status = this.querySelector('[data-workflow-source-status]');
         if (status) {
-            status.dataset.status = source?.selectedOptions[0]?.dataset.status || '';
-            status.textContent = source?.selectedOptions[0]?.dataset.statusLabel || '';
+            // With one acting office its status already shows on the route card above, so the badge only appears
+            // when staff choose between offices (each can be at a different step).
+            const singleOffice = (source?.options.length ?? 0) <= 1;
+            status.dataset.status = singleOffice ? '' : source?.selectedOptions[0]?.dataset.status || '';
+            status.textContent = singleOffice ? '' : source?.selectedOptions[0]?.dataset.statusLabel || '';
         }
         const actionSelect = this.querySelector('[data-workflow-action]');
         const actionOptions = this.actionOptionsByOffice[sourceOffice];
@@ -3594,6 +3597,130 @@ document.addEventListener('change', (event) => {
         input.required = false;
         toggleRevealed(field, false);
     }
+});
+
+// Sidebar menu: ↑ and ↓ move between menu items, Home and End jump to the first and last (Tab still works as usual).
+// It works when a menu item has keyboard focus, and also right after a mouse click in the sidebar: clicking a menu
+// item loads its page, so the next page remembers that click (sessionStorage) and the first arrow press moves on from
+// the current page's item. A click anywhere else hands the arrow keys back to the page.
+const SIDEBAR_KEYS = 'dts-sidebar-keys';
+const sidebarLinks = () => [...document.querySelectorAll('.aside .nav a.nav-link')].filter((link) => link.offsetParent !== null);
+const rememberSidebarKeys = (on) => {
+    try {
+        if (on) sessionStorage.setItem(SIDEBAR_KEYS, '1');
+        else sessionStorage.removeItem(SIDEBAR_KEYS);
+    } catch {
+        // Storage can be blocked; the arrow keys then work only once a menu item has focus.
+    }
+};
+const sidebarKeysRemembered = () => {
+    try {
+        return sessionStorage.getItem(SIDEBAR_KEYS) === '1';
+    } catch {
+        return false;
+    }
+};
+
+document.addEventListener('pointerdown', (event) => {
+    rememberSidebarKeys(event.target instanceof Element && event.target.closest('.aside .aside-collapse') !== null);
+}, true);
+
+document.addEventListener('keydown', (event) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+    const target = event.target instanceof Element ? event.target : null;
+    let current = target?.closest('.aside .nav a.nav-link') ?? null;
+
+    if (!current) {
+        // Not on a menu item: only take over the keys when the last click was in the sidebar and nothing that uses
+        // the arrow keys itself (a field, a list, an open dialog) has focus.
+        const focusIsFree = !target || target === document.body || target.closest('.aside') !== null;
+        if (!focusIsFree || !sidebarKeysRemembered() || target?.closest('input, textarea, select, [contenteditable], dialog')) return;
+
+        const links = sidebarLinks();
+        current = links.find((link) => link.classList.contains('active')) ?? null;
+        if (!current) {
+            event.preventDefault();
+            links[event.key === 'ArrowUp' || event.key === 'End' ? links.length - 1 : 0]?.focus();
+            return;
+        }
+    }
+
+    const links = sidebarLinks();
+    const index = links.indexOf(current);
+    const next = {
+        ArrowDown: links[Math.min(index + 1, links.length - 1)],
+        ArrowUp: links[Math.max(index - 1, 0)],
+        Home: links[0],
+        End: links[links.length - 1],
+    }[event.key];
+
+    event.preventDefault();
+    next?.focus();
+});
+
+// Tables (registry, dashboard queue, admin lists): ↑ and ↓ move to the row above or below, onto the same kind of control
+// (the tracking-number link, a checkbox, an action button). It works when something in a row has focus, and after a
+// click on a row; a click outside the table hands the arrow keys back to the page.
+const ROW_CONTROLS = 'a[href], button:not([disabled]), input[type="checkbox"]:not([disabled])';
+let lastClickedTableRow = null;
+
+const rowControls = (row) => [...row.querySelectorAll(ROW_CONTROLS)].filter((control) => control.offsetParent !== null);
+const visibleRows = (body) => [...body.rows].filter((row) => !row.hidden && row.offsetParent !== null && rowControls(row).length > 0);
+
+document.addEventListener('pointerdown', (event) => {
+    lastClickedTableRow = event.target instanceof Element ? event.target.closest('table tbody tr') : null;
+}, true);
+
+document.addEventListener('keydown', (event) => {
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key) || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('textarea, select, [contenteditable], dialog, .aside') || (target?.matches('input') && target.type !== 'checkbox')) return;
+
+    let row = target?.closest('table tbody tr') ?? null;
+    let control = row ? target.closest(ROW_CONTROLS) : null;
+
+    // Nothing in a table has focus: start from the row that was clicked last, if it is still on the page.
+    if (!row) {
+        if (!(target === null || target === document.body) || !lastClickedTableRow?.isConnected) return;
+        row = lastClickedTableRow;
+        control = null;
+    }
+
+    const rows = visibleRows(row.parentElement);
+    const index = rows.indexOf(row);
+    // From a clicked row (nothing focused yet) the first press lands on that row itself.
+    const nextRow = control === null && document.activeElement === document.body
+        ? row
+        : rows[event.key === 'ArrowDown' ? index + 1 : index - 1];
+    if (!nextRow) return;
+
+    // Same column and same position in the cell as before; otherwise the row's first control.
+    const cell = control?.closest('td');
+    const sameCell = cell ? nextRow.cells[cell.cellIndex] : null;
+    const position = cell ? rowControls(cell).indexOf(control) : -1;
+    const cellControls = sameCell ? rowControls(sameCell) : [];
+    const destination = cellControls[Math.max(position, 0)] ?? cellControls[0] ?? rowControls(nextRow)[0];
+    if (!destination) return;
+
+    event.preventDefault();
+    destination.focus();
+    destination.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    lastClickedTableRow = nextRow;
+});
+
+// Edit role: keep each permission group's "X of Y on" count current as boxes are ticked.
+document.addEventListener('change', (event) => {
+    const row = event.target.closest?.('[data-permission-group]');
+    if (!row || event.target.type !== 'checkbox') return;
+
+    const group = row.dataset.permissionGroup;
+    const count = document.querySelector(`[data-permission-group-heading="${CSS.escape(group)}"] [data-permission-group-count] strong`);
+    if (!count) return;
+
+    const boxes = [...document.querySelectorAll(`[data-permission-group="${CSS.escape(group)}"] input[type="checkbox"]`)];
+    count.textContent = String(boxes.filter((box) => box.checked).length);
 });
 
 // First page load: dts.css covers the page until this runs (html:not(.dts-ready)). It is the last listener in

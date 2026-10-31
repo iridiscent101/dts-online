@@ -10,7 +10,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js', 'resources/js/client-updates.js'])
 </head>
-<body class="dts-public-page flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
+<body class="dts-public-page flex min-h-screen flex-col bg-white font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
         <span class="bg-[#216E39]"></span>
         <span class="bg-[#F2C230]"></span>

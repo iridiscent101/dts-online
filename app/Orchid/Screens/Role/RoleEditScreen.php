@@ -13,8 +13,8 @@ use Illuminate\Support\Str;
 use Orchid\Platform\Models\Role;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
+use Orchid\Screen\Layout;
 use Orchid\Screen\Screen;
-use Orchid\Support\Facades\Layout;
 use Orchid\Support\Facades\Toast;
 
 class RoleEditScreen extends Screen
@@ -89,22 +89,14 @@ class RoleEditScreen extends Screen
     /**
      * The screen's layout elements.
      *
-     * @return string[]|\Orchid\Screen\Layout[]
+     * @return string[]|Layout[]
      */
     public function layout(): iterable
     {
         return [
-            Layout::block([
-                RoleEditLayout::class,
-            ])
-                ->title('Role')
-                ->description('Role name and description.'),
-
-            Layout::block([
-                RolePermissionLayout::class,
-            ])
-                ->title('Permission/Privilege')
-                ->description('Pages and actions available to accounts with this role.'),
+            // Full width with the title above each section: the old side column squeezed the permission list.
+            RoleEditLayout::class,
+            RolePermissionLayout::class,
         ];
     }
 

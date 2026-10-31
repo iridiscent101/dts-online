@@ -7,6 +7,7 @@ namespace App\Orchid\Layouts\SignInActivity;
 use App\Auth\AccountActivity;
 use App\Models\User;
 use App\Orchid\Layouts\Concerns\HasTableSelectionColumn;
+use App\Support\DisplayDate;
 use Orchid\Screen\Layouts\Table;
 use Orchid\Screen\TD;
 use Spatie\Activitylog\Models\Activity;
@@ -36,7 +37,7 @@ class SignInActivityListLayout extends Table
             TD::make('created_at', __('When'))
                 ->width('130px')
                 ->cantHide()
-                ->render(fn (Activity $activity): string => e($activity->created_at?->copy()->timezone('Asia/Manila')->format('M j, Y g:i A') ?? '')),
+                ->render(fn (Activity $activity): string => (string) DisplayDate::cell($activity->created_at, '')),
 
             TD::make('description', __('What happened'))
                 ->cantHide()
