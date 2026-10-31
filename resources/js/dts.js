@@ -381,9 +381,15 @@ async function refreshWorkspace(dialog, preserveRouting = false) {
     pageLoading.show('Loading…');
     let html;
     try {
-        const response = await fetch(shell.dataset.workspaceUrl, { headers: { 'Accept': 'text/html' } });
+        const response = await fetch(shell.dataset.workspaceUrl, {
+            headers: { 'Accept': 'text/html' },
+            signal: AbortSignal.timeout(LOADING_RELEASE_MS),
+        });
         if (!response.ok) throw new Error('Saved, but could not refresh the workspace. Reopen this document to see the update.');
         html = await response.text();
+    } catch (error) {
+        if (error.name === 'TimeoutError') throw new Error('Saved, but refreshing took too long. Reopen this document to see the update.');
+        throw error;
     } finally {
         pageLoading.hide();
     }
@@ -746,6 +752,8 @@ document.addEventListener('click', async (event) => {
     dialog.querySelectorAll('[data-workspace-panel]').forEach((panel) => {
         panel.hidden = panel.dataset.workspacePanel !== tab.dataset.workspaceTab;
     });
+    // The routing fields only have a width once their tab shows; size the office fields for the longest name now.
+    dialog.querySelector('dts-workflow-routing')?.fitOfficeFields?.();
 });
 
 document.addEventListener('input', (event) => {
@@ -1594,11 +1602,62 @@ class WorkflowRouting extends HTMLElement {
         this.syncActionOptions();
         this.syncDestinationPanel();
         this.syncDestinationRows();
+        this.fitOfficeFields();
+
+        // Office names can be long ("SDO-School Governance and Operations Division (SGOD) Chief"): re-check the
+        // layout whenever the window changes size.
+        // Watch the block rows themselves: this custom element is inline, so it reports no size change when the
+        // Routing tab opens or the window is resized.
+        this.officeFieldObserver = new ResizeObserver(() => this.fitOfficeFields());
+        [this.querySelector('[data-workflow-source-office]')?.closest('.dts-workspace-fields'), this.querySelector('[data-destination-panel]')]
+            .filter(Boolean)
+            .forEach((element) => this.officeFieldObserver.observe(element));
     }
 
     disconnectedCallback() {
         this.events?.abort();
         this.events = null;
+        this.officeFieldObserver?.disconnect();
+        this.officeFieldObserver = null;
+    }
+
+    /**
+     * Office fields are sized for the longest office name in their list. Side by side with their neighbour (Action,
+     * or Remarks for a destination) they get half the row; when the longest name does not fit in half, that row
+     * switches to one field per line so the office field gets the full width instead of cutting names off.
+     */
+    fitOfficeFields() {
+        const widthNeeded = (field, names) => {
+            if (!field || names.length === 0) return 0;
+            const style = getComputedStyle(field);
+            const context = (this.constructor.measureCanvas ??= document.createElement('canvas')).getContext('2d');
+            context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+            const longest = Math.max(...names.map((name) => context.measureText(name).width));
+            const chrome = ['paddingLeft', 'paddingRight', 'borderLeftWidth', 'borderRightWidth']
+                .reduce((sum, side) => sum + (parseFloat(style[side]) || 0), 0);
+            return Math.ceil(longest + chrome + 4);
+        };
+        const halfOf = (container) => {
+            const style = getComputedStyle(container);
+            const inner = container.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+            return (inner - (parseFloat(style.columnGap) || 0)) / 2;
+        };
+
+        const source = this.querySelector('[data-workflow-source-office]');
+        const sourceRow = source?.closest('.dts-workspace-fields');
+        if (sourceRow && sourceRow.clientWidth > 0) {
+            const needed = widthNeeded(source, [...source.options].map((option) => option.textContent.trim()));
+            sourceRow.classList.toggle('is-office-wide', needed > halfOf(sourceRow));
+        }
+
+        const panel = this.querySelector('[data-destination-panel]');
+        const row = panel?.querySelector('[data-destination-row]');
+        if (panel && row && row.clientWidth > 0) {
+            const list = document.getElementById(row.querySelector('[data-destination-select]')?.dataset.options || '');
+            const names = [...(list?.options ?? [])].map((option) => option.value);
+            const needed = widthNeeded(row.querySelector('[data-destination-select]'), names);
+            panel.classList.toggle('is-office-wide', needed > halfOf(row));
+        }
     }
 
     addDestination() {
@@ -1610,6 +1669,7 @@ class WorkflowRouting extends HTMLElement {
         list.append(template.content.cloneNode(true));
         animateIn(list.lastElementChild);
         this.syncDestinationRows();
+        this.fitOfficeFields();
         list.querySelector('[data-destination-row]:last-child [data-destination-select]')?.focus();
     }
 
@@ -1627,10 +1687,43 @@ class WorkflowRouting extends HTMLElement {
 
     syncDestinationPanel() {
         const action = this.querySelector('[data-workflow-action]')?.value;
-        const requiresDestination = this.destinationActions.has(action);
+        // Restore reopens the acting office's own route: no office to pick. Offices must give a reason; Records and
+        // administrators may instead choose "Reopen it for a different office", which shows the destination picker.
+        const ownOnly = this.dataset.restoreOwnOnly === 'true';
+        const ownRestore = action === 'restore' && (ownOnly || !this.restoreElsewhere);
+        const requiresDestination = this.destinationActions.has(action) && !ownRestore;
         const panel = this.querySelector('[data-destination-panel]');
 
         if (!panel) return;
+
+        let elsewhere = this.querySelector('[data-restore-elsewhere]');
+        if (!elsewhere) {
+            elsewhere = document.createElement('p');
+            elsewhere.className = 'dts-restore-elsewhere';
+            elsewhere.dataset.restoreElsewhere = '';
+            elsewhere.innerHTML = '<button type="button" class="dts-text-button"></button>';
+            elsewhere.querySelector('button').addEventListener('click', () => {
+                this.restoreElsewhere = !this.restoreElsewhere;
+                this.syncDestinationPanel();
+                this.syncActionChoiceState();
+            });
+            panel.before(elsewhere);
+        }
+        elsewhere.hidden = action !== 'restore' || ownOnly;
+        elsewhere.querySelector('button').textContent = ownRestore
+            ? 'Reopen it for a different office instead'
+            : 'Reopen it for the acting office instead';
+
+        let ownDestination = this.querySelector('[data-own-restore-destination]');
+        if (!ownDestination) {
+            ownDestination = document.createElement('input');
+            ownDestination.type = 'hidden';
+            ownDestination.name = 'workflow[destinations][]';
+            ownDestination.dataset.ownRestoreDestination = '';
+            this.append(ownDestination);
+        }
+        ownDestination.disabled = !ownRestore;
+        ownDestination.value = this.querySelector('[data-workflow-source-office]')?.value || '';
 
         panel.hidden = !requiresDestination;
         panel.querySelectorAll('[data-destination-select]').forEach((select) => {
@@ -1643,13 +1736,26 @@ class WorkflowRouting extends HTMLElement {
         });
         this.syncSourceOfficeOptions();
         this.syncDestinationLimit(panel, requiresDestination);
+        // The panel may have just appeared, so measure it now that it has a width.
+        if (requiresDestination) this.fitOfficeFields();
         const sharedRemarks = this.querySelector('[data-shared-remarks]');
         const sharedRemarksInput = sharedRemarks?.querySelector('textarea');
         // Receive-only offices skip remarks too: the one thing to do is confirm the document arrived.
         if (sharedRemarks) sharedRemarks.hidden = requiresDestination || this.receiveOnly;
         if (sharedRemarksInput) {
             sharedRemarksInput.disabled = requiresDestination || this.receiveOnly;
-            sharedRemarksInput.required = false;
+            sharedRemarksInput.required = ownRestore && ownOnly;
+        }
+        // Restoring a route, the remarks box asks why: required for offices, optional for Records and administrators.
+        const sharedLabel = sharedRemarks?.querySelector(':scope > span');
+        if (sharedLabel) {
+            sharedLabel.dataset.defaultLabel ??= sharedLabel.innerHTML;
+            sharedLabel.innerHTML = !ownRestore ? sharedLabel.dataset.defaultLabel
+                : ownOnly ? 'Reason for restoring <span class="dts-required-mark" aria-hidden="true">*</span>'
+                    : 'Reason for restoring <span class="dts-optional">Optional</span>';
+        }
+        if (sharedRemarksInput) {
+            sharedRemarksInput.placeholder = ownRestore ? 'For example: Need to verify one attachment' : '';
         }
         const releaseRecipient = this.querySelector('[data-release-recipient]');
         const releaseRecipientInput = releaseRecipient?.querySelector('input');
@@ -1683,7 +1789,7 @@ class WorkflowRouting extends HTMLElement {
             note = document.createElement('p');
             note.className = 'dts-receive-first';
             note.dataset.receiveFirst = '';
-            note.textContent = 'Receive this document first. Forward, Complete and Release appear after your office receives it.';
+            note.textContent = 'Receive this document first. Your available routing actions appear after your office receives it.';
             (this.actionChoices ?? this.querySelector('[data-workflow-action]')?.closest('label, .dts-field'))?.before(note);
         }
         if (note) note.hidden = !this.receiveOnly;
@@ -1746,7 +1852,7 @@ class WorkflowRouting extends HTMLElement {
     }
 
     // Fast buttons in place of the action dropdown. The backend decides which actions each office may take; the
-    // buttons only order them: Receive first, then Forward, Complete and Release. Restore reopens a finished
+    // buttons only order them: Receive first, then the office's finishing action. Restore reopens a finished
     // document, so it sits apart from the everyday actions. The hidden dropdown still carries the chosen action.
     setupActionChoices(options) {
         const actionSelect = this.querySelector('[data-workflow-action]');
@@ -1785,7 +1891,11 @@ class WorkflowRouting extends HTMLElement {
     renderActionChoices(actionOptions) {
         if (!this.actionChoices) return;
 
-        const everydayOrder = ['received', 'forwarded', 'completed', 'released'];
+        const sourceOffice = this.querySelector('[data-workflow-source-office]')?.value || '';
+        const recordsOffice = ['SDO-Records Unit', 'Records Unit'].includes(sourceOffice);
+        const everydayOrder = recordsOffice
+            ? ['received', 'released', 'forwarded', 'completed']
+            : ['received', 'completed', 'forwarded', 'released'];
         const actions = Object.keys(actionOptions);
         const everyday = [
             ...everydayOrder.filter((action) => actions.includes(action)),
@@ -1795,6 +1905,7 @@ class WorkflowRouting extends HTMLElement {
             const choice = document.createElement('button');
             choice.type = 'button';
             choice.className = `dts-action-choice${action === 'received' ? ' is-receive' : ''}${action === 'restore' ? ' is-restore' : ''}`;
+            choice.classList.toggle('is-primary', action === (recordsOffice ? 'released' : 'completed'));
             choice.dataset.actionChoice = action;
             choice.textContent = actionOptions[action];
 
@@ -1811,6 +1922,27 @@ class WorkflowRouting extends HTMLElement {
         restore.hidden = !actions.includes('restore');
         if (actions.includes('restore')) restore.append(button('restore'));
 
+        // Records holds the document while other offices are still working on it (a bundle): Release hands over only
+        // the part that is back, so say which offices are still working. Their routes stay open after the release.
+        const recordsOffices = ['SDO-Records Unit', 'Records Unit'];
+        const source = this.querySelector('[data-workflow-source-office]')?.value || '';
+        const waitingFor = (this.activeRoutes || []).filter((office) => !recordsOffices.includes(office));
+        let releaseNote = this.actionChoices.querySelector('[data-release-waiting]');
+        if (!releaseNote) {
+            releaseNote = document.createElement('p');
+            releaseNote.className = 'dts-release-waiting';
+            releaseNote.dataset.releaseWaiting = '';
+            releaseNote.setAttribute('role', 'note');
+            this.actionChoices.querySelector('[data-action-choice-hint]').before(releaseNote);
+        }
+        const showReleaseNote = recordsOffices.includes(source) && actions.includes('released') && waitingFor.length > 0;
+        releaseNote.hidden = !showReleaseNote;
+        // Short office names: "SDO-Assistant Schools Division Superintendent (ASDS) Office" becomes "ASDS Office".
+        const shortName = (office) => office.replace(/^SDO-/, '').replace(/^[^(]*\(\s*([A-Z]{2,6})\s*\)\s*/, '$1 ').trim();
+        releaseNote.textContent = showReleaseNote
+            ? `Document is still in progress with these office/s: ${waitingFor.map(shortName).join(', ')}.`
+            : '';
+
         this.syncActionChoiceState();
     }
 
@@ -1825,8 +1957,10 @@ class WorkflowRouting extends HTMLElement {
             received: 'Confirms your office has the document. Choose what happens next after this.',
             forwarded: 'Send the document to one or more offices below.',
             completed: "Your office's part is finished.",
-            released: 'Release the document from the Records Unit. This finishes it.',
-            restore: 'Reopen this document and choose the office that works on it next.',
+            released: 'Hand the document to the client.',
+            restore: this.dataset.restoreOwnOnly === 'true' || !this.restoreElsewhere
+                ? "Reopen this office's part to check or fix something. You can then complete or forward it again."
+                : 'Reopen this document and choose the office that works on it next.',
         };
         const hint = this.actionChoices.querySelector('[data-action-choice-hint]');
         hint.classList.remove('is-error');
@@ -1939,7 +2073,7 @@ function additionalRouteDialog() {
             <div class="dts-field">
                 <label for="dts-additional-route-remarks">Remarks <span class="dts-optional">Optional</span></label>
                 <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="3" maxlength="1000" autocomplete="off" placeholder="Instructions for this office" aria-describedby="dts-additional-route-remarks-hint"></textarea>
-                <p id="dts-additional-route-remarks-hint" class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</p>
+                <p id="dts-additional-route-remarks-hint" class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</p>
             </div>
             <div class="dts-field">
                 <label for="dts-additional-route-reason">Why are you adding this office? <span aria-hidden="true">*</span></label>
@@ -2028,7 +2162,7 @@ function routeCorrectionDialog() {
         <div class="dts-app-dialog-header"><h2 id="dts-route-correction-title">Correct route</h2></div>
         <div class="dts-app-dialog-content dts-additional-route-fields">
             <p class="dts-additional-route-document"><strong data-route-correction-tracking></strong><span data-route-correction-subject></span></p>
-            <p class="dts-field-hint">Use this when the document went to the wrong office. You can change an office only before it receives the document.</p>
+            <p class="dts-field-hint">Use this when the document went to the wrong office: change it to the right one, or delete the route if it should not go there at all. Only before that office receives it.</p>
             <div class="dts-field">
                 <label for="dts-route-correction-route">Wrong office <span aria-hidden="true">*</span></label>
                 <select id="dts-route-correction-route" data-route-correction-route></select>
@@ -2047,6 +2181,7 @@ function routeCorrectionDialog() {
             <p class="dts-workspace-form-errors" data-route-correction-errors role="alert" hidden></p>
         </div>
         <div class="dts-app-dialog-actions">
+            <button type="button" class="dts-button dts-button-danger dts-route-delete" data-route-delete><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Delete this route</button>
             <button type="button" class="dts-button" data-route-correction-cancel>Cancel</button>
             <button type="button" class="dts-button dts-button-primary" data-route-correction-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Correct route</button>
         </div>`;
@@ -2080,6 +2215,37 @@ document.addEventListener('click', async (event) => {
         dialog.querySelector('[data-route-correction-errors]').hidden = true;
         dialog.showModal();
         dialog.querySelector(details.routes.length > 1 ? '[data-route-correction-route]' : '[data-route-correction-office]').focus();
+        return;
+    }
+
+    // "Delete this route": the chosen wrong office is removed instead of replaced (only before it receives it).
+    const remove = event.target.closest('[data-route-delete]');
+    if (remove) {
+        const dialog = remove.closest('dialog');
+        const errors = dialog.querySelector('[data-route-correction-errors]');
+        const route = dialog.details.routes[Number(dialog.querySelector('[data-route-correction-route]').value)];
+        if (!route || !dialog.details.deleteUrl) return;
+        const reason = dialog.querySelector('[data-route-correction-reason]');
+        if (reason.value.trim() === '') {
+            errors.textContent = 'Give the reason for deleting this route.';
+            errors.hidden = false;
+            reason.focus();
+            return;
+        }
+        const confirmed = await dtsDialog.confirm(`Delete the route to ${route.destination}? It is removed completely. Other offices on this document are not affected.`, {
+            title: 'Delete route', confirmLabel: 'Delete route', danger: true,
+        });
+        if (!confirmed) return;
+        const data = new FormData();
+        data.append('source_office', route.source);
+        data.append('destination_office', route.destination);
+        data.append('reason', reason.value.trim());
+        const result = await postWorkspace(dialog.details.deleteUrl, data, errors, remove);
+        if (!result) return;
+
+        dialog.close();
+        dtsToastAfterReload(result.message);
+        window.location.reload();
         return;
     }
 
@@ -3025,6 +3191,44 @@ document.addEventListener('click', (event) => {
     toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
 });
 
+// Password forms confirm a match while typing; the server still validates the same pair when saving.
+document.addEventListener('input', (event) => {
+    const input = event.target.closest?.('input[name="password"], input[name="password_confirmation"], input[name="user[password]"], input[name="user[password_confirmation]"]');
+    const form = input?.closest('form');
+    if (!form) return;
+
+    const nested = input.name.startsWith('user[');
+    const password = form.querySelector(nested ? 'input[name="user[password]"]' : 'input[name="password"]');
+    const confirmation = form.querySelector(nested ? 'input[name="user[password_confirmation]"]' : 'input[name="password_confirmation"]');
+    if (!password || !confirmation) return;
+
+    // Under the whole field: inside .dts-password-field the message would push its Show password button out of the box.
+    const container = confirmation.closest('.form-group')
+        || confirmation.closest('.dts-password-field')?.parentElement
+        || confirmation.parentElement;
+    let status = container.querySelector('[data-password-match-status]');
+    if (!status) {
+        status = document.createElement('small');
+        status.className = 'dts-password-match';
+        status.dataset.passwordMatchStatus = '';
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        container.append(status);
+    }
+
+    if (confirmation.value === '') {
+        confirmation.setCustomValidity('');
+        status.textContent = '';
+        delete status.dataset.match;
+        return;
+    }
+
+    const matches = password.value === confirmation.value;
+    confirmation.setCustomValidity(matches ? '' : 'Passwords do not match.');
+    status.textContent = matches ? 'Passwords match.' : 'Passwords do not match.';
+    status.dataset.match = String(matches);
+});
+
 // Icon-only row buttons from Orchid layouts (Edit, Delete) carry their label as hidden text; show it as hover text.
 ['pointerover', 'focusin'].forEach((type) => document.addEventListener(type, (event) => {
     const button = event.target.closest?.('.dts-row-action:not([data-tooltip])');
@@ -3053,9 +3257,9 @@ document.addEventListener('click', async (event) => {
                 headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf_token"]')?.content || '' },
                 body,
             });
+            const result = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const failure = await response.json().catch(() => ({}));
-                failed.push(`${office}: ${Object.values(failure.errors || {})[0]?.[0] || failure.message || 'Could not receive.'}`);
+                failed.push(`${office}: ${Object.values(result.errors || {})[0]?.[0] || result.message || 'Could not receive.'}`);
             }
         } catch {
             failed.push(`${office}: Could not reach the server.`);
@@ -3066,7 +3270,8 @@ document.addEventListener('click', async (event) => {
     if (failed.length > 0) {
         await dtsDialog.alert(['Some routes were not received:', ...failed].join('\n\n'), { title: 'Receive' });
     }
-    window.location.reload();
+    if (window.Turbo) window.Turbo.visit(window.location.href, { action: 'replace' });
+    else window.location.reload();
 });
 
 // Sticky pagers: the dashboard queue pager (orchid/dashboard) and the registry tables' footer stay at the bottom of
@@ -3150,7 +3355,7 @@ attachStickyScrollbars();
 // "Loading…"/"Saving…" and stops clicks on buttons that are about to go away (dts.css .dts-page-loading). It blocks
 // clicks at once but stays see-through for a short delay, so fast loads don't flash. Full-page navigations only show
 // the message (passive): the browser may stay on this page (a download, a cancelled "Leave site?"). A load that takes
-// longer than LOADING_RELEASE_MS also turns passive, so a stuck request never locks the page.
+// longer than LOADING_RELEASE_MS disappears, so a stuck request never leaves an endless spinner.
 const LOADING_RELEASE_MS = 15000;
 const pageLoading = (() => {
     let el = null;
@@ -3193,7 +3398,7 @@ const pageLoading = (() => {
             node.classList.remove('is-pending');
             document.documentElement.setAttribute('aria-busy', 'true');
         }, delay);
-        releaseTimer = setTimeout(() => node.classList.add('is-passive'), LOADING_RELEASE_MS);
+        releaseTimer = setTimeout(hide, LOADING_RELEASE_MS);
     };
 
     const hide = () => {
@@ -3341,14 +3546,3 @@ const markPageReady = () => document.documentElement.classList.add('dts-ready');
 document.addEventListener('turbo:load', markPageReady);
 window.addEventListener('load', markPageReady);
 
-// Demo sign-up: choosing an office picks the matching role (Records Unit for its staff, Personnel for everyone else).
-// People can still change it; the server checks the pair.
-document.addEventListener('change', (event) => {
-    const office = event.target.closest?.('[data-demo-office]');
-    if (!office) return;
-    let recordsOffices = [];
-    try { recordsOffices = JSON.parse(office.dataset.recordsOffices || '[]'); } catch { recordsOffices = []; }
-    const role = recordsOffices.includes(office.value) ? 'records-unit' : 'personnel';
-    const radio = office.form?.querySelector(`[data-demo-role][value="${role}"]`);
-    if (radio && office.value) radio.checked = true;
-});

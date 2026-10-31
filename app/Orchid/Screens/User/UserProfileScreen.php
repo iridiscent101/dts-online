@@ -51,7 +51,7 @@ class UserProfileScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'Update your account details such as name, email address and password';
+        return 'Account details, email addresses and password.';
     }
 
     /**
@@ -82,7 +82,7 @@ class UserProfileScreen extends Screen
     {
         $passwordBlock = Layout::block(ProfilePasswordLayout::class)
             ->title(__('Update Password'))
-            ->description(__('Ensure your account is using a long, random password to stay secure.'))
+            ->description(__('Change the account password.'))
             ->commands(
                 Button::make(__('Update password'))
                     ->class('btn dts-button dts-button-primary')
@@ -101,7 +101,7 @@ class UserProfileScreen extends Screen
         return [
             Layout::block(UserEditLayout::class)
                 ->title(__('Profile Information'))
-                ->description(__("Update your account's profile information and email address."))
+                ->description(__('Name, sign-in email and recovery email.'))
                 ->commands([
                     Button::make(__('Save'))
                         ->class('btn dts-button dts-button-primary')
@@ -117,7 +117,7 @@ class UserProfileScreen extends Screen
 
             Layout::block(Layout::view('orchid.profile-account'))
                 ->title(__('Account access'))
-                ->description(__('Your offices and roles decide which documents you see and what you can do. An administrator sets them.')),
+                ->description(__('Office assignments and roles are managed by an administrator.')),
 
             $passwordBlock,
         ];

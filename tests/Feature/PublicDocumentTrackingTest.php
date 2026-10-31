@@ -299,6 +299,23 @@ class PublicDocumentTrackingTest extends TestCase
         $this->assertSame(1, substr_count($html, 'data-route-office="SDO-Legal Unit"'));
     }
 
+    public function test_a_bundle_with_one_part_released_and_others_still_working_says_partly_released(): void
+    {
+        $document = Document::factory()->received()->create([
+            'tracking_number' => 'DTS-2026-000141',
+            'current_office' => 'Curriculum Implementation Division',
+        ]);
+        $document->officeAssignments()->update(['office' => 'SDO-Records Unit', 'status' => 'Released']);
+        $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => 'Received']);
+
+        $this->get(route('tracking.index', ['tracking' => 'DTS-2026-000141']))
+            ->assertOk()
+            ->assertSee('Partly released')
+            ->assertSee('1 of 2 offices finished')
+            ->assertDontSee('All offices finished')
+            ->assertSee('data-route-state="active" data-route-office="Curriculum Implementation Division"', false);
+    }
+
     public function test_history_is_grouped_by_day_and_names_the_acting_office(): void
     {
         $this->travel(-3)->days();

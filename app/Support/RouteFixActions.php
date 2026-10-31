@@ -30,6 +30,7 @@ class RouteFixActions
         if ($correctable->isNotEmpty()) {
             $correction = [
                 'url' => route('platform.documents.routes.correct', $document),
+                'deleteUrl' => route('platform.documents.routes.delete', $document),
                 'tracking' => $document->tracking_number,
                 'subject' => $document->subject,
                 'routes' => $correctable,

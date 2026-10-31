@@ -35,14 +35,7 @@ class DocumentAssignedNotification extends Notification
      */
     public function toDashboard(object $notifiable): array
     {
-        $message = match ($this->action) {
-            'submitted' => "{$this->document->tracking_number} was submitted to your office by a client.",
-            'register' => "{$this->document->tracking_number} was registered for your office by {$this->actorName}.",
-            DocumentMovement::ACTION_SENT => "{$this->document->tracking_number} was sent to your office by {$this->actorName}.",
-            DocumentMovement::ACTION_FORWARDED => "{$this->document->tracking_number} was forwarded to your office by {$this->actorName}.",
-            DocumentMovement::ACTION_RESTORED => "{$this->document->tracking_number} was restored to your office by {$this->actorName}.",
-            default => "{$this->document->tracking_number} was forwarded to your office by {$this->actorName}.",
-        };
+        $message = $this->message();
 
         return [
             'title' => $this->document->tracking_number,
@@ -55,5 +48,17 @@ class DocumentAssignedNotification extends Notification
             'message' => $message,
             'type' => 'primary',
         ];
+    }
+
+    private function message(): string
+    {
+        return match ($this->action) {
+            'submitted' => "{$this->document->tracking_number} was submitted to your office by a client.",
+            'register' => "{$this->document->tracking_number} was registered for your office by {$this->actorName}.",
+            DocumentMovement::ACTION_SENT => "{$this->document->tracking_number} was sent to your office by {$this->actorName}.",
+            DocumentMovement::ACTION_FORWARDED => "{$this->document->tracking_number} was forwarded to your office by {$this->actorName}.",
+            DocumentMovement::ACTION_RESTORED => "{$this->document->tracking_number} was restored to your office by {$this->actorName}.",
+            default => "{$this->document->tracking_number} was forwarded to your office by {$this->actorName}.",
+        };
     }
 }

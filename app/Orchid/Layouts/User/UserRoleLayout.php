@@ -24,7 +24,7 @@ class UserRoleLayout extends Rows
                 ->multiple()
                 ->title(__('Name role'))
                 ->placeholder(__('Select roles'))
-                ->help('Specify which groups this account should belong to'),
+                ->help('Select account roles.'),
         ];
     }
 }

@@ -3,7 +3,7 @@
     $badgeTone = match ($status) {
         'Awaiting receipt', 'Awaiting physical document', 'Waiting for physical document/s', 'On Hold' => 'border-amber-300 bg-amber-50 text-amber-900',
         'Received', 'Reviewed', 'Approved', 'Released', 'Completed', 'Archived', 'All offices finished' => 'border-emerald-300 bg-emerald-50 text-emerald-800',
-        'Forwarded', 'Resubmitted', 'In progress' => 'border-[#86562D]/40 bg-[#F8F4E7] text-[#86562D]',
+        'Forwarded', 'Resubmitted', 'In progress', 'Partly released' => 'border-[#86562D]/40 bg-[#F8F4E7] text-[#86562D]',
         'Returned', 'Rejected' => 'border-red-300 bg-red-50 text-red-800',
         'Cancelled' => 'border-slate-400 bg-slate-100 text-slate-700',
         default => 'border-province-line-strong bg-slate-100 text-slate-700',

@@ -22,7 +22,7 @@ class ProfilePasswordLayout extends Rows
             Password::make('old_password')
                 ->placeholder(__('Enter the current password'))
                 ->title(__('Current password'))
-                ->help('This is your password set at the moment.'),
+                ->help('Enter the current password.'),
 
             Password::make('password')
                 ->placeholder(__('Enter the password to be set'))

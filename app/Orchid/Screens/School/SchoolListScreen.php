@@ -35,7 +35,7 @@ class SchoolListScreen extends Screen
 
     public function description(): ?string
     {
-        return 'School catalog used for document origin suggestions.';
+        return 'Schools available as document origins.';
     }
 
     public function permission(): ?iterable

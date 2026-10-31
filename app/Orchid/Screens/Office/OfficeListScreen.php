@@ -38,7 +38,7 @@ class OfficeListScreen extends Screen
 
     public function description(): ?string
     {
-        return 'Manage routing and personnel offices. Only unused offices can be deleted; deactivate offices in use.';
+        return 'Offices used for routing and staff assignments. Deactivate offices in use; only unused offices can be deleted.';
     }
 
     public function permission(): ?iterable

@@ -194,11 +194,11 @@ class PlatformScreen extends Screen
     {
         // Each tab says in plain words what it lists.
         return match ($this->section()) {
-            'documents' => 'Every document your office is working on or has handled.',
-            'incoming' => 'Documents sent to your office that are waiting to be received.',
-            'outgoing' => 'Documents your office sent on to other offices that are still being processed.',
+            'documents' => 'Document records and routing status.',
+            'incoming' => 'Documents awaiting receipt.',
+            'outgoing' => 'Forwarded documents still in progress.',
             'archived' => 'Documents that are completed, released or archived.',
-            default => 'Your office\'s documents and what needs attention today.',
+            default => 'Document summary, pending actions and recent activity.',
         };
     }
 

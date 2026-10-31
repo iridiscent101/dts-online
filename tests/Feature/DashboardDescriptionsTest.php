@@ -15,10 +15,10 @@ class DashboardDescriptionsTest extends TestCase
         $user = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
 
         foreach ([
-            'platform.incoming' => 'Documents sent to your office that are waiting to be received.',
-            'platform.outgoing' => 'Documents your office sent on to other offices that are still being processed.',
+            'platform.incoming' => 'Documents awaiting receipt.',
+            'platform.outgoing' => 'Forwarded documents still in progress.',
             'platform.archived' => 'Documents that are completed, released or archived.',
-            'platform.documents' => 'Every document your office is working on or has handled.',
+            'platform.documents' => 'Document records and routing status.',
         ] as $route => $description) {
             $this->actingAs($user)->get(route($route))
                 ->assertOk()

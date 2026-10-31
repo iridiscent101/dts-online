@@ -3,8 +3,8 @@
 @section('title', __('Sign in to your account'))
 
 @section('content')
-    <h1 class="dts-auth-title">{{ $isLockUser ? __('Welcome back') : __('Staff sign in') }}</h1>
-    <p class="dts-auth-subtitle">{{ $isLockUser ? __('Enter your password to continue.') : __('Use the email and password given to you by your system administrator.') }}</p>
+    <h1 class="dts-auth-title">{{ $isLockUser ? __('Continue session') : __('Staff sign in') }}</h1>
+    <p class="dts-auth-subtitle">{{ $isLockUser ? __('Enter the account password to continue.') : __('Sign in with a staff account.') }}</p>
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">

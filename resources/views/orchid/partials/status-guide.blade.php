@@ -7,7 +7,7 @@
         \App\Models\DocumentMovement::STATUS_RECEIVED => 'The office has it. Next: forward, complete or (Records Unit) release it.',
         \App\Models\DocumentMovement::STATUS_FORWARDED => 'Sent on to the next office. That office still has to receive it.',
         \App\Models\DocumentMovement::STATUS_COMPLETED => 'The office has finished its part.',
-        \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released it. Processing is finished.',
+        \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released it to the client. With several offices, only the part that was ready is released; the others continue.',
     ];
     $pendingKinds = [
         'Awaiting receipt' => 'sent to the office, which has not received it yet.',

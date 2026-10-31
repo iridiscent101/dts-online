@@ -13,6 +13,7 @@ use App\Http\Controllers\DocumentNotificationController;
 use App\Http\Controllers\DocumentOpenController;
 use App\Http\Controllers\DocumentRemarkController;
 use App\Http\Controllers\DocumentRouteCorrectionController;
+use App\Http\Controllers\DocumentRouteDeletionController;
 use App\Http\Controllers\DocumentWorkspaceController;
 use App\Http\Controllers\KioskSigningRequestController;
 use App\Http\Middleware\LogoutInactiveStaff;
@@ -112,6 +113,8 @@ Route::middleware('throttle:staff-requests')->group(function (): void {
         ->name('platform.documents.additional-routes.store');
     Route::post('documents/{document}/routes/correct', DocumentRouteCorrectionController::class)
         ->name('platform.documents.routes.correct');
+    Route::post('documents/{document}/routes/delete', DocumentRouteDeletionController::class)
+        ->name('platform.documents.routes.delete');
     Route::post('documents/bulk-delete', [DocumentDeletionController::class, 'bulk'])
         ->name('platform.documents.bulk-destroy');
     Route::post('documents/{document}/delete', DocumentDeletionController::class)

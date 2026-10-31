@@ -52,7 +52,7 @@ class RoleEditScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'Modify the privileges and permissions associated with a specific role.';
+        return 'Role details and permissions.';
     }
 
     /**
@@ -98,13 +98,13 @@ class RoleEditScreen extends Screen
                 RoleEditLayout::class,
             ])
                 ->title('Role')
-                ->description('Defines a set of privileges that grant users access to various services and allow them to perform specific tasks or operations.'),
+                ->description('Role name and description.'),
 
             Layout::block([
                 RolePermissionLayout::class,
             ])
                 ->title('Permission/Privilege')
-                ->description('A privilege is necessary to perform certain tasks and operations in an area.'),
+                ->description('Pages and actions available to accounts with this role.'),
         ];
     }
 

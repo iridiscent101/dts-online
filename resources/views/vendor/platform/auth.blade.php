@@ -12,7 +12,7 @@
 
                 <div>
                     <p class="dts-auth-hero__title">SDO Nueva Vizcaya Records Unit</p>
-                    <p class="dts-auth-hero__lead">Receive, record and route the division's documents, and see where every paper is at a glance.</p>
+                    <p class="dts-auth-hero__lead">Document registration, routing and tracking.</p>
                 </div>
             </div>
         </aside>

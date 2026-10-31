@@ -28,9 +28,9 @@ class User extends Authenticatable
     public const ADMIN_ROLE_SLUG = 'Admin';
 
     // The password rule itself is Password::defaults() in AppServiceProvider.
-    public const PASSWORD_MIN_LENGTH = 13;
+    public const PASSWORD_MIN_LENGTH = 8;
 
-    public const PASSWORD_HINT = 'At least 13 characters, with a capital letter, a small letter, a number and a symbol (for example ! @ # $).';
+    public const PASSWORD_HINT = 'At least 8 characters, with a capital letter, a small letter, a number and a symbol (for example ! @ # $).';
 
     /**
      * Set by DtsUserProvider for this sign-in only (never saved): the person typed their pending temporary password.
@@ -270,11 +270,11 @@ class User extends Authenticatable
 
     /**
      * The Records Unit receives every document and sends it on, so like administrators it follows each document's
-     * whole history and timeline, not only the entries that involve its own office.
+     * whole history and timeline, not only the entries that involve its own office. View-all access also includes it.
      */
     public function canViewFullDocumentHistory(): bool
     {
-        return $this->isAdministrator() || $this->isAssignedToOffice(Office::RECORDS_UNIT_NAME);
+        return $this->hasAccess('platform.documents.view-all') || $this->isAssignedToOffice(Office::RECORDS_UNIT_NAME);
     }
 
     public function canConfirmPaperIntake(): bool

@@ -83,4 +83,26 @@ class SupervisorRoleTest extends TestCase
             ->assertDontSee($document->tracking_number);
         $this->get(route('platform.documents.workspace', $document))->assertNotFound();
     }
+
+    public function test_supervisor_can_read_other_offices_history_without_routing_controls(): void
+    {
+        $this->seed(SupervisorRoleSeeder::class);
+        $supervisor = User::factory()->create(['office' => null, 'permissions' => []]);
+        $supervisor->replaceRoles([Role::query()->where('slug', 'supervisor')->sole()->id]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $document->movements()->create([
+            'action' => 'received',
+            'from_office' => 'Administrative Unit',
+            'to_office' => 'Administrative Unit',
+            'from_status' => 'Forwarded',
+            'to_status' => 'Received',
+            'remarks' => 'Administrative review started.',
+        ]);
+
+        $this->actingAs($supervisor)->get(route('platform.documents.workspace', $document))
+            ->assertSee('Administrative review started.')
+            ->assertSee('All document history')
+            ->assertDontSee('data-workspace-routing ', false)
+            ->assertDontSee('data-workspace-edit ', false);
+    }
 }

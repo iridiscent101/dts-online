@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentMovement;
 use App\Models\Office;
 use App\Models\User;
+use App\Services\DocumentRoutingService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Orchid\Platform\Models\Role;
@@ -1247,10 +1248,75 @@ class DocumentMovementTest extends TestCase
         }
     }
 
-    public function test_records_cannot_release_while_another_office_route_is_active(): void
+    public function test_records_can_release_a_returned_part_while_another_office_keeps_working(): void
     {
         $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $otherStaff = User::factory()->create(['office' => 'Curriculum Implementation Division', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
+        $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $url = route('platform.documents.movements.store', $document);
+
+        // Administrative Unit sends its part back; Records releases it while CID is still working (a bundle).
+        $this->actingAs($staff)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
+        ])->assertOk();
+
+        // The document stays open: CID still has it and can carry on.
+        $document->refresh();
+        $this->assertSame('Curriculum Implementation Division', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->status);
+        $this->assertFalse($document->isClosedRecord());
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Records Unit', 'status' => DocumentMovement::STATUS_RELEASED]);
+
+        // CID sends its part back later; Records receives and releases that part too, which finishes the document.
+        $this->actingAs($otherStaff)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Curriculum Implementation Division', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->actingAs($records)->postJson($url, [
+            'workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit'],
+        ])->assertOk();
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Maria Santos', 'recipient_signature' => self::SIGNATURE],
+        ])->assertOk();
+
+        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
+        $this->assertSame(['Juan Dela Cruz', 'Maria Santos'], $document->movements()->where('action', 'released')->reorder()->orderBy('id')->pluck('released_to')->all());
+    }
+
+    public function test_an_office_whose_part_was_released_sees_the_bundle_in_archived_not_outgoing(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit', 'tracking_number' => 'SDONV55500011122']);
+        $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $url = route('platform.documents.movements.store', $document);
+
+        $this->actingAs($staff)->postJson($url, [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'Administrative Unit', 'destination' => 'SDO-Records Unit'],
+        ])->assertOk();
+        // Before Records releases it, it is the office's outgoing work.
+        $this->actingAs($staff)->get(route('platform.outgoing'))->assertSee('SDONV55500011122');
+
+        $this->actingAs($records)->postJson($url, ['workflow' => ['action' => 'received', 'source_office' => 'SDO-Records Unit']])->assertOk();
+        $this->postJson($url, [
+            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
+        ])->assertOk();
+        $this->assertFalse($document->fresh()->isClosedRecord());
+
+        $this->actingAs($staff)->get(route('platform.archived'))->assertOk()->assertSee('SDONV55500011122');
+        $this->actingAs($staff)->get(route('platform.outgoing'))->assertOk()->assertDontSee('SDONV55500011122');
+    }
+
+    public function test_records_still_cannot_complete_while_another_office_is_working(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
         $document = Document::factory()->received()->create(['current_office' => 'Administrative Unit']);
         $document->officeAssignments()->create(['office' => 'Curriculum Implementation Division', 'status' => DocumentMovement::STATUS_RECEIVED]);
@@ -1264,18 +1330,8 @@ class DocumentMovementTest extends TestCase
         ])->assertOk();
 
         $this->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
+            'workflow' => ['action' => 'completed', 'source_office' => 'SDO-Records Unit'],
         ])->assertUnprocessable()->assertJsonValidationErrors('workflow.action');
-
-        $this->actingAs($otherStaff)->postJson($url, [
-            'workflow' => ['action' => 'completed', 'source_office' => 'Curriculum Implementation Division'],
-        ])->assertOk();
-        $this->actingAs($records)->postJson($url, [
-            'workflow' => ['action' => 'released', 'source_office' => 'SDO-Records Unit', 'released_to' => 'Juan Dela Cruz', 'recipient_signature' => self::SIGNATURE],
-        ])->assertOk();
-
-        $this->assertSame(DocumentMovement::STATUS_RELEASED, $document->fresh()->status);
-        $this->assertSame(1, $document->movements()->where('action', 'released')->count());
     }
 
     public function test_office_can_return_paper_to_records_when_records_retained_an_initial_route(): void
@@ -1372,6 +1428,30 @@ class DocumentMovementTest extends TestCase
             'office' => 'SDO-Records Unit',
             'status' => DocumentMovement::STATUS_RECEIVED,
         ]);
+        $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_FORWARDED)->count());
+    }
+
+    public function test_returning_to_records_cannot_overwrite_another_destinations_active_route(): void
+    {
+        $budget = User::factory()->create(['office' => 'SDO-Budget Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->received()->create(['current_office' => 'SDO-Budget Unit']);
+        $receipt = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED,
+            'from_office' => 'SDO-Records Unit',
+            'to_office' => 'SDO-Records Unit',
+            'from_status' => DocumentMovement::STATUS_FORWARDED,
+            'to_status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $document->officeAssignments()->create(['office' => 'SDO-Records Unit', 'status' => DocumentMovement::STATUS_RECEIVED, 'movement_id' => $receipt->id]);
+        $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+
+        $this->actingAs($budget)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'forwarded', 'source_office' => 'SDO-Budget Unit', 'destinations' => ['SDO-Records Unit', 'SDO-Legal Unit']],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.destinations');
+
+        foreach (['SDO-Budget Unit', 'SDO-Records Unit', 'SDO-Legal Unit'] as $office) {
+            $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => $office, 'status' => DocumentMovement::STATUS_RECEIVED]);
+        }
         $this->assertSame(0, $document->movements()->where('action', DocumentMovement::ACTION_FORWARDED)->count());
     }
 
@@ -1733,6 +1813,113 @@ class DocumentMovementTest extends TestCase
             'office' => 'SDO-Records Unit',
             'status' => DocumentMovement::STATUS_RECEIVED,
         ]);
+    }
+
+    /** A document where the Administrative Unit has completed its route and the Records Unit still holds the document. */
+    private function documentCompletedByAdministrativeUnit(string $documentStatus = DocumentMovement::STATUS_RECEIVED): Document
+    {
+        $document = Document::factory()->create(['current_office' => 'SDO-Records Unit', 'status' => $documentStatus]);
+        $document->officeAssignments()->create(['office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+
+        return $document;
+    }
+
+    public function test_an_office_can_restore_its_own_completed_route_with_a_reason(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->documentCompletedByAdministrativeUnit();
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'restore',
+                'source_office' => 'Administrative Unit',
+                'destinations' => ['Administrative Unit'],
+                'remarks' => 'Need to verify one attachment',
+            ],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'Administrative Unit',
+            'status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => DocumentMovement::ACTION_RESTORED,
+            'from_office' => 'Administrative Unit',
+            'to_office' => 'Administrative Unit',
+            'remarks' => 'Need to verify one attachment',
+        ]);
+
+        // Back at Received: Forward and Complete again, no second Receive.
+        $state = ['office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_RECEIVED];
+        $options = app(DocumentRoutingService::class)->availableActionOptions($staff, $document->fresh('officeAssignments'), $state);
+        $this->assertArrayHasKey(DocumentMovement::ACTION_FORWARDED, $options);
+        $this->assertArrayHasKey(DocumentMovement::ACTION_COMPLETED, $options);
+        $this->assertArrayNotHasKey(DocumentMovement::ACTION_RECEIVED, $options);
+    }
+
+    public function test_an_office_must_give_a_reason_to_restore_its_route(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->documentCompletedByAdministrativeUnit();
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => ['action' => 'restore', 'source_office' => 'Administrative Unit', 'destinations' => ['Administrative Unit']],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.remarks');
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+    }
+
+    public function test_an_office_cannot_restore_the_document_to_another_office(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->documentCompletedByAdministrativeUnit();
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'restore',
+                'source_office' => 'Administrative Unit',
+                'destinations' => ['Curriculum Implementation Division'],
+                'remarks' => 'Trying another office',
+            ],
+        ])->assertUnprocessable()->assertJsonValidationErrors('workflow.destinations');
+
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'Curriculum Implementation Division']);
+    }
+
+    public function test_an_office_cannot_restore_its_route_after_the_document_is_released(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->documentCompletedByAdministrativeUnit(DocumentMovement::STATUS_RELEASED);
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'restore',
+                'source_office' => 'Administrative Unit',
+                'destinations' => ['Administrative Unit'],
+                'remarks' => 'Too late',
+            ],
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+    }
+
+    public function test_an_office_cannot_restore_another_offices_completed_route(): void
+    {
+        $staff = User::factory()->create(['office' => 'Curriculum Implementation Division', 'permissions' => ['platform.index' => true]]);
+        $document = $this->documentCompletedByAdministrativeUnit();
+
+        $this->actingAs($staff)->postJson(route('platform.documents.movements.store', $document), [
+            'workflow' => [
+                'action' => 'restore',
+                'source_office' => 'Administrative Unit',
+                'destinations' => ['Administrative Unit'],
+                'remarks' => 'Not ours',
+            ],
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
     }
 
     public function test_restore_cannot_overwrite_an_office_that_is_still_working(): void

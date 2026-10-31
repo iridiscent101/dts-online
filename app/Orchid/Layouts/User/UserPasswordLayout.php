@@ -35,6 +35,12 @@ class UserPasswordLayout extends Rows
                 ->value('')
                 ->help(User::PASSWORD_HINT)
                 ->required(! $exists),
+            Password::make('user.password_confirmation')
+                ->placeholder($placeholder)
+                ->title(__('Confirm password'))
+                ->autocomplete('new-password')
+                ->value('')
+                ->required(! $exists),
         ];
     }
 }

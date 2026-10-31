@@ -7,13 +7,17 @@
     <title>Receipt {{ $document->tracking_number }} | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css'])
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    @vite(['resources/css/app.css', 'resources/js/client-updates.js'])
 </head>
 <body class="dts-public-page dts-receipt-page bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
     {{-- Screen only: back to tracking and Print. The receipt itself is one A4/Letter-friendly card. --}}
     <div class="dts-receipt-actions mx-auto flex w-full max-w-xl flex-wrap items-center justify-between gap-3 px-5 pt-6">
         <a href="{{ $trackingUrl }}" class="inline-flex min-h-11 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-4 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7]"><x-orchid-icon path="bs.arrow-left" class="size-4" /> Back to tracking</a>
         <button type="button" data-print-receipt class="inline-flex min-h-11 items-center gap-2 rounded-sm bg-[#216E39] px-5 text-sm font-semibold text-white hover:bg-[#18542B]"><x-orchid-icon path="bs.printer" class="size-4" /> Print receipt</button>
+    </div>
+    <div class="mx-auto w-full max-w-xl px-5">
+        @include('partials.client-updates', ['trackingNumber' => $document->tracking_number])
     </div>
 
     <main class="dts-receipt mx-auto my-6 w-full max-w-xl rounded-sm border border-province-line-strong bg-white p-6 sm:p-8">
@@ -31,7 +35,7 @@
             <div class="text-center sm:text-left">
                 <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Tracking number</p>
                 <p class="mt-1 font-mono text-2xl font-extrabold tracking-tight text-slate-900 [overflow-wrap:anywhere] sm:text-3xl">{{ $document->tracking_number }}</p>
-                <p class="mt-2 text-sm leading-6 text-slate-700">Scan the QR code or enter this number on the Fast Track page to see where your document is.</p>
+                <p class="mt-2 text-sm leading-6 text-slate-700">Scan the QR code or enter the tracking number on Fast Track to view document status.</p>
             </div>
         </section>
 

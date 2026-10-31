@@ -44,10 +44,3 @@
     <x-orchid-icon path="bs.question-circle"/>
     <span><a href="{{ route('password.forgot') }}">{{ __('Forgot your password?') }}</a> {{ __('We can email a reset link to your verified recovery email.') }}</span>
 </p>
-
-@if (\App\Http\Controllers\DemoRegistrationController::enabled())
-    <p class="dts-auth-help">
-        <x-orchid-icon path="bs.person-plus"/>
-        <span>{{ __('Joining the demo?') }} <a href="{{ route('demo.register') }}">{{ __('Create a demo account') }}</a></span>
-    </p>
-@endif

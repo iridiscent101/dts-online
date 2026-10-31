@@ -54,25 +54,9 @@ return [
     ],
 
     /*
-    |--------------------------------------------------------------------------
-    | Demo sign-up
-    |--------------------------------------------------------------------------
-    |
-    | A public page (/demo-register) where demo participants create their own staff account. Off unless
-    | DEMO_REGISTRATION_ENABLED=true; only sign-in emails ending in the given domain are accepted. Turn it off after the
-    | demo.
-    |
-    */
-
-    /*
     | Send people to My Account to set a new password at sign-in when an administrator set it or it is shorter than the
     | rule. DTS_REQUIRE_PASSWORD_CHANGE=false turns this off (for example during a demo).
     */
     'require_password_change' => (bool) env('DTS_REQUIRE_PASSWORD_CHANGE', true),
-
-    'demo_registration' => [
-        'enabled' => (bool) env('DEMO_REGISTRATION_ENABLED', false),
-        'email_domain' => env('DEMO_REGISTRATION_DOMAIN', 'test.com'),
-    ],
 
 ];

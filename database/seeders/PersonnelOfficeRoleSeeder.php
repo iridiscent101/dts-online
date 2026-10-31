@@ -19,14 +19,9 @@ class PersonnelOfficeRoleSeeder extends Seeder
      */
     public function run(): void
     {
-        $role = Role::query()->updateOrCreate(
-            ['slug' => 'personnel'],
-            [
-                'name' => 'Personnel',
-                'description' => 'DepEd personnel assigned to an office document queue.',
-                'permissions' => ['platform.index' => true],
-            ],
-        );
+        $this->call(DocumentAccessRoleSeeder::class);
+        $role = Role::query()->where('slug', 'personnel')->sole();
+        $recordsRole = Role::query()->where('slug', 'records-unit')->sole();
 
         foreach ($this->personnel() as $personnel) {
             $user = User::query()->firstOrNew([
@@ -46,7 +41,8 @@ class PersonnelOfficeRoleSeeder extends Seeder
             $office = Office::query()->firstOrCreate(['name' => $personnel['office']]);
             $user->offices()->syncWithoutDetaching([$office->id]);
 
-            $user->roles()->syncWithoutDetaching([$role->id]);
+            $officeRole = in_array($personnel['office'], Office::RECORDS_UNIT_NAMES, true) ? $recordsRole : $role;
+            $user->roles()->syncWithoutDetaching([$officeRole->id]);
         }
     }
 

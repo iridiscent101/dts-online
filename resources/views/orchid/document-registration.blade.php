@@ -126,7 +126,7 @@
                                     </div>
                                 @endforeach
                             </div>
-                            <p class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</p>
+                            <p class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</p>
                             <p class="dts-field-error" data-registration-count-error role="alert" hidden>Select at least one destination office.</p>
                             <datalist id="destination-offices">
                                 @foreach ($officeOptions as $office)

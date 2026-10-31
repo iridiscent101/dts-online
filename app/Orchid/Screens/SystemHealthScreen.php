@@ -36,7 +36,7 @@ class SystemHealthScreen extends Screen
 
     public function description(): ?string
     {
-        return 'Operational status for services that protect document availability.';
+        return 'System services and backup status.';
     }
 
     public function permission(): ?iterable

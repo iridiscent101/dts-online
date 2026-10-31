@@ -30,7 +30,6 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="DTS_FORGOT_PASSWORD_ANSWER_SECONDS" value="0"/>
         <env name="DTS_REQUIRE_PASSWORD_CHANGE" value="true"/>
-        <env name="DEMO_REGISTRATION_ENABLED" value="false"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>

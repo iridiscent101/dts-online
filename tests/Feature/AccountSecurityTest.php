@@ -20,12 +20,12 @@ class AccountSecurityTest extends TestCase
 
     private const STRONG_PASSWORD = 'Records-Unit-2026!';
 
-    public function test_new_passwords_need_13_characters_a_capital_a_number_and_a_symbol(): void
+    public function test_new_passwords_need_8_characters_a_capital_a_number_and_a_symbol(): void
     {
         $staff = User::factory()->create(['permissions' => ['platform.index' => true]]);
 
         foreach ([
-            'Short-Pass1!',          // 12 characters
+            'Sh0rt-a',               // 7 characters
             'records-unit-2026!',    // no capital letter
             'Records-Unit-Office!',  // no number
             'RecordsUnit20261',      // no symbol
@@ -66,20 +66,29 @@ class AccountSecurityTest extends TestCase
         $this->actingAs($staff)->get(route('platform.profile'))->assertSee(User::PASSWORD_HINT);
     }
 
-    public function test_an_administrator_cannot_set_a_weak_password_for_someone_else(): void
+    public function test_an_administrator_must_confirm_a_strong_password_for_someone_else(): void
     {
         $admin = $this->administrator();
         $staff = User::factory()->create();
 
         $this->actingAs($admin)
-            ->from(route('platform.systems.users.edit', $staff))
+            ->get(route('platform.systems.users.edit', $staff))
+            ->assertSee('name="user[password_confirmation]"', false);
+
+        $this->from(route('platform.systems.users.edit', $staff))
             ->post(route('platform.systems.users.edit', $staff).'/save', [
-                'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => 'password123', 'roles' => []],
+                'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => 'password123', 'password_confirmation' => 'password123', 'roles' => []],
             ])
             ->assertSessionHasErrors('user.password');
 
         $this->post(route('platform.systems.users.edit', $staff).'/save', [
-            'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => self::STRONG_PASSWORD, 'roles' => []],
+            'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => self::STRONG_PASSWORD, 'password_confirmation' => 'Different-Password-2026!', 'roles' => []],
+        ])->assertSessionHasErrors('user.password');
+
+        $this->assertTrue(Hash::check('password', $staff->fresh()->password));
+
+        $this->post(route('platform.systems.users.edit', $staff).'/save', [
+            'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => self::STRONG_PASSWORD, 'password_confirmation' => self::STRONG_PASSWORD, 'roles' => []],
         ])->assertSessionHasNoErrors();
 
         $this->assertTrue(Hash::check(self::STRONG_PASSWORD, $staff->fresh()->password));
@@ -367,7 +376,7 @@ class AccountSecurityTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('platform.systems.users.edit', $staff).'/save', [
-                'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => self::STRONG_PASSWORD, 'roles' => []],
+                'user' => ['name' => $staff->name, 'email' => $staff->email, 'password' => self::STRONG_PASSWORD, 'password_confirmation' => self::STRONG_PASSWORD, 'roles' => []],
             ])
             ->assertSessionHasNoErrors();
 
@@ -386,7 +395,7 @@ class AccountSecurityTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('platform.systems.users.edit', $admin).'/save', [
-                'user' => ['name' => $admin->name, 'email' => $admin->email, 'password' => self::STRONG_PASSWORD],
+                'user' => ['name' => $admin->name, 'email' => $admin->email, 'password' => self::STRONG_PASSWORD, 'password_confirmation' => self::STRONG_PASSWORD],
             ])
             ->assertSessionHasNoErrors();
 

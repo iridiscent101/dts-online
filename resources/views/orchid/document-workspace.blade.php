@@ -4,7 +4,7 @@
         ->except(\App\Models\DocumentMovement::ACTION_RESTORED);
     $canRestore = collect($workflowActionOptions)->contains(fn (array $actions): bool => array_key_exists(\App\Models\DocumentMovement::ACTION_RESTORED, $actions));
     $nextStep = $everydayActions->has(\App\Models\DocumentMovement::ACTION_RECEIVED)
-        ? 'Receive it first. After that you can forward or complete it.'
+        ? 'Receive it first to see your available routing actions.'
         : 'Next: '.$everydayActions->values()->join(', ', ' or ').'.';
 @endphp
 <div class="dts-workspace-shell" data-workspace-shell data-workspace-url="{{ route('platform.documents.workspace', $document) }}">
@@ -35,10 +35,10 @@
                 <div class="dts-workspace-next">
                     <x-orchid-icon path="bs.signpost-split" />
                     @if ($everydayActions->isNotEmpty())
-                        <p><strong>Your office can act on this document.</strong> {{ $nextStep }}</p>
+                        <p><strong>Routing actions available.</strong> {{ $nextStep }}</p>
                         <button type="button" class="dts-button dts-button-primary" data-workspace-take-action>Take action <x-orchid-icon path="bs.arrow-right" /></button>
                     @elseif ($canRestore)
-                        <p><strong>This document is finished.</strong> You can restore it if it needs more work.</p>
+                        <p><strong>Route finished.</strong> Restore reopens a route for processing.</p>
                         <button type="button" class="dts-button dts-button-secondary" data-workspace-take-action>Restore options <x-orchid-icon path="bs.arrow-right" /></button>
                     @endif
                 </div>
@@ -54,6 +54,9 @@
                     @endif
                 @endif
             </div>
+            @if ($canRoute && ! $document->canBeEditedBy(request()->user()))
+                <p class="dts-muted">Routing is available for assigned offices. Detail corrections require Records or administrator access.</p>
+            @endif
             {{-- Only closed records explain the lock here: staff get no Unlock button, and the Unlock prompt explains it to anyone who does. --}}
             @if ($document->isClosedRecord())
                 <p class="dts-locked-note"><x-orchid-icon path="bs.lock-fill" /> This document is {{ strtolower($document->status) }}, so its details are locked.@if ($document->canBeEditedBy(request()->user())) To correct a mistake, unlock them and give a reason; the reason is kept in the history.@endif</p>
@@ -185,11 +188,11 @@
             </div>
             {{-- Correct route: swap an office the user's office sent this to by mistake, before it receives it (dts.js). --}}
             @php($correctableRoutes = $document->correctableRoutesFor(request()->user()))
-            @php($routeCorrection = ['url' => route('platform.documents.routes.correct', $document), 'tracking' => $document->tracking_number, 'subject' => $document->subject, 'routes' => $correctableRoutes, 'assigned' => $document->officeAssignments->whereNotIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)->pluck('office')->values(), 'list' => 'workspace-route-correction-offices'])
+            @php($routeCorrection = ['url' => route('platform.documents.routes.correct', $document), 'deleteUrl' => route('platform.documents.routes.delete', $document), 'tracking' => $document->tracking_number, 'subject' => $document->subject, 'routes' => $correctableRoutes, 'assigned' => $document->officeAssignments->whereNotIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)->pluck('office')->values(), 'list' => 'workspace-route-correction-offices'])
             @if ($correctableRoutes->isNotEmpty())
                 <div class="dts-workspace-route-correction">
                     <button type="button" class="dts-button dts-button-secondary" data-route-correction='@json($routeCorrection)'><x-orchid-icon path="bs.arrow-left-right" /> Correct route</button>
-                    <span class="dts-muted">Sent to the wrong office? Change it before that office receives it.</span>
+                    <span class="dts-muted">Correct a destination before receipt.</span>
                     <datalist id="workspace-route-correction-offices">@foreach (\App\Models\Document::officeOptions() as $officeOption)<option value="{{ $officeOption }}"></option>@endforeach</datalist>
                 </div>
             @endif
@@ -199,7 +202,7 @@
                     <div data-workspace-routing-controls>
                         <h4>Routing action</h4>
                         <div class="dts-workspace-form-errors" data-workspace-form-errors role="alert" hidden></div>
-                        <dts-workflow-routing data-destination-actions='@json(\App\Models\DocumentMovement::DESTINATION_ACTIONS)' data-action-options='@json($workflowActionOptions)' data-active-routes='@json($document->officeAssignments->reject(fn ($assignment) => in_array($assignment->status, \App\Models\DocumentMovement::FINISHED_STATUSES, true))->pluck('office')->values())'>
+                        <dts-workflow-routing data-restore-own-only="{{ ($restoreOwnRouteOnly ?? false) ? 'true' : 'false' }}" data-destination-actions='@json(\App\Models\DocumentMovement::DESTINATION_ACTIONS)' data-action-options='@json($workflowActionOptions)' data-active-routes='@json($document->officeAssignments->reject(fn ($assignment) => in_array($assignment->status, \App\Models\DocumentMovement::FINISHED_STATUSES, true))->pluck('office')->values())'>
                             <div class="dts-workspace-fields">
                                 <label><span class="dts-workspace-source-heading">Acting office <span class="dts-record-status" data-workflow-source-status aria-live="polite"></span></span>
                                     <select name="workflow[source_office]" data-workflow-source-office aria-label="Acting office" required>
@@ -220,7 +223,7 @@
                                         <button type="button" class="dts-button dts-button-secondary" data-remove-destination>Remove</button>
                                     </div>
                                 </div>
-                                <p class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</p>
+                                <p class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</p>
                                 <datalist id="workspace-destination-offices">@foreach ($destinationOffices as $office)<option value="{{ $office }}"></option>@endforeach</datalist>
                                 <template data-destination-template>
                                     <div class="dts-workspace-destination" data-destination-row>
@@ -231,7 +234,7 @@
                                     </div>
                                 </template>
                             </div>
-                            <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea><small class="dts-field-hint">Anyone with the tracking number can read remarks. Leave out phone numbers, addresses, ID numbers, and health or money details.</small></label>
+                            <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea><small class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</small></label>
                             <label class="dts-workspace-shared-remarks" data-release-recipient hidden><span>Name of person receiving the document <span class="dts-optional">Optional</span></span><input name="workflow[released_to]" maxlength="255" autocomplete="name" disabled><small class="dts-field-hint">Their full name, if they give it.</small></label>
                             @include('orchid.partials.release-signature', ['id' => 'workspace-release-signature'])
                         </dts-workflow-routing>

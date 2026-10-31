@@ -13,13 +13,13 @@
             $isMovement => $document->isClientSubmissionStep($event) ? null : $event->remarks,
             $event->description === 'Document submitted' => $document->clientInstructions(),
             // Route corrections and added offices keep the reason given for them.
-            in_array($event->description, ['Document route corrected', 'Document route added'], true) => data_get($event->properties, 'reason', data_get($event->properties, 'correction_reason')),
+            in_array($event->description, ['Document route corrected', 'Document route added', 'Document route deleted'], true) => data_get($event->properties, 'reason', data_get($event->properties, 'correction_reason', data_get($event->properties, 'deletion_reason'))),
             default => data_get($event->properties, 'remark'),
         };
         $eventRemarkLabel = match (true) {
             $isMovement => 'Remarks',
             $event->description === 'Document submitted' => 'Instructions for Records',
-            in_array($event->description, ['Document route corrected', 'Document route added'], true) => 'Reason',
+            in_array($event->description, ['Document route corrected', 'Document route added', 'Document route deleted'], true) => 'Reason',
             default => 'Remarks',
         };
         $eventKind = $isMovement ? $event->publicKind() : match ($event->description) {
@@ -37,6 +37,7 @@
         $routeChange = match ($isMovement ? null : $event->description) {
             'Document route corrected' => ['Route corrected', ['Sending office' => $eventFrom, 'Wrong office' => data_get($event->properties, 'old_destination'), 'Corrected to' => data_get($event->properties, 'new_destination', $eventTo)]],
             'Document route added' => ['Office added', ['Sending office' => $eventFrom, 'Office added' => $eventTo]],
+            'Document route deleted' => ['Route deleted', ['Sending office' => $eventFrom, 'Deleted office' => data_get($event->properties, 'deleted_office')]],
             default => null,
         };
     @endphp

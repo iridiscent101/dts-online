@@ -61,6 +61,8 @@ class DocumentWorkspaceController extends Controller
             'canViewAllHistory' => $user->canViewFullDocumentHistory(),
             'workflowStates' => $workflowStates,
             'workflowActionOptions' => $workflowActionOptions,
+            // Offices restore only their own completed route (with a reason); Records and administrators pick the office.
+            'restoreOwnRouteOnly' => ! $routing->canRestoreAnyRoute($user),
             'canRoute' => collect($workflowActionOptions)->contains(fn (array $actions): bool => $actions !== []),
             'destinationOffices' => $workflowStates->isEmpty() ? [] : Document::officeOptions(),
         ]);
@@ -83,7 +85,7 @@ class DocumentWorkspaceController extends Controller
             ->when($offices !== null, fn (Builder $query): Builder => $query->where(function (Builder $query) use ($offices): void {
                 // Entries about one office (route changes, a release signing) show only in that office's history; the
                 // rest (details, attachments, registration) belong to the whole document.
-                $query->whereNotIn('description', ['Document routes updated', 'Document route corrected', 'Document route added', 'Release signed'])
+                $query->whereNotIn('description', ['Document routes updated', 'Document route corrected', 'Document route deleted', 'Document route added', 'Release signed'])
                     ->orWhere(fn (Builder $query): Builder => $query->where('description', 'Release signed')->whereIn('properties->office', $offices))
                     ->orWhere(fn (Builder $query): Builder => $query->where('description', '!=', 'Document routes updated')->whereIn('properties->office', $offices))
                     ->orWhereIn('properties->from_office', $offices)

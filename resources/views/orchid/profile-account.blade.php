@@ -50,5 +50,5 @@
             <dd>{{ $user->created_at?->timezone('Asia/Manila')->format('F j, Y') ?? '—' }}</dd>
         </div>
     </dl>
-    <p class="dts-profile-account-note"><x-orchid-icon path="bs.info-circle" /> Ask a system administrator if your office or role is wrong.</p>
+    <p class="dts-profile-account-note"><x-orchid-icon path="bs.info-circle" /> Contact an administrator to correct office assignments or roles.</p>
 </div>

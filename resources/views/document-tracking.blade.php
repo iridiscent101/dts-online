@@ -7,7 +7,8 @@
     <title>Track a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
-    @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'])
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js', 'resources/js/client-updates.js'])
 </head>
 <body class="dts-public-page flex min-h-screen flex-col bg-[#F8F4E7] font-sans text-[#26332B] antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
@@ -119,7 +120,7 @@
                 <div class="mx-auto w-full max-w-6xl px-5 pt-5 sm:px-8 sm:pt-6">
                     <p class="text-sm font-semibold uppercase tracking-wide text-[#86562D]">Our office</p>
                     <h2 id="photos-heading" class="mt-1 text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
-                    <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Send your document to the Records Unit and follow it from office to office. Enter the tracking number on your receipt or scan its QR code to see where it is now.</p>
+                    <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Submit documents to the Records Unit. Enter a tracking number or scan the QR code to view document status and routing history.</p>
                     @if ($landingPhotos->whereNotNull('url')->isNotEmpty())
                         <ul class="sr-only">@foreach ($landingPhotos->whereNotNull('url') as $photo)<li>{{ $photo['caption'] }}</li>@endforeach</ul>
                     @endif
@@ -172,22 +173,28 @@
                     Document submitted. Save the tracking number below to follow its progress.
                 </p>
             @endif
+            {{-- Right after submitting: the push prompt stands out here (the regular box below is skipped). --}}
+            @if (session('submitted') && $document)
+                @include('partials.client-updates', ['trackingNumber' => $document->tracking_number, 'highlight' => true])
+            @endif
             @if ($document)
                 @php
                     $finishedOfficeCount = $assignedOffices->filter(fn (array $office): bool => ($office['handed_on'] ?? false) || in_array($office['status'], \App\Models\DocumentMovement::FINISHED_STATUSES, true))->count();
                     $allOfficesFinished = $assignedOffices->isNotEmpty() && $finishedOfficeCount === $assignedOffices->count();
-                    // A released document says so, even when several offices handled it.
+                    // A released document says so, even when several offices handled it. A bundle where the Records Unit
+                    // already released one part while other offices still work on theirs is "Partly released".
+                    $partlyReleased = $assignedOffices->contains('status', \App\Models\DocumentMovement::STATUS_RELEASED);
                     $displayStatus = $document->status === \App\Models\DocumentMovement::STATUS_RELEASED
                         ? $document->status
                         : ($assignedOffices->count() > 1
-                            ? ($allOfficesFinished ? 'All offices finished' : 'In progress')
+                            ? ($allOfficesFinished ? 'All offices finished' : ($partlyReleased ? 'Partly released' : 'In progress'))
                             : ($assignedOffices->first()['status'] ?? $document->status));
                     $statusMeanings = [
                         ...\App\Models\DocumentMovement::STATUS_MEANINGS,
                         \App\Models\Document::ROUTE_WAITING_FOR_PAPER => 'This office receives the physical document/s after you bring them to the Records Unit.',
                         // Same wording as the status guide.
                         \App\Models\DocumentMovement::STATUS_FORWARDED => 'The document was sent on to the next office. It waits there until that office receives it.',
-                        \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released the document. Processing is finished.',
+                        \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released the document to you. When several offices handle parts of it, each part is released when it is ready.',
                     ];
                     $routeStatuses = $routeOffices->pluck('status')->unique()->filter(fn (string $status): bool => array_key_exists($status, $statusMeanings));
                 @endphp
@@ -218,7 +225,7 @@
                                 <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="176" height="176" class="size-36 shrink-0 rounded-sm bg-white p-1.5 sm:size-44">
                                 <div>
                                     <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
-                                    <p class="mt-1 text-sm text-slate-600">Take a picture or screenshot, or print the label and stick it on your copy. Scan it later to open this tracking page.</p>
+                                    <p class="mt-1 text-sm text-slate-600">Save or print the label. Scan the QR code to track the document.</p>
                                     <a href="{{ route('tracking.label', $document->tracking_number) }}" class="mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.printer" class="size-4" /> Print label</a>
                                     {{-- Print receipt is hidden while the office checks whether clients need it; the receipt page (tracking.receipt) stays.
                                          To bring it back, restore this link:
@@ -226,6 +233,10 @@
                                 </div>
                             </div>
                         @endif
+
+                        @unless (session('submitted'))
+                            @include('partials.client-updates', ['trackingNumber' => $document->tracking_number])
+                        @endunless
 
                         <div class="grid gap-4 border-t border-province-line pt-4">
                             <h3 class="text-lg font-semibold leading-7 text-slate-900 [overflow-wrap:anywhere]">{{ $document->client_submission_key ? 'Client document' : $document->subject }}</h3>

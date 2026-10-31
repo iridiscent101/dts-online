@@ -65,8 +65,8 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        // Every new or changed staff password: at least 13 characters with a capital letter, a small letter, a number
-        // and a symbol. Passwords set before this rule keep working until they are next changed.
+        // Every new or changed staff password: at least 8 characters (user decision 2026-10-30, was 13) with a capital
+        // letter, a small letter, a number and a symbol. Passwords set before this rule keep working.
         Password::defaults(fn (): Password => Password::min(User::PASSWORD_MIN_LENGTH)
             ->mixedCase()
             ->letters()

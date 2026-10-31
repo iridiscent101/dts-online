@@ -9,6 +9,8 @@
         <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($document->status) }}>{{ \App\Support\StatusLabel::for($document->status) }}</span>
     </div>
 
+    <p class="dts-muted">This form corrects document details. For routing actions, <a href="{{ route('platform.documents.view', $document) }}">open the document workspace</a>.</p>
+
     @php
         // Locked details open read-only; after a refused save that already had a reason, they stay unlocked.
         $detailsLocked = $document->detailsRequireUnlockFor(request()->user());
@@ -16,6 +18,7 @@
         $fieldsLocked = $detailsLocked && $correctionReason === '';
     @endphp
     @if ($detailsLocked)
+        <p class="dts-locked-note">Locked details require a correction reason. Changes and reasons are recorded in the history.</p>
         {{-- "Unlock details" (dts.js) asks for the reason and frees the fields; the server keeps the reason in the history. --}}
         <section class="dts-form-section dts-correction-section">
             <div class="dts-details-lock" data-details-lock @if (! $fieldsLocked) hidden @endif>

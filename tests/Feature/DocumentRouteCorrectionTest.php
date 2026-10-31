@@ -35,8 +35,9 @@ class DocumentRouteCorrectionTest extends TestCase
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_FORWARDED, 'to_office' => 'SDO-Budget Unit', 'remarks' => 'Review this document.']);
         $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_CANCELLED, 'to_office' => 'SDO-Budget Unit', 'remarks' => 'Correction reason: Selected Budget instead of Legal.']);
-        $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_FORWARDED, 'to_office' => 'SDO-Legal Unit', 'remarks' => 'Review this document.']);
+        $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_FORWARDED, 'to_office' => 'SDO-Legal Unit', 'remarks' => null]);
         $this->assertDatabaseHas('activity_log', ['subject_id' => $document->id, 'description' => 'Document route corrected', 'properties->office' => 'Administrative Unit', 'properties->correction_reason' => 'Selected Budget instead of Legal.']);
         $this->assertSame('SDO-Legal Unit', $document->fresh()->current_office);
         Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
@@ -144,7 +145,7 @@ class DocumentRouteCorrectionTest extends TestCase
             'action' => DocumentMovement::ACTION_FORWARDED,
             'from_office' => 'Administrative Unit',
             'to_office' => 'SDO-Legal Unit',
-            'remarks' => 'Review this document.',
+            'remarks' => null,
             'acted_by' => $admin->id,
         ]);
         $this->assertDatabaseHas('document_office_assignments', [
@@ -570,6 +571,114 @@ class DocumentRouteCorrectionTest extends TestCase
 
         $document->officeAssignments()->where('office', 'SDO-Budget Unit')->update(['status' => DocumentMovement::STATUS_RECEIVED]);
         $this->get(route('platform.documents.workspace', $document))->assertOk()->assertDontSee('data-route-correction', false);
+    }
+
+    public function test_sending_office_deletes_one_unreceived_route_and_leaves_the_others(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $legalSend = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_FORWARDED, 'from_office' => 'Administrative Unit', 'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_RECEIVED, 'to_status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED, 'movement_id' => $legalSend->id]);
+        $budgetSendId = $document->officeAssignments()->where('office', 'SDO-Budget Unit')->value('movement_id');
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.delete', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'reason' => 'Budget does not handle this request.',
+        ])->assertOk()->assertJsonPath('message', 'The route to SDO-Budget Unit was deleted.');
+
+        // Budget's route and the send that created it are gone; Legal's route is untouched.
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+        $this->assertDatabaseMissing('document_movements', ['id' => $budgetSendId]);
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $this->assertDatabaseHas('document_movements', ['id' => $legalSend->id]);
+        $this->assertSame('SDO-Legal Unit', $document->fresh()->current_office);
+        $this->assertDatabaseHas('activity_log', ['subject_id' => $document->id, 'description' => 'Document route deleted', 'properties->deleted_office' => 'SDO-Budget Unit', 'properties->deletion_reason' => 'Budget does not handle this request.']);
+    }
+
+    public function test_a_deleted_route_shows_in_the_staff_activity_history_with_its_reason(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.delete', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'reason' => 'Budget does not handle this request.',
+        ])->assertOk();
+
+        $this->get(route('platform.documents.workspace', ['document' => $document, 'history_page' => 1]))
+            ->assertOk()
+            ->assertSee('Route deleted')
+            ->assertSee('Deleted office')
+            ->assertSee('SDO-Budget Unit')
+            ->assertSee('Budget does not handle this request.');
+    }
+
+    public function test_deleting_the_last_route_gives_the_document_back_to_the_sender(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.delete', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'reason' => 'Sent by mistake.',
+        ])->assertOk();
+
+        $document->refresh();
+        $this->assertSame('Administrative Unit', $document->current_office);
+        $this->assertSame(DocumentMovement::STATUS_RECEIVED, $document->status);
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+    }
+
+    public function test_deleting_a_route_needs_a_reason(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.delete', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'reason' => '  ',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['reason' => 'Give the reason for deleting this route.']);
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+    }
+
+    public function test_a_received_route_cannot_be_deleted(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+        $document->officeAssignments()->where('office', 'SDO-Budget Unit')->update(['status' => DocumentMovement::STATUS_RECEIVED]);
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.delete', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'reason' => 'Too late.',
+        ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+    }
+
+    public function test_only_the_sending_office_can_delete_a_route(): void
+    {
+        $outsider = User::factory()->create(['office' => 'Curriculum Implementation Division', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        // Refused: 404 when the outsider cannot even see the document, 403 when they can but did not send it.
+        $status = $this->actingAs($outsider)->postJson(route('platform.documents.routes.delete', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'reason' => 'Not ours.',
+        ])->status();
+        $this->assertContains($status, [403, 404]);
+
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
     }
 
     private function forwardedDocument(): Document

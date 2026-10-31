@@ -48,7 +48,7 @@ class UserListScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'A comprehensive list of all registered users, including their profiles and privileges.';
+        return 'User accounts, office assignments and roles.';
     }
 
     public function permission(): ?iterable

@@ -76,6 +76,8 @@ class DocumentWorkspaceTest extends TestCase
             preg_match("/data-action-options='([^']+)'/", $page->getContent(), $match);
             $options = json_decode(html_entity_decode($match[1] ?? ''), true);
             $this->assertSame(['forwarded', 'completed'], array_keys($options['SDO-Budget Unit']));
+            $page->assertSee('Routing is available for assigned offices.')
+                ->assertDontSee('data-workspace-edit', false);
         }
     }
 
@@ -184,6 +186,20 @@ class DocumentWorkspaceTest extends TestCase
         $this->actingAs($staff)
             ->get(route('platform.documents.workspace', $document))
             ->assertViewHas('workflowActionOptions', fn (array $options): bool => ! isset($options['Administrative Unit'][DocumentMovement::ACTION_RESTORED]));
+    }
+
+    public function test_an_office_is_offered_restore_on_its_own_completed_route_only(): void
+    {
+        $staff = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = Document::factory()->create(['current_office' => 'SDO-Records Unit', 'status' => DocumentMovement::STATUS_RECEIVED]);
+        $document->officeAssignments()->create(['office' => 'Administrative Unit', 'status' => DocumentMovement::STATUS_COMPLETED]);
+
+        $this->actingAs($staff)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertViewHas('workflowActionOptions', fn (array $options): bool => isset($options['Administrative Unit'][DocumentMovement::ACTION_RESTORED]))
+            ->assertViewHas('restoreOwnRouteOnly', true)
+            ->assertSee('data-restore-own-only="true"', false);
     }
 
     public function test_modal_detail_save_reuses_validation_and_does_not_change_routes(): void

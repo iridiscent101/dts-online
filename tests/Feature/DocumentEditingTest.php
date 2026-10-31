@@ -289,6 +289,8 @@ class DocumentEditingTest extends TestCase
             ->get(route('platform.documents.edit', $document))
             ->assertOk()
             ->assertSee('Save changes')
+            ->assertSee('This form corrects document details.')
+            ->assertSee('open the document workspace')
             ->assertSee('the assigned offices can no longer be changed here')
             ->assertDontSee('data-edit-route-add', false);
     }

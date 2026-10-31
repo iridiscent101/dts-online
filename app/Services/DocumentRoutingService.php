@@ -76,7 +76,7 @@ class DocumentRoutingService
                 'to_office' => $replacementOffice,
                 'from_status' => $originalMovement->from_status,
                 'to_status' => $pendingStatus,
-                'remarks' => $originalMovement->remarks,
+                'remarks' => null,
                 'acted_by' => $user->id,
             ]);
             // A finished office's row is reopened rather than duplicated.
@@ -100,6 +100,71 @@ class DocumentRoutingService
             ]);
 
             return $replacementMovement->action;
+        });
+    }
+
+    /**
+     * "Delete route": removes one route that was sent by mistake, before that office receives it, with the same checks
+     * as Correct route. The route and the send that created it are deleted from the database; other routes on the
+     * document are not touched. If no route is left, the sending office (which still has the paper) gets the document
+     * back as Received, so it is never left with nobody. A staff activity-log entry records who deleted it.
+     */
+    public function deletePendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, string $reason): void
+    {
+        DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $reason): void {
+            $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
+            abort_unless(! $user->isReadOnlySupervisor()
+                && $user->hasAccess('platform.index')
+                && ($user->isAdministrator() || $user->isAssignedToOffice($sourceOffice)), 403);
+
+            $assignment = $currentDocument->officeAssignments()->where('office', $destinationOffice)->first();
+            $originalMovement = $assignment?->movement;
+            $isInitialSend = $originalMovement?->action === DocumentMovement::ACTION_SENT
+                && $originalMovement->from_office === null
+                && $currentDocument->registered_office === $sourceOffice;
+            $isOfficeForward = $originalMovement?->from_office === $sourceOffice
+                && in_array($originalMovement?->action, [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED], true);
+            abort_unless($originalMovement !== null && ($isInitialSend || $isOfficeForward), 403);
+
+            $pendingStatus = $isInitialSend ? DocumentMovement::STATUS_AWAITING_RECEIPT : DocumentMovement::STATUS_FORWARDED;
+            if ($currentDocument->isClosedRecord() || $assignment->status !== $pendingStatus) {
+                throw ValidationException::withMessages([
+                    'destination_office' => 'This route can no longer be deleted because the office received it or the document is finished.',
+                ]);
+            }
+
+            $assignment->delete();
+            $originalMovement->delete();
+
+            $remaining = $currentDocument->officeAssignments()
+                ->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
+                ->oldest('id')
+                ->get();
+
+            if ($remaining->isEmpty()) {
+                // Nothing left: the sender gets it back, linked to its own last receipt when there is one.
+                $receipt = $currentDocument->movements()
+                    ->where('action', DocumentMovement::ACTION_RECEIVED)
+                    ->where('to_office', $sourceOffice)
+                    ->reorder()->latest('id')->first();
+                $currentDocument->officeAssignments()->updateOrCreate(['office' => $sourceOffice], [
+                    'status' => DocumentMovement::STATUS_RECEIVED,
+                    'assigned_by' => $user->id,
+                    'movement_id' => $receipt?->id,
+                ]);
+                $currentDocument->update(['current_office' => $sourceOffice, 'status' => DocumentMovement::STATUS_RECEIVED]);
+            } elseif ($currentDocument->current_office === $destinationOffice) {
+                $next = $remaining->first(fn (DocumentOfficeAssignment $route): bool => ! in_array($route->office, self::RECORDS_OFFICES, true))
+                    ?? $remaining->first();
+                $currentDocument->update(['current_office' => $next->office, 'status' => $next->status]);
+            }
+
+            $currentDocument->recordActivity('Document route deleted', $user, [
+                'office' => $sourceOffice,
+                'from_office' => $sourceOffice,
+                'deleted_office' => $destinationOffice,
+                'deletion_reason' => $reason,
+            ]);
         });
     }
 
@@ -198,7 +263,7 @@ class DocumentRoutingService
             abort_unless($workflowState !== null, 403, 'This document is assigned to another office.');
 
             $action = $workflow['action'];
-            abort_if($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestore($user), 403);
+            abort_if($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestore($user, $currentDocument, $workflowState), 403);
             $this->ensureTransitionIsAllowed($user, $currentDocument, $workflowState, $action);
 
             if ($action === DocumentMovement::ACTION_RELEASED) {
@@ -234,6 +299,23 @@ class DocumentRoutingService
 
             $destinations = $this->destinations($workflow);
             $remarks = filled($workflow['remarks'] ?? null) ? trim((string) $workflow['remarks']) : null;
+
+            // An office restoring its own completed route reopens only that route, and says why (the history keeps it).
+            if ($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestoreAnyRoute($user)) {
+                if ($destinations !== [] && $destinations !== [$workflowState['office']]) {
+                    throw ValidationException::withMessages([
+                        'workflow.destinations' => 'Your office can only restore its own route.',
+                    ]);
+                }
+                $destinations = [$workflowState['office']];
+                $remarks ??= filled($workflow['destination_remarks'][0] ?? null) ? trim((string) $workflow['destination_remarks'][0]) : null;
+                if ($remarks === null) {
+                    throw ValidationException::withMessages([
+                        'workflow.remarks' => 'Give the reason for restoring, for example "Need to verify one attachment".',
+                    ]);
+                }
+                $workflow['destination_remarks'] = [$remarks];
+            }
             $status = $this->statusForAction($action);
             $targetOffices = DocumentMovement::requiresDestination($action)
                 ? $this->validateDestinations($destinations, $workflowState['office'], $action)
@@ -251,16 +333,21 @@ class DocumentRoutingService
 
                 // An office that finished its part can be sent the document again (e.g. to re-check something); its row
                 // is reopened below. Only offices still working on it count as already assigned.
-                $alreadyAssigned = $currentDocument->officeAssignments->first(fn (DocumentOfficeAssignment $assignment): bool => in_array($assignment->office, $targetOffices, true)
-                    && ! in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true));
+                $alreadyAssigned = $currentDocument->officeAssignments->first(function (DocumentOfficeAssignment $assignment) use ($targetOffices, $action): bool {
+                    if (! in_array($assignment->office, $targetOffices, true)
+                        || in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true)) {
+                        return false;
+                    }
 
-                $isPaperReturningToRecords = $alreadyAssigned !== null
-                    && $action === DocumentMovement::ACTION_FORWARDED
-                    && in_array($alreadyAssigned->office, self::RECORDS_OFFICES, true)
-                    && $alreadyAssigned->status === DocumentMovement::STATUS_RECEIVED
-                    && $alreadyAssigned->movement?->action === DocumentMovement::ACTION_RECEIVED;
+                    $isPaperReturningToRecords = $action === DocumentMovement::ACTION_FORWARDED
+                        && in_array($assignment->office, self::RECORDS_OFFICES, true)
+                        && $assignment->status === DocumentMovement::STATUS_RECEIVED
+                        && $assignment->movement?->action === DocumentMovement::ACTION_RECEIVED;
 
-                if ($alreadyAssigned !== null && ! $isPaperReturningToRecords) {
+                    return ! $isPaperReturningToRecords;
+                });
+
+                if ($alreadyAssigned !== null) {
                     throw ValidationException::withMessages([
                         'workflow.destinations' => "This document is already assigned to {$alreadyAssigned->office}. Choose another destination office.",
                     ]);
@@ -359,16 +446,17 @@ class DocumentRoutingService
         }
 
         $options = DocumentMovement::availableActionOptionsForStatus($state['status']);
-        if (! $this->canRestore($user)) {
+        if (! $this->canRestore($user, $document, $state)) {
             unset($options[DocumentMovement::ACTION_RESTORED]);
         }
         $isRecordsOffice = in_array($state['office'], self::RECORDS_OFFICES, true);
         $hasOtherActiveRoutes = $this->hasUnfinishedNonRecordsRoutes($document);
         // Release hands the document back to the client: the Records Unit's job, and an administrator's from any office
-        // that has received it. Either way, no other office may still be working on it.
+        // that has received it. The Records Unit may release a part that came back while other offices are still
+        // working (a bundle): their routes stay open, they can send their part back later, and the document is only
+        // finished when the last route is. An administrator releasing from another office still needs the rest done.
         $mayRelease = $isRecordsOffice
-            ? ! $hasOtherActiveRoutes
-            : $user->isAdministrator() && ! $this->hasOtherUnfinishedRoutes($document, $state['office']);
+            || ($user->isAdministrator() && ! $this->hasOtherUnfinishedRoutes($document, $state['office']));
         if (! $mayRelease || ! $this->canRelease($document, $state['office'])) {
             unset($options[DocumentMovement::ACTION_RELEASED]);
         }
@@ -379,9 +467,27 @@ class DocumentRoutingService
         return $options;
     }
 
-    private function canRestore(User $user): bool
+    /** Records Unit staff and administrators may restore any finished route, for any office. */
+    public function canRestoreAnyRoute(User $user): bool
     {
         return $user->isAdministrator() || $user->assignedOfficeNames()->intersect(self::RECORDS_OFFICES)->isNotEmpty();
+    }
+
+    /**
+     * Besides Records and administrators, the office that completed a route may restore that route itself (to check or
+     * fix something and complete it again), but only its own Completed route and only until the document is released.
+     *
+     * @param  array{office: string, status: string}  $state
+     */
+    private function canRestore(User $user, Document $document, array $state): bool
+    {
+        if ($this->canRestoreAnyRoute($user)) {
+            return true;
+        }
+
+        return $state['status'] === DocumentMovement::STATUS_COMPLETED
+            && $user->assignedOfficeNames()->contains($state['office'])
+            && ! in_array($document->status, [DocumentMovement::STATUS_RELEASED, DocumentMovement::STATUS_ARCHIVED], true);
     }
 
     private function hasUnfinishedNonRecordsRoutes(Document $document): bool

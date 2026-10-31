@@ -2693,6 +2693,21 @@ a.dts-record-status:hover,
     font-weight: 700;
 }
 
+/* Long office names (dts.js fitOfficeFields): when the longest one does not fit in half the row, each field gets its
+   own full-width line. Acting office goes above Action; a destination's Office goes above its Remarks. */
+.dts-workspace-fields.is-office-wide {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.is-office-wide .dts-workspace-destination > label,
+.is-office-wide .dts-workspace-destination > div {
+    grid-column: 1 / -1;
+}
+
+.is-office-wide .dts-workspace-destination > div {
+    grid-row: 3;
+}
+
 .dts-workspace-destination > span::before {
     content: 'Destination ';
 }
@@ -3134,6 +3149,11 @@ a.dts-record-status:hover,
     border-top: 1px solid var(--dts-border);
 }
 
+/* Correct route dialog: "Delete this route" sits on the left, away from Correct route. */
+.dts-app-dialog-actions .dts-route-delete {
+    margin-right: auto;
+}
+
 .dts-app-dialog-actions .dts-button {
     min-height: var(--dts-control-h);
 }
@@ -3552,6 +3572,10 @@ a.dts-record-status:hover,
 }
 
 .dts-action-choice:hover {
+    background: var(--dts-green-soft);
+}
+
+.dts-action-choice.is-primary:not([aria-pressed="true"]) {
     background: var(--dts-green-soft);
 }
 
@@ -7211,6 +7235,21 @@ body .invalid-feedback {
     box-shadow: 0 0 0 0.2rem rgb(180 35 24 / 20%);
 }
 
+.dts-password-match {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.dts-password-match[data-match="true"] {
+    color: var(--dts-green-dark);
+}
+
+.dts-password-match[data-match="false"] {
+    color: var(--dts-danger-dark);
+}
+
 /* Toasts sit at the bottom right instead of Orchid's top right, where they covered each page's main button
    ("New document", "Save") for their 8 seconds. Phones: across the bottom. */
 .toast-wrapper {
@@ -8207,72 +8246,51 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     text-decoration: none;
 }
 
-/* Demo sign-up: wide enough that the longest office name in the Office list fits without being cut off (it needs
-   about 600px). On narrower screens the panel shrinks as usual and a cut-off name ends in "…". */
-.page-demo-register .dts-auth-panel {
-    max-width: 600px;
-}
-
 .dts-auth .form-select {
     text-overflow: ellipsis;
 }
 
-/* Office search on the sign-up page: suggestions at the same size as the other fields. */
-.dts-auth dts-searchable [data-choice] {
+/* Document window: why Records has no Release button yet (other offices still working on the document). */
+.dts-release-waiting {
+    margin: 8px 0 0;
+    padding: 8px 12px;
+    border-left: 3px solid var(--dts-gold, #c99a2e);
+    border-radius: 4px;
+    background: var(--dts-warning-soft, #fff4d9);
+    color: var(--dts-warning-text, #866314);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.45;
+}
+
+.dts-release-waiting[hidden] {
+    display: none;
+}
+
+/* Document window, Restore: "Reopen it for a different office instead" (Records and administrators). */
+.dts-restore-elsewhere {
+    margin: 4px 0 12px;
+}
+
+.dts-restore-elsewhere[hidden] {
+    display: none;
+}
+
+.dts-text-button {
     min-height: 44px;
-    font-size: 1.0625rem;
-}
-
-/* Demo sign-up: the two role choices as large tappable cards. */
-.dts-demo-roles {
-    display: grid;
-    /* minmax(0, 1fr): the cards stay inside the form instead of growing to their longest line. */
-    grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
-}
-
-.dts-demo-role > span {
-    min-width: 0;
-}
-
-.dts-demo-role {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    min-height: 48px;
-    padding: 12px 14px;
-    border: 1px solid var(--dts-line);
-    border-radius: 8px;
-    background: #fff;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dts-green);
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
     cursor: pointer;
 }
 
-.dts-demo-role:has(input:checked) {
-    border-color: var(--dts-green);
-    background: var(--dts-green-soft);
-}
-
-.dts-demo-role.is-invalid {
-    border-color: var(--dts-danger);
-}
-
-.dts-demo-role input {
-    flex: none;
-    margin-top: 3px;
-}
-
-.dts-demo-role strong {
-    display: block;
-    color: var(--dts-heading);
-    font-size: 1.0625rem;
-}
-
-.dts-demo-role small {
-    display: block;
-    color: var(--dts-text-muted);
-    font-size: 0.9375rem;
-    line-height: 1.4;
-    white-space: normal;
+.dts-text-button:hover {
+    color: var(--dts-green-dark);
 }
 
 /* Auth buttons that say what they are doing while the request runs. */

@@ -44,8 +44,8 @@ class SchoolEditScreen extends Screen
     public function description(): ?string
     {
         return $this->school->exists
-            ? 'Rename this school. Documents already registered keep the origin name they were saved with.'
-            : 'Add a school that is missing from the list, so staff can pick it as a document origin.';
+            ? 'Update the school name. Existing document origins remain unchanged.'
+            : 'Add a school to the document origin list.';
     }
 
     public function permission(): ?iterable

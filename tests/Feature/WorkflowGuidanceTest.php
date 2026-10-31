@@ -38,7 +38,7 @@ class WorkflowGuidanceTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('Your office can act on this document.')
+            ->assertSee('Routing actions available.')
             ->assertSee('data-workspace-take-action', false)
             ->assertSee('<span class="dts-tab-badge">Action needed</span>', false)
             ->assertSee('Fields marked * are required.');
@@ -51,9 +51,9 @@ class WorkflowGuidanceTest extends TestCase
         $this->actingAs($this->user)
             ->get(route('platform.documents.workspace', $document))
             ->assertOk()
-            ->assertSee('This document is finished.')
+            ->assertSee('Route finished.')
             ->assertSee('Restore options')
-            ->assertDontSee('Your office can act on this document.')
+            ->assertDontSee('Routing actions available.')
             ->assertDontSee('<span class="dts-tab-badge">Action needed</span>', false);
     }
 

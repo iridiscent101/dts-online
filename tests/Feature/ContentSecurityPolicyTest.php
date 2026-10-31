@@ -77,6 +77,9 @@ class ContentSecurityPolicyTest extends TestCase
 
         $this->assertStringNotContainsString('[::1]', $policy);
         $this->assertMatchesRegularExpression("/style-src 'self' 'unsafe-inline' http:;/", $policy);
-        $this->assertMatchesRegularExpression("/connect-src 'self' http: ws:;/", $policy);
+        $this->assertMatchesRegularExpression("/connect-src 'self' [^;]*http: ws:;/", $policy);
+        // Push notifications: the Firebase SDK from Google's CDN and its token servers.
+        $this->assertMatchesRegularExpression('/script-src [^;]*https:\\/\\/www\\.gstatic\\.com/', $policy);
+        $this->assertMatchesRegularExpression('/connect-src [^;]*https:\\/\\/fcmregistrations\\.googleapis\\.com/', $policy);
     }
 }

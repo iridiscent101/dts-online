@@ -41,7 +41,7 @@
                 <span class="grid size-20 place-items-center rounded-full bg-[#E8F1E6] text-[#216E39]"><x-orchid-icon path="bs.hourglass-split" class="size-10" /></span>
             </span>
             <h1 class="text-3xl font-bold text-slate-900">Please wait</h1>
-            <p class="max-w-xl text-xl leading-8 text-slate-700">The Records Unit staff will call your name. Your document will appear on this screen when it is ready for you to sign.</p>
+            <p class="max-w-xl text-xl leading-8 text-slate-700">Signing requests appear here when sent by Records staff.</p>
             <span class="flex items-center gap-2 text-lg font-semibold text-[#216E39]">
                 Waiting for your document
                 <span class="flex gap-1.5 pt-2" aria-hidden="true">
@@ -57,7 +57,7 @@
         <form data-kiosk-form class="grid gap-6 rounded-md border border-province-line bg-white p-6 shadow-sm sm:p-8" novalidate hidden aria-labelledby="kiosk-sign-heading">
             <div>
                 <h1 id="kiosk-sign-heading" class="text-3xl font-bold text-slate-900">Sign for your document</h1>
-                <p class="mt-2 text-lg text-slate-700">Check the tracking number, then sign inside the box. Typing your name is optional.</p>
+                <p class="mt-2 text-lg text-slate-700">Check the tracking number and sign in the box. The name is optional.</p>
             </div>
 
             <dl class="grid gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-4 sm:grid-cols-2">

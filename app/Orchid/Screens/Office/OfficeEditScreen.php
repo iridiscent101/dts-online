@@ -51,7 +51,7 @@ class OfficeEditScreen extends Screen
 
     public function description(): ?string
     {
-        return 'Office details used by routing, registration, and personnel assignment.';
+        return 'Office details, list order and availability.';
     }
 
     public function permission(): ?iterable
@@ -82,7 +82,7 @@ class OfficeEditScreen extends Screen
         return [
             Layout::block(OfficeEditLayout::class)
                 ->title(__('Office'))
-                ->description(__('Update the office name, source list membership, ordering, and availability.')),
+                ->description(__('Office name, list order and availability.')),
         ];
     }
 

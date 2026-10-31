@@ -45,7 +45,7 @@ class RoleListScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'A comprehensive list of all roles, including their permissions and associated users.';
+        return 'Roles and assigned permissions.';
     }
 
     public function permission(): ?iterable

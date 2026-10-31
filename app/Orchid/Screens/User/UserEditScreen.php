@@ -77,7 +77,7 @@ class UserEditScreen extends Screen
      */
     public function description(): ?string
     {
-        return 'User profile and assigned roles.';
+        return 'Account details, office assignments and roles.';
     }
 
     public function permission(): ?iterable
@@ -136,19 +136,19 @@ class UserEditScreen extends Screen
 
             Layout::block(UserEditLayout::class)
                 ->title(__('Profile Information'))
-                ->description(__('Update your account\'s profile information and email address.')),
+                ->description(__('Name, sign-in email and recovery email.')),
 
             Layout::block(UserPasswordLayout::class)
                 ->title(__('Password'))
-                ->description(__('Ensure your account is using a long, random password to stay secure.')),
+                ->description(__('Set or change the account password.')),
 
             Layout::block(UserOfficeLayout::class)
                 ->title(__('Office Assignment'))
-                ->description(__('Controls which document queue this staff member is responsible for.')),
+                ->description(__('Office assignments determine access to document queues.')),
 
             Layout::block(UserRoleLayout::class)
                 ->title(__('Roles'))
-                ->description(__('A Role defines a set of tasks a user assigned the role is allowed to perform.')),
+                ->description(__('Roles determine account permissions.')),
 
             Layout::modal('deleteUserModal', Layout::rows([
                 Select::make('transfer_to')
@@ -183,7 +183,8 @@ class UserEditScreen extends Screen
                 Rule::unique(User::class, 'email')->ignore($user),
             ],
             'user.notification_email' => ['bail', 'nullable', 'email:rfc,filter', 'max:255', new EmailDomainReceivesMail($user->notification_email)],
-            'user.password' => [Rule::requiredIf(! $user->exists), 'nullable', 'string', Password::defaults()],
+            'user.password' => [Rule::requiredIf(! $user->exists), 'nullable', 'string', 'confirmed', Password::defaults()],
+            'user.password_confirmation' => ['nullable', 'string'],
             'user.office_ids' => ['nullable', 'array'],
             'user.office_ids.*' => ['integer', Rule::exists(Office::class, 'id')->where('is_active', true)],
             'user.roles' => ['sometimes', 'array'],
@@ -224,7 +225,7 @@ class UserEditScreen extends Screen
             });
 
             $user
-                ->fill($request->collect('user')->except(['office', 'office_ids', 'offices_submitted', 'password', 'permissions', 'roles', 'notification_email'])->toArray())
+                ->fill($request->collect('user')->except(['office', 'office_ids', 'offices_submitted', 'password', 'password_confirmation', 'permissions', 'roles', 'notification_email'])->toArray())
                 ->forceFill(['permissions' => []])
                 ->save();
 

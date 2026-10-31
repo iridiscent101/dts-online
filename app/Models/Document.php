@@ -47,6 +47,8 @@ class Document extends Model
         'Document details updated',
         'Document routes updated',
         'Document route corrected',
+        // "Delete this route" (DocumentRoutingService::deletePendingRoute): the route itself is gone, this keeps the trace.
+        'Document route deleted',
         // "Add office route" (DocumentRoutingService::addAdditionalRoute), with the reason it was added.
         'Document route added',
         'Attachments added',
@@ -259,7 +261,9 @@ class Document extends Model
                 DocumentMovement::STATUS_COMPLETED,
                 DocumentMovement::STATUS_RELEASED,
                 DocumentMovement::STATUS_ARCHIVED,
-            ]);
+            ])
+                // A part the office sent back to Records that is already released is done, not outgoing (Archived).
+                ->when($offices !== null, fn (Builder $query): Builder => $query->whereNot(fn (Builder $done): Builder => $done->partReleasedFor($offices)));
         }
 
         $statuses = match ($section) {
@@ -286,7 +290,9 @@ class Document extends Model
                 if ($section === 'archived') {
                     $query->orWhere(fn (Builder $sent): Builder => $sent
                         ->whereIn('documents.status', $statuses)
-                        ->sentOnBy($offices));
+                        ->sentOnBy($offices))
+                        // Bundles: the office's part came back to Records and was released while others still work.
+                        ->orWhere(fn (Builder $done): Builder => $done->partReleasedFor($offices));
                 }
             });
         }
@@ -297,6 +303,24 @@ class Document extends Model
                     $legacy->doesntHave('officeAssignments')->whereIn('status', $statuses);
                 });
         });
+    }
+
+    /**
+     * Bundles: the office sent its part back to the Records Unit and Records has released (or completed) it, so that
+     * office's work is done even while other offices still work on the rest of the document.
+     *
+     * @param  Collection<int, string>  $offices
+     */
+    public function scopePartReleasedFor(Builder $query, Collection $offices): Builder
+    {
+        return $query
+            ->whereHas('movements', fn (Builder $movements): Builder => $movements
+                ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
+                ->whereIn('from_office', $offices)
+                ->whereIn('to_office', Office::RECORDS_UNIT_NAMES))
+            ->whereHas('officeAssignments', fn (Builder $assignments): Builder => $assignments
+                ->whereIn('office', Office::RECORDS_UNIT_NAMES)
+                ->whereIn('status', [DocumentMovement::STATUS_RELEASED, DocumentMovement::STATUS_COMPLETED]));
     }
 
     /**
@@ -618,6 +642,12 @@ class Document extends Model
             ->where('action', DocumentMovement::ACTION_RECEIVED)
             ->where('from_status', DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT)
             ->where('to_office', Office::RECORDS_UNIT_NAME));
+    }
+
+    /** Client phones and browsers that asked for push updates on this document (tracking or receipt page). */
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(DocumentPushSubscription::class);
     }
 
     public function officeAssignments(): HasMany

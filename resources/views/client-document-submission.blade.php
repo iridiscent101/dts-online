@@ -139,7 +139,7 @@
 
             <div class="sm:col-span-2">
                 <label for="client-remarks" class="block text-sm font-semibold text-slate-800">Instructions for Records <span class="font-normal text-slate-600">(optional)</span></label>
-                <p id="client-remarks-hint" class="mt-1 text-sm text-slate-600">For example, which offices it should go to or who to call.</p>
+                <p id="client-remarks-hint" class="mt-1 text-sm text-slate-600">Enter destination offices or routing instructions.</p>
                 <textarea id="client-remarks" name="client_remarks" rows="3" maxlength="1000" autocomplete="off" aria-describedby="client-remarks-hint @error('client_remarks') client-remarks-error @enderror" class="mt-2 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">{{ old('client_remarks') }}</textarea>
                 @error('client_remarks')<p id="client-remarks-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
             </div>

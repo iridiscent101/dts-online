@@ -19,7 +19,7 @@ class PersonnelOfficeRoleSeederTest extends TestCase
 
         $role = Role::query()->where('slug', 'personnel')->firstOrFail();
 
-        $this->assertDatabaseCount('roles', 2); // includes the Kiosk role from the 2026_10_18 migration
+        $this->assertDatabaseCount('roles', 4); // Personnel, Records, Supervisor and Kiosk.
         $this->assertDatabaseCount('users', 22);
         $this->assertDatabaseCount('role_users', 22);
         $this->assertDatabaseHas('roles', [
@@ -36,7 +36,14 @@ class PersonnelOfficeRoleSeederTest extends TestCase
             $this->assertSame([$office], User::query()->where('email', $email)->sole()->assignedOfficeNames()->all());
         }
 
-        $this->assertSame(22, User::query()->whereHas('roles', fn (Builder $query): Builder => $query->whereKey($role->id))->count());
+        $this->assertSame(17, User::query()->whereHas('roles', fn (Builder $query): Builder => $query->whereKey($role->id))->count());
+        $recordsStaff = User::query()->whereHas('offices', fn (Builder $query): Builder => $query->where('name', 'SDO-Records Unit'))->get();
+        $this->assertCount(5, $recordsStaff);
+        foreach ($recordsStaff as $staff) {
+            $this->assertTrue($staff->inRole('records-unit'));
+            $this->assertTrue($staff->hasAccess('platform.documents.edit'));
+            $this->assertFalse($staff->hasAccess('platform.systems.users'));
+        }
     }
 
     public function test_it_is_idempotent_and_preserves_existing_roles(): void
@@ -60,7 +67,7 @@ class PersonnelOfficeRoleSeederTest extends TestCase
         $personnelRole = Role::query()->where('slug', 'personnel')->firstOrFail();
         $existingUser->refresh();
 
-        $this->assertDatabaseCount('roles', 3); // includes the Kiosk role from the 2026_10_18 migration
+        $this->assertDatabaseCount('roles', 5); // Default roles plus the existing reviewer role.
         $this->assertDatabaseCount('users', 22);
         $this->assertDatabaseCount('role_users', 23);
         $this->assertSame('Marilou B. Mendoza', $existingUser->name);

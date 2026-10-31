@@ -3,7 +3,7 @@
 
 @section('content')
     <h1 class="dts-auth-title">{{ __('Forgot your password?') }}</h1>
-    <p class="dts-auth-subtitle">{{ __('We will email a reset link to your verified recovery email.') }}</p>
+    <p class="dts-auth-subtitle">{{ __('Request a password reset link through a verified recovery email.') }}</p>
 
     @if (session('status'))
         <div class="alert alert-success d-flex gap-2 align-items-start mb-3" role="status">

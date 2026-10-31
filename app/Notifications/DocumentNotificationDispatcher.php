@@ -4,8 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Document;
 use App\Models\DocumentMovement;
+use App\Models\DocumentPushSubscription;
 use App\Models\Office;
 use App\Models\User;
+use App\Services\FirebaseMessaging;
 use App\Support\SendAfterResponse;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -61,6 +63,11 @@ class DocumentNotificationDispatcher
         }
 
         $this->sendToClient($document, new DocumentRoutedClientNotification($document->tracking_number, $officeNames));
+        $this->pushToClient(
+            $document,
+            "Your document {$document->tracking_number} was routed",
+            'It was routed to the '.collect($officeNames)->join(', ', ' and ').'.',
+        );
     }
 
     /**
@@ -75,6 +82,7 @@ class DocumentNotificationDispatcher
                 DocumentFinishedClientNotification::RELEASED,
                 $office,
             ));
+            $this->pushToClient($document, "Your document {$document->tracking_number} was released", "It was released by the {$office}.");
 
             return;
         }
@@ -88,7 +96,35 @@ class DocumentNotificationDispatcher
                 DocumentFinishedClientNotification::COMPLETED,
                 $office,
             ));
+            $this->pushToClient($document, "Your document {$document->tracking_number} is complete", 'All offices have finished processing it.');
         }
+    }
+
+    /**
+     * Pushes an update to the client's phones that asked for it on the tracking or receipt page ("Get updates on this
+     * phone"). Separate from the email: it needs no email address and does not count toward the email limits. Sent once
+     * the save commits; a token Firebase reports as dead is deleted. Tapping it opens the tracking page.
+     */
+    private function pushToClient(Document $document, string $title, string $body): void
+    {
+        $firebase = app(FirebaseMessaging::class);
+        $tokens = $document->pushSubscriptions()->orderBy('id')->pluck('token');
+        if ($tokens->isEmpty() || ! $firebase->configured()) {
+            return;
+        }
+
+        $link = route('tracking.index', ['tracking' => $document->tracking_number]);
+        $documentId = $document->getKey();
+        SendAfterResponse::mail(function () use ($firebase, $tokens, $title, $body, $link, $documentId): void {
+            foreach ($tokens as $token) {
+                $subscription = DocumentPushSubscription::query()->where('document_id', $documentId)->where('token', $token);
+                match ($firebase->send($token, $title, $body, $link)) {
+                    FirebaseMessaging::INVALID_TOKEN => $subscription->delete(),
+                    FirebaseMessaging::SENT => $subscription->update(['last_used_at' => now()]),
+                    default => null,
+                };
+            }
+        });
     }
 
     private function sendToClient(Document $document, \Illuminate\Notifications\Notification $notification): void

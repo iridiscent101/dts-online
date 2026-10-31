@@ -19,7 +19,7 @@
             <input class="dts-signature-value" name="workflow[recipient_signature]" data-signature-value tabindex="-1" aria-hidden="true" disabled>
         </div>
         <div class="dts-signature-footer">
-            <p class="dts-signature-hint" id="{{ $id }}-hint" data-signature-hint>Use Send to kiosk for the recipient outside, or let them sign here with a finger, a stylus or the mouse.</p>
+            <p class="dts-signature-hint" id="{{ $id }}-hint" data-signature-hint>Collect the signature here or select Send to kiosk.</p>
             <button type="button" class="dts-button dts-button-secondary" data-signature-clear disabled>Clear</button>
         </div>
     </dts-signature-pad>
