@@ -8880,3 +8880,12 @@ dts-searchable [data-suggestions] p {
 dts-workflow-routing input[data-destination-select] {
     font-size: 1rem;
 }
+
+/* An empty slot where a row has no Edit or Delete button (resources/views/orchid/cells/*-row-actions), the same size
+   as a button, so the buttons stay in the same columns on every row. */
+.dts-row-actions .dts-row-action-slot {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: var(--dts-control-h-sm);
+    height: var(--dts-control-h-sm);
+}

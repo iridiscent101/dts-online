@@ -15,10 +15,15 @@
     @if ($additionalRoute)
         <button type="button" class="btn dts-row-action dts-row-action-send" data-additional-route='@json($additionalRoute)' data-tooltip="Add office route" aria-label="Add an office route for {{ $document->tracking_number }}"><x-orchid-icon path="bs.send-plus" /> Add office route</button>
     @endif
+    {{-- Fixed slots for Edit and Delete: a missing one leaves an empty slot, so they line up on every row. --}}
     @if ($canEdit)
         <a class="btn dts-row-action dts-row-action-edit" href="{{ $editUrl }}" data-workspace-url="{{ $workspaceUrl }}" data-workspace-edit-open data-tooltip="Edit"><x-orchid-icon path="bs.pencil" /> Edit</a>
+    @elseif ($canDelete)
+        <span class="dts-row-action-slot" aria-hidden="true"></span>
     @endif
     @if ($canDelete)
         {{ $deleteAction }}
+    @elseif ($canEdit)
+        <span class="dts-row-action-slot" aria-hidden="true"></span>
     @endif
 </div>
