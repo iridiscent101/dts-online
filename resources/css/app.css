@@ -101,8 +101,7 @@ body {
     to { transform: translate3d(0, 0, 0); }
 }
 
-/* Hovering pauses the photos, and the Pause photos button (document-tracking.blade.php) stops them until pressed again. */
-.dts-photo-marquee:hover .dts-photo-track,
+/* The Pause photos button (document-tracking.blade.php) stops the photos until it is pressed again. */
 .dts-photo-marquee.is-paused .dts-photo-track {
     animation-play-state: paused;
 }

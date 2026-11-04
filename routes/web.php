@@ -57,6 +57,11 @@ Route::middleware(['auth', 'auth.session', EnsureAccountIsActive::class, 'thrott
     Route::post('/kiosk/{signing}/sign', [KioskController::class, 'sign'])->name('kiosk.sign');
 });
 
+// The full privacy notice; the send form opens the same text in a dialog.
+Route::view('/privacy', 'privacy-notice')
+    ->middleware('throttle:30,1')
+    ->name('privacy.notice');
+
 Route::get('/submit', [ClientDocumentSubmissionController::class, 'create'])
     ->name('submission.create');
 Route::post('/submit', [ClientDocumentSubmissionController::class, 'store'])

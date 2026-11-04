@@ -120,8 +120,8 @@
                 <div class="mx-auto w-full max-w-6xl px-5 pt-5 sm:px-8 sm:pt-6">
                     <h2 id="photos-heading" class="text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
                     <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Submit documents to the Records Unit. Enter a tracking number or scan the QR code to view document status and routing history.</p>
-                    {{-- The photos drift on their own, so they need a way to stop: hovering pauses them (app.css), and this
-                         button pauses them for good. It appears only with JavaScript, and not at all for reduced motion. --}}
+                    {{-- The photos drift on their own, so they need a way to stop: this button pauses them until
+                         it is pressed again. It appears only with JavaScript, and not at all for reduced motion. --}}
                     <button type="button" data-photo-toggle aria-pressed="false" hidden class="dts-photo-toggle mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-province-green bg-white px-4 text-sm font-semibold text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green">
                         <x-orchid-icon path="bs.pause-fill" class="size-4" data-photo-toggle-icon="pause" />
                         <x-orchid-icon path="bs.play-fill" class="hidden size-4" data-photo-toggle-icon="play" />

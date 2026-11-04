@@ -152,9 +152,8 @@
             {{-- Privacy notice and consent (Data Privacy Act of 2012). --}}
             <div class="sm:col-span-2 rounded-sm border border-province-line bg-slate-50 p-4">
                 <h2 class="text-sm font-semibold text-slate-800">Privacy notice</h2>
-                <p class="mt-2 text-sm text-slate-700">We use your name, office and contact details only to process and track this document, and keep them as long as records rules require.</p>
-                <p class="mt-2 text-sm text-slate-700">Anyone who has the tracking number can see the document’s history on the tracking page: the offices it went to, the status and dates, the SDO staff who handled each step, their remarks, your instructions for Records, and the name of the person who received or signed for it. Your own name, email address and signature are not shown there. Keep your tracking number private.</p>
-                <p class="mt-2 text-sm text-slate-700">To see or correct your information, contact the Division's Data Protection Officer.</p>
+                {{-- The notice itself lives in its own dialog (script below); without JavaScript this is a link to /privacy. --}}
+                <a href="{{ route('privacy.notice') }}" data-open-privacy class="mt-1 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-province-green underline underline-offset-2 hover:text-province-green-dark active:text-province-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green"><x-orchid-icon path="bs.shield-lock" class="size-4" /> Read the full privacy notice</a>
                 <label class="mt-3 flex items-start gap-3 text-sm font-medium text-slate-800">
                     <input type="checkbox" name="privacy_consent" value="1" required @checked(old('privacy_consent')) aria-describedby="privacy-consent-error" class="size-6 shrink-0 accent-province-green">
                     <span>I have read the privacy notice and agree to the collection and use of my information for this document. <span class="text-red-700">*</span></span>
@@ -178,6 +177,22 @@
                 </div>
             </div>
         </form>
+
+        {{-- The full privacy notice. Inside the send-a-document dialog it opens on top of it, and closing it returns there. --}}
+        <dialog id="privacy-dialog" data-privacy-dialog class="m-auto max-h-[calc(100dvh-2rem)] w-[min(44rem,calc(100%-2rem))] overflow-y-auto rounded-sm border border-province-line bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/60" aria-labelledby="privacy-dialog-title">
+            <div class="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-province-line bg-white px-5 py-4 sm:px-8">
+                <h2 id="privacy-dialog-title" class="text-2xl font-semibold text-slate-900">Privacy notice</h2>
+                <button type="button" data-close-privacy class="grid size-11 shrink-0 place-items-center rounded-sm border border-province-line-strong text-slate-600 hover:bg-slate-50 active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green" aria-label="Close privacy notice">
+                    <x-orchid-icon path="bs.x-lg" class="size-4" />
+                </button>
+            </div>
+            <div class="px-5 py-6 sm:px-8">
+                @include('partials.privacy-notice', ['headingTag' => 'h3'])
+            </div>
+            <div class="border-t border-province-line px-5 py-4 sm:px-8">
+                <button type="button" data-close-privacy class="inline-flex min-h-11 items-center justify-center rounded-sm border border-province-green bg-white px-5 text-sm font-semibold text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green">Back to the form</button>
+            </div>
+        </dialog>
 @if (! $embedded)
     </main>
     <footer class="mx-auto w-full max-w-3xl px-5 pb-8 text-center sm:px-8">
@@ -299,6 +314,18 @@
             });
             // Coming back with the browser's Back button restores the page from cache: unlock it.
             window.addEventListener('pageshow', () => setBusy(false));
+        });
+
+        // "Read the full privacy notice": open the notice in its dialog instead of leaving the form.
+        const privacyDialog = document.querySelector('[data-privacy-dialog]');
+        document.querySelector('[data-open-privacy]')?.addEventListener('click', (event) => {
+            event.preventDefault();
+            privacyDialog.showModal();
+            privacyDialog.scrollTop = 0;
+        });
+        privacyDialog.querySelectorAll('[data-close-privacy]').forEach((button) => button.addEventListener('click', () => privacyDialog.close()));
+        privacyDialog.addEventListener('click', (event) => {
+            if (event.target === privacyDialog) privacyDialog.close();
         });
 
         @if ($embedded)
