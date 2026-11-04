@@ -6,6 +6,9 @@
 const STEP_SELECTOR = '.dts-step-timeline > li, .dts-workspace-timeline-entry';
 
 if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+    // The hidden starting state in dts-shared.css applies only under this class, so a page whose script fails still shows every step.
+    document.documentElement.classList.add('js-timeline-reveal');
+
     // Ancestors that scroll (the history panels) clip what counts as visible, so steps reveal as the panel scrolls too.
     // A step resets once it is fully out of view, so it animates again whether the reader scrolls down or back up.
     const observer = new IntersectionObserver((entries) => {

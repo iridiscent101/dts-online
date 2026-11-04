@@ -3,18 +3,18 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="DocuTrackS public document tracking portal for SDO – Nueva Vizcaya">
+    <meta name="description" content="DocuTrackS public document tracking portal for SDO Nueva Vizcaya">
     <title>Track a document | DocuTrackS</title>
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js', 'resources/js/client-updates.js'])
 </head>
-<body class="dts-public-page flex min-h-screen flex-col bg-white font-sans text-[#26332B] antialiased">
+<body class="dts-public-page flex min-h-screen flex-col bg-white font-sans text-province-charcoal antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
-        <span class="bg-[#216E39]"></span>
-        <span class="bg-[#F2C230]"></span>
-        <span class="bg-[#86562D]"></span>
+        <span class="bg-province-green"></span>
+        <span class="bg-province-gold"></span>
+        <span class="bg-province-brown"></span>
     </div>
 
     {{-- DocuTrackS branding and contact links on every public page (landing, tracking results, the send form). The
@@ -24,30 +24,30 @@
     @endphp
     <header class="border-b border-province-line bg-white">
         <div class="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-3 sm:px-8">
-            <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 rounded-lg text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#216E39]">
+            <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 rounded-lg text-inherit no-underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-province-green">
                 <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-11 shrink-0 rounded-xl sm:size-14">
                 <span class="min-w-0">
-                    <span class="block text-2xl font-bold leading-none tracking-tight text-[#26332B] sm:text-3xl">Docu<span class="text-[#86562D]">TrackS</span></span>
-                    <span class="mt-1 block text-xs font-semibold uppercase tracking-wide text-[#86562D] sm:text-sm">Document Tracking System · SDO – Nueva Vizcaya</span>
+                    <span class="block text-2xl font-bold leading-none tracking-tight text-province-charcoal sm:text-3xl">Docu<span class="text-[#86562D]">TrackS</span></span>
+                    <span class="mt-1 block text-sm font-semibold text-province-brown">Document Tracking System, SDO – Nueva Vizcaya</span>
                 </span>
             </a>
             <nav class="flex flex-wrap items-center gap-1" aria-label="Contact and social links">
-                <a href="#contact" class="inline-flex min-h-10 items-center gap-2 rounded-sm px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.telephone" class="size-4" /> Contact us</a>
+                <a href="#contact" class="inline-flex min-h-10 items-center gap-2 rounded-sm px-3 text-sm font-semibold text-province-green no-underline hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-province-green"><x-orchid-icon path="bs.telephone" class="size-4" /> Contact us</a>
                 @if (filled($contact['facebook']))
-                    <a href="{{ $contact['facebook'] }}" target="_blank" rel="noopener" class="grid size-10 place-items-center rounded-sm text-[#216E39] hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]" aria-label="Facebook page (opens in a new tab)" data-tooltip="Facebook" data-tooltip-below><x-orchid-icon path="bs.facebook" class="size-5" /></a>
+                    <a href="{{ $contact['facebook'] }}" target="_blank" rel="noopener" class="grid size-10 place-items-center rounded-sm text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-province-green" aria-label="Facebook page (opens in a new tab)" data-tooltip="Facebook" data-tooltip-below><x-orchid-icon path="bs.facebook" class="size-5" /></a>
                 @endif
                 @if (filled($contact['website']))
-                    <a href="{{ $contact['website'] }}" target="_blank" rel="noopener" class="grid size-10 place-items-center rounded-sm text-[#216E39] hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]" aria-label="Division website (opens in a new tab)" data-tooltip="Website" data-tooltip-below><x-orchid-icon path="bs.globe" class="size-5" /></a>
+                    <a href="{{ $contact['website'] }}" target="_blank" rel="noopener" class="grid size-10 place-items-center rounded-sm text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-province-green" aria-label="Division website (opens in a new tab)" data-tooltip="Website" data-tooltip-below><x-orchid-icon path="bs.globe" class="size-5" /></a>
                 @endif
                 @if (filled($contact['email']))
-                    <a href="mailto:{{ $contact['email'] }}" class="grid size-10 place-items-center rounded-sm text-[#216E39] hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-[#216E39]" aria-label="Email {{ $contact['email'] }}" data-tooltip="Email" data-tooltip-below><x-orchid-icon path="bs.envelope" class="size-5" /></a>
+                    <a href="mailto:{{ $contact['email'] }}" class="grid size-10 place-items-center rounded-sm text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-province-green" aria-label="Email {{ $contact['email'] }}" data-tooltip="Email" data-tooltip-below><x-orchid-icon path="bs.envelope" class="size-5" /></a>
                 @endif
             </nav>
         </div>
     </header>
 
     <main class="flex-1">
-        <section class="bg-[#216E39] text-white">
+        <section class="bg-province-green text-white">
             <div class="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-8">
                 {{-- Visually hidden: the search box already says what the page does, but screen readers need a page heading. --}}
                 <h1 class="sr-only">Track a document</h1>
@@ -72,7 +72,7 @@
                                     >
                                 </div>
                             </div>
-                            <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm border-2 border-[#F2C230] bg-[#F2C230] px-6 text-base font-semibold text-slate-900 hover:bg-[#D9A91C] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                            <button type="submit" class="inline-flex min-h-12 items-center justify-center gap-2 rounded-sm border-2 border-province-gold bg-province-gold px-6 text-base font-semibold text-slate-900 hover:bg-province-gold-dark active:bg-province-gold-edge focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                                 Track document
                                 <x-orchid-icon path="bs.arrow-right" class="size-4" />
                             </button>
@@ -85,7 +85,7 @@
                         @endif
                     </div>
                     <div class="border-t border-white/25 pt-5 lg:border-0 lg:pt-0">
-                        <a href="{{ route('submission.create') }}" data-open-submission class="inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-sm border-2 border-white bg-white px-6 text-base font-semibold text-[#216E39] no-underline hover:bg-[#F8F4E7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto">
+                        <a href="{{ route('submission.create') }}" data-open-submission class="inline-flex min-h-12 w-full shrink-0 items-center justify-center gap-2 rounded-sm border-2 border-white bg-white px-6 text-base font-semibold text-province-green no-underline hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white lg:w-auto">
                             <x-orchid-icon path="bs.send" class="size-4" /> Send a document
                         </a>
                     </div>
@@ -118,9 +118,15 @@
             @endphp
             <section class="overflow-hidden" aria-labelledby="photos-heading">
                 <div class="mx-auto w-full max-w-6xl px-5 pt-5 sm:px-8 sm:pt-6">
-                    <p class="text-sm font-semibold uppercase tracking-wide text-[#86562D]">Our office</p>
-                    <h2 id="photos-heading" class="mt-1 text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
+                    <h2 id="photos-heading" class="text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
                     <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Submit documents to the Records Unit. Enter a tracking number or scan the QR code to view document status and routing history.</p>
+                    {{-- The photos drift on their own, so they need a way to stop: hovering pauses them (app.css), and this
+                         button pauses them for good. It appears only with JavaScript, and not at all for reduced motion. --}}
+                    <button type="button" data-photo-toggle aria-pressed="false" hidden class="dts-photo-toggle mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-province-green bg-white px-4 text-sm font-semibold text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green">
+                        <x-orchid-icon path="bs.pause-fill" class="size-4" data-photo-toggle-icon="pause" />
+                        <x-orchid-icon path="bs.play-fill" class="hidden size-4" data-photo-toggle-icon="play" />
+                        <span data-photo-toggle-label>Pause photos</span>
+                    </button>
                     @if ($landingPhotos->whereNotNull('url')->isNotEmpty())
                         <ul class="sr-only">@foreach ($landingPhotos->whereNotNull('url') as $photo)<li>{{ $photo['caption'] }}</li>@endforeach</ul>
                     @endif
@@ -147,6 +153,21 @@
                         @endforeach
                     </div>
                 </div>
+                <script nonce="{{ Vite::cspNonce() }}">
+                    (() => {
+                        const toggle = document.querySelector('[data-photo-toggle]');
+                        const marquee = document.querySelector('.dts-photo-marquee');
+                        if (! toggle || ! marquee || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+                        toggle.hidden = false;
+                        toggle.addEventListener('click', () => {
+                            const paused = marquee.classList.toggle('is-paused');
+                            toggle.setAttribute('aria-pressed', String(paused));
+                            toggle.querySelector('[data-photo-toggle-label]').textContent = paused ? 'Play photos' : 'Pause photos';
+                            toggle.querySelector('[data-photo-toggle-icon="pause"]').classList.toggle('hidden', paused);
+                            toggle.querySelector('[data-photo-toggle-icon="play"]').classList.toggle('hidden', ! paused);
+                        });
+                    })();
+                </script>
             </section>
 
             <section class="mx-auto w-full max-w-6xl px-5 pt-5 pb-8 sm:px-8 sm:pt-6 sm:pb-10" aria-label="How it works">
@@ -157,7 +178,7 @@
                         ['bs.search', 'Track', 'Use your tracking number to see each office, status and remarks.'],
                     ] as [$icon, $title, $text])
                         <li class="flex gap-3 rounded-sm border border-province-line-strong bg-white p-4">
-                            <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-[#216E39] text-white"><x-orchid-icon :path="$icon" class="size-5" /></span>
+                            <span class="grid size-10 shrink-0 place-items-center rounded-sm bg-province-green text-white"><x-orchid-icon :path="$icon" class="size-5" /></span>
                             <span><strong class="block text-base text-slate-900">{{ $loop->iteration }}. {{ $title }}</strong><span class="text-sm leading-6 text-slate-600">{{ $text }}</span></span>
                         </li>
                     @endforeach
@@ -204,16 +225,16 @@
                     <section class="min-w-0 rounded-sm border border-province-line bg-white p-5 shadow-sm sm:p-6 lg:self-start" aria-labelledby="document-summary-heading">
                         <div class="flex flex-wrap items-start justify-between gap-3">
                             <div>
-                                <p class="text-sm font-semibold uppercase text-[#216E39]">Current status</p>
-                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-                                    <h2 id="document-summary-heading" class="break-all text-xl font-semibold text-slate-900 sm:text-2xl">{{ $document->tracking_number }}</h2>
+                                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                                    <h2 id="document-summary-heading" class="min-w-0 text-xl font-semibold text-slate-900 [overflow-wrap:break-word] sm:text-2xl">{{ $document->tracking_number }}</h2>
                                     @include('orchid.partials.copy-button', ['text' => $document->tracking_number])
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-sm text-slate-600">Current status</span>
                                 @include('partials.public-status-badge', ['status' => $displayStatus, 'class' => 'dts-public-status min-h-11 px-3'])
                                 {{-- Updates the results in place (resources/js/tracking-refresh.js); without JavaScript the link reloads the page. --}}
-                                <a href="{{ route('tracking.index', array_filter(['tracking' => $trackingNumber, 'office' => $selectedOffice])) }}" data-tracking-refresh class="dts-tracking-refresh inline-flex size-11 shrink-0 items-center justify-center rounded-sm border border-[#216E39] bg-white text-[#216E39] no-underline hover:bg-[#216E39]/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]" title="Refresh status" aria-label="Refresh status">
+                                <a href="{{ route('tracking.index', array_filter(['tracking' => $trackingNumber, 'office' => $selectedOffice])) }}" data-tracking-refresh class="dts-tracking-refresh inline-flex size-11 shrink-0 items-center justify-center rounded-sm border border-province-green bg-white text-province-green no-underline hover:bg-province-green/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green" title="Refresh status" aria-label="Refresh status">
                                     <x-orchid-icon path="bs.arrow-clockwise" class="size-5" />
                                 </a>
                             </div>
@@ -221,15 +242,15 @@
                         <p class="mt-2 text-sm text-slate-600">Last checked {{ now('Asia/Manila')->format('M d, Y · g:i A') }}</p>
                         {{-- The QR code sits with the tracking number at the top, where clients look for it first. --}}
                         @if ($qrCodeDataUri)
-                            <div class="mt-4 flex items-center gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-3">
+                            <div class="mt-4 flex items-center gap-4 rounded-sm border border-province-green/25 bg-province-cream p-3">
                                 <img src="{{ $qrCodeDataUri }}" alt="QR code for {{ $document->tracking_number }}" width="176" height="176" class="size-36 shrink-0 rounded-sm bg-white p-1.5 sm:size-44">
                                 <div>
                                     <strong class="text-base font-semibold text-slate-900">Save your tracking QR code</strong>
                                     <p class="mt-1 text-sm text-slate-600">Save or print the label. Scan the QR code to track the document.</p>
-                                    <a href="{{ route('tracking.label', $document->tracking_number) }}" class="mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.printer" class="size-4" /> Print label</a>
+                                    <a href="{{ route('tracking.label', $document->tracking_number) }}" class="mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-province-green bg-white px-3 text-sm font-semibold text-province-green no-underline hover:bg-province-green-wash active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green"><x-orchid-icon path="bs.printer" class="size-4" /> Print label</a>
                                     {{-- Print receipt is hidden while the office checks whether clients need it; the receipt page (tracking.receipt) stays.
                                          To bring it back, restore this link:
-                                    <a href="{{ route('tracking.receipt', $document->tracking_number) }}" class="mt-3 inline-flex min-h-10 items-center gap-2 rounded-sm border border-[#216E39] bg-white px-3 text-sm font-semibold text-[#216E39] no-underline hover:bg-[#EEF5EC] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]"><x-orchid-icon path="bs.printer" class="size-4" /> Print receipt</a> --}}
+                                    <a href="{{ route('tracking.receipt', $document->tracking_number) }}" class="mt-3 inline-flex min-h-10 items-center gap-2 rounded-sm border border-province-green bg-white px-3 text-sm font-semibold text-province-green no-underline hover:bg-province-green-wash active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green"><x-orchid-icon path="bs.printer" class="size-4" /> Print receipt</a> --}}
                                 </div>
                             </div>
                         @endif
@@ -253,8 +274,8 @@
                                     </dt>
                                     <dd class="mt-2">
                                         @if ($assignedOffices->count() > 1)
-                                            <div class="mb-3 h-2 overflow-hidden rounded-full bg-[#E8F1E6]" role="progressbar" aria-label="Offices finished" aria-valuemin="0" aria-valuemax="{{ $assignedOffices->count() }}" aria-valuenow="{{ $finishedOfficeCount }}">
-                                                <div class="h-full rounded-full bg-[#216E39]" style="width: {{ round($finishedOfficeCount / $assignedOffices->count() * 100) }}%"></div>
+                                            <div class="mb-3 h-2 overflow-hidden rounded-full bg-province-green-soft" role="progressbar" aria-label="Offices finished" aria-valuemin="0" aria-valuemax="{{ $assignedOffices->count() }}" aria-valuenow="{{ $finishedOfficeCount }}">
+                                                <div class="h-full rounded-full bg-province-green" style="width: {{ round($finishedOfficeCount / $assignedOffices->count() * 100) }}%"></div>
                                             </div>
                                         @endif
                                         <ul class="grid gap-2 sm:grid-cols-2">
@@ -284,7 +305,7 @@
                                                     </span>
                                                     <span class="min-w-0 grow">
                                                         <span class="block text-base font-semibold text-slate-800">{{ $assignment['office'] }}</span>
-                                                        <span class="block text-sm text-slate-600"><span class="font-semibold uppercase tracking-wide">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>{{ ($assignment['handed_on'] ?? false) ? ' · sent to '.implode(', ', $assignment['sent_to']) : '' }}@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-600"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
+                                                        <span class="block text-sm text-slate-600"><span class="font-semibold">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>{{ ($assignment['handed_on'] ?? false) ? ' · sent to '.implode(', ', $assignment['sent_to']) : '' }}@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-600"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
                                                     </span>
                                                     @if ($routeLinks)
                                                         <span class="sr-only">, show history</span>
@@ -324,8 +345,7 @@
                     <div class="min-w-0">
                     <section class="flex min-w-0 flex-col rounded-sm border border-province-line bg-white p-5 shadow-sm sm:p-6" aria-labelledby="movement-heading">
                         <div class="border-b border-province-line-strong pb-3">
-                            <p class="text-sm font-semibold uppercase text-[#216E39]">Routing history</p>
-                            <h2 id="movement-heading" class="mt-1 text-2xl font-semibold text-slate-900">Document movement</h2>
+                            <h2 id="movement-heading" class="text-2xl font-semibold text-slate-900">Routing history</h2>
                         </div>
                         @include('partials.public-status-guide', ['class' => 'mt-4'])
                         @php
@@ -364,7 +384,7 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-sm bg-[#216E39] px-4 text-sm font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]">View timeline</button>
+                                <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-sm bg-province-green px-4 text-sm font-semibold text-white hover:bg-province-green-dark active:bg-province-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green">View timeline</button>
                             </form>
                         @endif
 
@@ -374,7 +394,7 @@
                             @foreach ($timelineDays as $day => $events)
                                 @php($timelineDate = \Illuminate\Support\Carbon::parse($day, 'Asia/Manila'))
                                 <section data-timeline-day @class(['hidden' => $events->doesntContain('visible', true)])>
-                                    <h3 class="sticky top-0 z-10 bg-white py-2 text-sm font-semibold uppercase tracking-wide text-slate-600">{{ $timelineDate->isSameDay($timelineToday) ? 'Today' : ($timelineDate->isSameDay($timelineToday->copy()->subDay()) ? 'Yesterday' : $timelineDate->format('F j, Y')) }}</h3>
+                                    <h3 class="sticky top-0 z-10 bg-white py-2 text-sm font-semibold text-slate-600">{{ $timelineDate->isSameDay($timelineToday) ? 'Today' : ($timelineDate->isSameDay($timelineToday->copy()->subDay()) ? 'Yesterday' : $timelineDate->format('F j, Y')) }}</h3>
                                     <ol class="dts-step-timeline">
                                         @foreach ($events as $event)
                                             @php($movement = $event['movement'])
@@ -391,7 +411,7 @@
                                                         </div>
                                                         @unless ($isSigning)
                                                             {{-- Who wrote it comes first, as "Name: remark". --}}
-                                                            <p class="mt-2 whitespace-pre-line rounded-sm border border-province-line-strong bg-[#F8F4E7]/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><strong class="font-semibold text-[#216E39]">{{ $remark['by'] ?: ($remark['office'] ?: 'Staff') }}:</strong> {{ $remark['remark'] }}</p>
+                                                            <p class="mt-2 whitespace-pre-line rounded-sm border border-province-line-strong bg-province-cream/60 px-3 py-2 text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><strong class="font-semibold text-province-green">{{ $remark['by'] ?: ($remark['office'] ?: 'Staff') }}:</strong> {{ $remark['remark'] }}</p>
                                                         @endunless
                                                         <dl class="dts-public-step-details mt-2 grid grid-cols-[6.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)] [overflow-wrap:anywhere] gap-x-3 gap-y-1 text-sm">
                                                             <dt class="font-medium text-slate-600">Date / time</dt><dd class="text-slate-800"><time datetime="{{ $remark['at']->toIso8601String() }}">{{ $remark['at']->timezone('Asia/Manila')->format('M d, Y') }}<span class="mx-2 text-slate-400" aria-hidden="true">|</span>{{ $remark['at']->timezone('Asia/Manila')->format('g:i A') }}</time></dd>
@@ -419,8 +439,8 @@
                                                         @php($clientInstructions = $document->clientInstructions())
                                                         @if ($clientInstructions)
                                                             {{-- What the client typed when submitting (stored on the first "sent" step, shown here instead). --}}
-                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-province-line-strong bg-[#F8F4E7]/60 px-3 py-2">
-                                                                <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Instructions for Records</p>
+                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-province-line-strong bg-province-cream/60 px-3 py-2">
+                                                                <p class="flex items-center gap-2 text-sm font-semibold text-province-green"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Instructions for Records</p>
                                                                 <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $clientInstructions }}</p>
                                                             </div>
                                                         @endif
@@ -461,8 +481,8 @@
                                                         </dl>
                                                         @if (filled($movement->remarks) && ! $document->isClientSubmissionStep($movement))
                                                             {{-- Shown in full, not folded away: the remarks are often the instruction the reader needs. --}}
-                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-province-line-strong bg-[#F8F4E7]/60 px-3 py-2">
-                                                                <p class="flex items-center gap-2 text-sm font-semibold text-[#216E39]"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Remarks</p>
+                                                            <div class="dts-public-remarks mt-2 rounded-sm border border-province-line-strong bg-province-cream/60 px-3 py-2">
+                                                                <p class="flex items-center gap-2 text-sm font-semibold text-province-green"><x-orchid-icon path="bs.chat-left-text" class="size-4 shrink-0" /> Remarks</p>
                                                                 <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">{{ $movement->remarks }}</p>
                                                             </div>
                                                         @endif
@@ -506,28 +526,29 @@
                 <p class="mt-1 text-sm font-medium text-slate-700">{{ $contact['office'] }}</p>
                 <ul class="mt-2 grid gap-1.5 text-sm text-slate-700">
                     @if (filled($contact['address']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> {{ $contact['address'] }}</li>
+                        <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-province-green" /> {{ $contact['address'] }}</li>
                     @endif
                     @if (filled($contact['phone']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.telephone" class="mt-1.5 size-4 shrink-0 text-[#216E39]" />
+                        <li class="flex gap-2"><x-orchid-icon path="bs.telephone" class="mt-1.5 size-4 shrink-0 text-province-green" />
                             <span class="flex flex-wrap gap-x-3 gap-y-1">@foreach (array_filter(array_map('trim', explode(',', $contact['phone']))) as $phone)<a href="tel:{{ preg_replace('/[^0-9+]/', '', $phone) }}" class="inline-block py-1 text-inherit">{{ $phone }}</a>@endforeach</span>
                         </li>
                     @endif
                     @if (filled($contact['email']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.envelope" class="mt-1.5 size-4 shrink-0 text-[#216E39]" /> <a href="mailto:{{ $contact['email'] }}" class="inline-block py-1 text-inherit">{{ $contact['email'] }}</a></li>
+                        <li class="flex gap-2"><x-orchid-icon path="bs.envelope" class="mt-1.5 size-4 shrink-0 text-province-green" /> <a href="mailto:{{ $contact['email'] }}" class="inline-block py-1 text-inherit">{{ $contact['email'] }}</a></li>
                     @endif
                     @if (filled($contact['hours']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.clock" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> {{ $contact['hours'] }}</li>
+                        <li class="flex gap-2"><x-orchid-icon path="bs.clock" class="mt-0.5 size-4 shrink-0 text-province-green" /> {{ $contact['hours'] }}</li>
                     @endif
                     @if (blank($contact['address']) && blank($contact['phone']) && blank($contact['email']))
-                        <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-[#216E39]" /> Visit the Records Unit counter at the division office.</li>
+                        <li class="flex gap-2"><x-orchid-icon path="bs.geo-alt" class="mt-0.5 size-4 shrink-0 text-province-green" /> Visit the Records Unit counter at the division office.</li>
                     @endif
                 </ul>
             </div>
             {{-- One footer: seal and contact details on the left; the system line on the right. The Facebook and website
                  links stay in the header only. --}}
             <div class="grid content-end gap-3 self-stretch sm:justify-items-end">
-                <p class="text-sm text-slate-600">Department of Education &middot; Document Tracking System &middot; {{ now()->timezone('Asia/Manila')->year }}</p>
+                <p class="text-sm text-slate-600">Department of Education</p>
+                <p class="text-sm text-slate-600">Document Tracking System, {{ now()->timezone('Asia/Manila')->year }}</p>
                 <p class="text-sm text-slate-600">Developed by the SDO ICT Unit</p>
             </div>
         </section>

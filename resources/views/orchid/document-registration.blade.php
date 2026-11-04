@@ -16,7 +16,6 @@
     <a class="dts-back" href="{{ route('platform.documents') }}"><x-orchid-icon path="bs.arrow-left" /> Document registry</a>
     <div class="dts-masthead tw:flex tw:flex-wrap tw:items-center tw:justify-between tw:gap-4">
         <div>
-            <p class="dts-eyebrow">DOCUMENT REGISTRATION</p>
             <h2>New document</h2>
         </div>
         <span class="dts-status"><span class="dts-dot amber"></span>Not saved</span>

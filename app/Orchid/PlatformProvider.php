@@ -31,10 +31,10 @@ class PlatformProvider extends OrchidServiceProvider
         return [
             Menu::make('Dashboard')
                 ->icon('bs.grid')
-                ->title('WORKSPACE')
+                ->title('Workspace')
                 ->route(config('platform.index')),
 
-            Menu::make('All documents')->icon('bs.files')->route('platform.documents')->title('DOCUMENT REGISTRY'),
+            Menu::make('All documents')->icon('bs.files')->route('platform.documents')->title('Document registry'),
             Menu::make('Incoming')->icon('bs.box-arrow-in-down')->route('platform.incoming'),
             Menu::make('Outgoing')->icon('bs.send')->route('platform.outgoing'),
             Menu::make('Archived')->icon('bs.archive')->route('platform.archived')
@@ -44,7 +44,7 @@ class PlatformProvider extends OrchidServiceProvider
                 ->icon('bs.people')
                 ->route('platform.systems.users')
                 ->permission('platform.systems.users')
-                ->title(__('ADMINISTRATION')),
+                ->title(__('Administration')),
 
             Menu::make(__('Roles'))
                 ->icon('bs.shield')

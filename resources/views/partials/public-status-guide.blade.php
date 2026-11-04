@@ -15,7 +15,7 @@
     ];
 @endphp
 <details class="dts-public-status-guide rounded-sm border border-province-line-strong bg-white {{ $class ?? '' }}">
-    <summary class="flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm font-semibold text-[#216E39]">
+    <summary class="flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm font-semibold text-province-green">
         <x-orchid-icon path="bs.question-circle" class="size-4 shrink-0" />
         <span class="grow">Status guide: what each status means</span>
         <x-orchid-icon path="bs.chevron-down" class="dts-public-status-guide-chevron size-4 shrink-0" />

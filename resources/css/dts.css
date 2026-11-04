@@ -1,3 +1,9 @@
+/* Hallmark · checked: 2026-11-04 · genre: modern-minimal (inferred) · scope: app
+ * floor: 2 open (34 on three popovers sized calc(100vw - n) that only bind under 480px, where scrollbars overlay; 56 pairs two sticky heads in .dts-record-dialog and .dts-timeline-day, which no view or script uses) · fixed: 10a, 29, 34, 39a, 40, 48, 54, 67 · structural: 2 printed (3 dashboard tiles, 24b)
+ * built: the project · redesign: polish · v2.0.0 */
+/* Hallmark · waive 3 · 14 notices and toasts use a 3-4px tone rule on the left · staff scan long forms and queues for warnings, and the rule marks a notice's tone before its text is read */
+/* Hallmark · dismissed 74 · the slate greys are the staff colour standard written at the top of the token block, chosen for all-day reading */
+/* Hallmark · dismissed 40 · the remaining three are disabled pager and attachment buttons, which WCAG exempts from contrast */
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme) prefix(tw);
 @import 'tailwindcss/utilities.css' layer(utilities) prefix(tw);
@@ -69,6 +75,63 @@ html:root {
     --dts-input-border: var(--dts-border-strong); /* form fields need >= 3:1 contrast against white */
     --dts-zebra: #f9fafb; /* solid so sticky columns stay opaque */
     --dts-row-hover: color-mix(in srgb, var(--dts-green-soft) 25%, #fff); /* solid for the same reason */
+    /* Faces: the staff side uses the system UI face; the printed label's tracking number is monospaced. */
+    --dts-font-sans: 'Segoe UI', Arial, sans-serif;
+    --dts-font-mono: Consolas, "Courier New", monospace;
+    /* Colours lifted out of the rules below (Hallmark polish): the same values, now named. */
+    --dts-brand-brown: #86562d;
+    --dts-shadow-14: rgb(29 42 58 / 14%);
+    --dts-menu-line: #d7dee8;
+    --dts-shadow-16: rgb(29 42 58 / 16%);
+    --dts-violet-text: #5a3d91;
+    --dts-violet-soft: #f0ecfb;
+    --dts-changed-edge: #e0b100;
+    --dts-changed-flash: #fff1bf;
+    --dts-green-focus-soft: #bedcc4;
+    --dts-shadow-25: rgb(29 42 58 / 25%);
+    --dts-scrim-48: rgb(20 30 44 / 48%);
+    --dts-scrim-30: rgb(20 30 44 / 30%);
+    --dts-scrim-62: rgb(20 30 44 / 62%);
+    --dts-danger-line: #efb2b9;
+    --dts-scrim-10: rgb(20 30 44 / 10%);
+    --dts-slate-line: #cbd5e1;
+    --dts-update-text: #45576d;
+    --dts-amber: #c79936;
+    --dts-slate-a15: rgb(38 50 68 / 15%);
+    --dts-ok-line: #9fd5bf;
+    --dts-warning-line: #e6c977;
+    --dts-critical-line: #e3a3ad;
+    --dts-green-a25: rgb(33 110 57 / 25%);
+    --dts-toggle-line: #d4e0ef;
+    --dts-slate-a12: rgb(38 50 68 / 12%);
+    --dts-toggle-line-hover: #b7c9b5;
+    --dts-scrollbar: #b8c6d7;
+    --dts-navy-a18: rgb(15 23 42 / 18%);
+    --dts-danger-a20: rgb(180 35 24 / 20%);
+    --dts-charcoal-a10: rgb(38 51 43 / 10%);
+    --dts-charcoal-a14: rgb(38 51 43 / 14%);
+    --dts-charcoal-a18: rgb(38 51 43 / 18%);
+    --dts-teal: #0f6b66;
+    --dts-charcoal-a12: rgb(38 51 43 / 12%);
+    --dts-paper-a94: rgb(255 255 255 / 94%);
+    --dts-paper-a65: rgb(255 255 255 / 65%);
+    --dts-black-a18: rgb(0 0 0 / 18%);
+    --dts-paper-a35: rgb(255 255 255 / 35%);
+    --dts-green-dark-a94: rgb(24 84 43 / 94%);
+    --dts-green-dark-a86: rgb(24 84 43 / 86%);
+    --dts-charcoal-a92: rgb(38 51 43 / 92%);
+    --dts-brand-gold: #f2c230;
+    --dts-paper-a88: rgb(255 255 255 / 88%);
+    --dts-paper-a90: rgb(255 255 255 / 90%);
+    --dts-charcoal-a5: rgb(38 51 43 / 5%);
+    --dts-charcoal-a8: rgb(38 51 43 / 8%);
+    --dts-brand-subtitle: #dbe9dd;
+    --dts-profile-soft: #fbe7a1;
+    --dts-profile-line: #e3c25a;
+    --dts-profile-muted: #5c4a0b;
+    --dts-remark-line: #e3d6b3;
+    --dts-remark-edge: #d9a521;
+    --dts-remark-wash: #f8f4e7;
 }
 
 @media (pointer: coarse) {
@@ -82,15 +145,15 @@ body {
     font-size: 1rem;
     font-weight: 400;
     line-height: 1.6;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
-    font-family: 'Segoe UI', Arial, sans-serif;
+    font-family: var(--dts-font-sans);
     letter-spacing: 0;
 }
 
 body > .container-fluid > .row > .col-xxl {
     min-height: 100vh;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 body::before {
@@ -107,7 +170,7 @@ body::before {
 
 .aside.bg-dark,
 .aside .bg-dark {
-    background: #fff !important;
+    background: var(--dts-paper) !important;
 }
 
 .aside {
@@ -146,8 +209,6 @@ body::before {
 .aside .nav-item small {
     font-size: 0.875rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
     color: var(--dts-ink-3) !important;
 }
 
@@ -200,7 +261,7 @@ body::before {
 }
 
 .dts-brand-accent {
-    color: #86562d; /* logo: brand brown */
+    color: var(--dts-brand-brown); /* logo: brand brown */
 }
 
 .dts-brand-mark {
@@ -291,7 +352,7 @@ body::before {
             border: 1px solid var(--dts-green);
             border-radius: 5px;
             background: var(--dts-green);
-            color: #fff;
+            color: var(--dts-paper);
             font-size: 1rem;
             font-weight: 600;
             text-decoration: none;
@@ -300,7 +361,7 @@ body::before {
     & .command-bar .btn:hover {
             border-color: var(--dts-green-dark);
             background: var(--dts-green-dark);
-            color: #fff;
+            color: var(--dts-paper);
     }
 }
 
@@ -308,20 +369,20 @@ body::before {
     & .command-bar .dts-button-danger {
             border-color: var(--dts-danger);
             background: var(--dts-danger);
-            color: #fff;
+            color: var(--dts-paper);
     }
 
     & .command-bar .dts-button-danger:hover {
             border-color: var(--dts-danger-dark);
             background: var(--dts-danger-dark);
-            color: #fff;
+            color: var(--dts-paper);
     }
 }
 
 /* Signing out is not destructive, so it is an outlined button rather than a red one. */
 .page-platform-profile .command-bar>li:last-child .btn {
     border-color: var(--dts-border-strong);
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-strong);
 }
 
@@ -357,13 +418,13 @@ body::before {
             padding: 16px !important;
             border: 1px solid var(--dts-border);
             border-radius: 6px;
-            background: #fff;
+            background: var(--dts-paper);
     }
 
     /* Search fields get the same magnifier as the document search. */
     & .row[data-controller="filter"] input[type="search"] {
             padding-left: 38px;
-            background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23556274' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E") no-repeat 12px center;
+            background: var(--dts-paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23556274' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E") no-repeat 12px center;
     }
 
     & .row[data-controller="filter"] .form-control {
@@ -372,7 +433,7 @@ body::before {
             min-height: var(--dts-control-h);
             border-color: var(--dts-input-border);
             border-radius: 5px;
-            background: #fff;
+            background: var(--dts-paper);
             font-size: 1rem;
     }
 
@@ -397,7 +458,7 @@ body::before {
 
     & .row[data-controller="filter"] .btn:first-child {
             border-color: var(--dts-border) !important;
-            background: #fff;
+            background: var(--dts-paper);
             color: var(--dts-text-body) !important;
     }
 
@@ -409,7 +470,7 @@ body::before {
     & .row[data-controller="filter"] .btn:last-child {
             border-color: var(--dts-green) !important;
             background: var(--dts-green) !important;
-            color: #fff !important;
+            color: var(--dts-paper) !important;
     }
 
     & .row[data-controller="filter"] .btn:last-child:hover {
@@ -423,7 +484,7 @@ body::before {
             margin-top: 16px;
             border: 1px solid var(--dts-grid);
             border-radius: 6px !important;
-            background: #fff;
+            background: var(--dts-paper);
             box-shadow: none !important;
     }
 
@@ -439,7 +500,7 @@ body::before {
             margin: 0;
             border-collapse: collapse;
             color: var(--dts-text-body);
-            background: #fff;
+            background: var(--dts-paper);
     }
 }
 
@@ -543,13 +604,13 @@ body::before {
 .dts-table-selection-summary button.dts-button-danger {
     border: 1px solid var(--dts-danger);
     background: var(--dts-danger);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-table-selection-summary button.dts-button-danger:hover,
 .dts-table-selection-summary button.dts-button-danger:focus-visible {
     background: var(--dts-danger-dark);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-table-selection-summary button:hover,
@@ -711,7 +772,7 @@ body::before {
 
     & .dts-row-action-view {
             border: 1px solid var(--dts-border);
-            background: #fff;
+            background: var(--dts-paper);
             color: var(--dts-text-body);
     }
 
@@ -724,25 +785,25 @@ body::before {
     & .dts-row-action-edit {
             border: 1px solid var(--dts-green) !important;
             background: var(--dts-green) !important;
-            color: #fff !important;
+            color: var(--dts-paper) !important;
     }
 
     & .dts-row-action-edit:hover {
             border-color: var(--dts-green-dark) !important;
             background: var(--dts-green-dark) !important;
-            color: #fff !important;
+            color: var(--dts-paper) !important;
     }
 
     & .dts-row-action-delete {
             border: 1px solid var(--dts-danger) !important;
-            background: #fff !important;
+            background: var(--dts-paper) !important;
             color: var(--dts-danger) !important;
     }
 
     & .dts-row-action-delete:hover {
             border-color: var(--dts-danger-dark) !important;
             background: var(--dts-danger-dark) !important;
-            color: #fff !important;
+            color: var(--dts-paper) !important;
     }
 }
 
@@ -752,7 +813,7 @@ body::before {
             min-height: var(--dts-control-h-sm);
             border: 1px solid var(--dts-grid);
             border-radius: 4px;
-            background: #fff;
+            background: var(--dts-paper);
             color: var(--dts-text-body);
     }
 
@@ -793,7 +854,7 @@ body::before {
             border: 1px solid var(--dts-green);
             border-radius: 4px;
             background: var(--dts-green);
-            color: #fff;
+            color: var(--dts-paper);
             font-size: 0.875rem;
             font-weight: 600;
             text-decoration: none;
@@ -802,7 +863,7 @@ body::before {
     & [data-controller="table"]>footer .btn-link:hover {
             border-color: var(--dts-green-dark);
             background: var(--dts-green-dark);
-            color: #fff;
+            color: var(--dts-paper);
     }
 
     & [data-controller="table"] .pagination {
@@ -821,7 +882,7 @@ body::before {
             border: 1px solid var(--dts-grid);
             border-radius: 4px;
             color: var(--dts-text-body);
-            background: #fff;
+            background: var(--dts-paper);
             font-size: 0.875rem;
     }
 
@@ -834,7 +895,7 @@ body::before {
     & [data-controller="table"] .page-item.active .page-link {
             border-color: var(--dts-green);
             background: var(--dts-green);
-            color: #fff;
+            color: var(--dts-paper);
     }
 
     & [data-controller="table"] .page-item.disabled .page-link {
@@ -850,7 +911,7 @@ body::before {
             margin-top: 16px;
             border: 1px solid var(--dts-grid);
             border-radius: 6px !important;
-            background: #fff;
+            background: var(--dts-paper);
             box-shadow: none !important;
     }
 
@@ -868,7 +929,7 @@ body::before {
             border-collapse: separate;
             border-spacing: 0;
             color: var(--dts-text-body);
-            background: #fff;
+            background: var(--dts-paper);
     }
 
     & [data-controller="table"] thead th {
@@ -929,7 +990,7 @@ body::before {
             z-index: 1;
             min-width: 280px;
             max-width: 350px;
-            background: #fff;
+            background: var(--dts-paper);
             box-shadow: 1px 0 var(--dts-grid);
     }
 
@@ -993,7 +1054,7 @@ body::before {
             border: 1px solid var(--dts-green);
             border-radius: 4px;
             background: var(--dts-green);
-            color: #fff;
+            color: var(--dts-paper);
             font-size: 0.875rem;
             font-weight: 600;
             text-decoration: none;
@@ -1002,7 +1063,7 @@ body::before {
     & [data-controller="table"]>footer .btn-link:hover {
             border-color: var(--dts-green-dark);
             background: var(--dts-green-dark);
-            color: #fff;
+            color: var(--dts-paper);
     }
 
     & [data-controller="table"] .pagination {
@@ -1021,14 +1082,14 @@ body::before {
             border: 1px solid var(--dts-grid);
             border-radius: 4px;
             color: var(--dts-text-body);
-            background: #fff;
+            background: var(--dts-paper);
             font-size: 0.875rem;
     }
 
     & [data-controller="table"] .page-item.active .page-link {
             border-color: var(--dts-green);
             background: var(--dts-green);
-            color: #fff;
+            color: var(--dts-paper);
     }
 }
 
@@ -1094,7 +1155,7 @@ body::before {
     padding: 14px 16px;
     border: 1px solid var(--dts-border);
     border-radius: var(--dts-radius);
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-muted);
 }
 
@@ -1340,7 +1401,7 @@ body::before {
     overflow: clip;
     border: 1px solid var(--dts-grid);
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-table {
@@ -1351,7 +1412,7 @@ body::before {
     border-collapse: separate;
     border-spacing: 0;
     color: var(--dts-text-body);
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-table :is(th, td) {
@@ -1399,7 +1460,7 @@ body::before {
     left: 0;
     z-index: 1;
     border-right: 0;
-    background: #fff;
+    background: var(--dts-paper);
     box-shadow: 1px 0 var(--dts-grid);
 }
 
@@ -1436,7 +1497,7 @@ body::before {
     height: 44px;
     border-radius: 50%;
     background: var(--dts-cream);
-    color: var(--dts-text-faint);
+    color: var(--dts-grid);
     margin-bottom: 10px;
 }
 
@@ -1466,7 +1527,7 @@ body::before {
     color: var(--dts-text-muted);
     border-top: 1px solid var(--dts-grid);
     padding: 13px 14px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-page-size-toolbar {
@@ -1507,14 +1568,14 @@ dts-registry [hidden] {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    max-width: min(420px, calc(100vw - 32px));
+    max-width: min(420px, calc(100% - 32px));
     padding: 12px 14px;
     border: 1px solid var(--dts-border);
     border-left: 4px solid var(--dts-green);
     border-radius: 5px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
-    box-shadow: 0 8px 28px rgb(29 42 58 / 14%);
+    box-shadow: 0 8px 28px var(--dts-shadow-14);
 }
 
 #document-registry .dts-registry-loading,
@@ -1543,7 +1604,7 @@ dts-registry [hidden] {
 .dts-registry-spinner {
     width: 16px;
     height: 16px;
-    border: 2px solid #d8d2be;
+    border: 2px solid var(--dts-step-line);
     border-top-color: var(--dts-green);
     border-radius: 50%;
     animation: dts-registry-spin 0.8s linear infinite;
@@ -1568,7 +1629,7 @@ dts-registry [hidden] {
     align-items: center;
     gap: 12px;
     padding: 14px 16px;
-    background: #fff;
+    background: var(--dts-paper);
     border: 1px solid var(--dts-border);
     border-bottom: 0;
     color: inherit;
@@ -1698,9 +1759,9 @@ dts-registry [hidden] {
     gap: 2px;
     width: 245px;
     padding: 10px;
-    border: 1px solid #d7dee8;
-    background: #fff;
-    box-shadow: 0 10px 28px rgb(29 42 58 / 16%);
+    border: 1px solid var(--dts-menu-line);
+    background: var(--dts-paper);
+    box-shadow: 0 10px 28px var(--dts-shadow-16);
 }
 
 .dts-column-options>strong {
@@ -1734,6 +1795,8 @@ dts-registry [hidden] {
 
 .dts-column-options input:disabled {
     opacity: .65;
+    cursor: not-allowed;
+    accent-color: var(--dts-text-faint);
 }
 
 .dts-registry-table-toolbar {
@@ -1865,7 +1928,7 @@ turbo-frame:has(dts-column-menu) [data-controller="table"]>footer .btn-group {
     padding: 0 6px;
     border-radius: 11px;
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-size: var(--dts-text-xs);
     font-weight: 700;
     line-height: 1;
@@ -1876,7 +1939,7 @@ turbo-frame:has(dts-column-menu) [data-controller="table"]>footer .btn-group {
     padding: 16px;
     border: 1px solid var(--dts-border);
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-search-panel:has(+ .dts-registry-panel:not([hidden])) {
@@ -1900,7 +1963,7 @@ turbo-frame:has(dts-column-menu) [data-controller="table"]>footer .btn-group {
     overflow: hidden;
     border: 1px solid var(--dts-input-border);
     border-radius: 5px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-search-icon {
@@ -2060,13 +2123,13 @@ a.dts-record-status:hover,
     --dts-status-mark: '\2298';
     --dts-status-mark-size: 1em;
     color: var(--dts-text-muted);
-    background: #eceff3;
+    background: var(--dts-cancelled-soft);
 }
 
 .dts-record-status[data-status="resubmitted"],
 .dts-record-status[data-status="reviewed"] {
-    color: #5a3d91;
-    background: #f0ecfb;
+    color: var(--dts-violet-text);
+    background: var(--dts-violet-soft);
 }
 
 /* Finished work: a check mark. Completed and released are solid so they stand out from "Received". */
@@ -2081,7 +2144,7 @@ a.dts-record-status:hover,
 }
 
 .dts-record-status:is([data-status="completed"], [data-status="released"]) {
-    color: #fff;
+    color: var(--dts-paper);
     background: var(--dts-green);
 }
 
@@ -2093,7 +2156,7 @@ a.dts-record-status:hover,
 
 /* Feedback after a workflow action: the changed row fades from yellow, changed statuses get a ring and a check. */
 .dts-row-changed > td {
-    box-shadow: inset 0 2px #e0b100, inset 0 -2px #e0b100;
+    box-shadow: inset 0 2px var(--dts-changed-edge), inset 0 -2px var(--dts-changed-edge);
 }
 
 .dts-status-changed {
@@ -2111,7 +2174,7 @@ a.dts-record-status:hover,
     height: 16px;
     border-radius: 50%;
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-size: 10px;
     line-height: 1;
 }
@@ -2153,7 +2216,7 @@ a.dts-record-status:hover,
     }
 
     @keyframes dts-row-changed {
-        from, 40% { background-color: #fff1bf; }
+        from, 40% { background-color: var(--dts-changed-flash); }
     }
 
     @keyframes dts-status-changed {
@@ -2216,7 +2279,7 @@ a.dts-record-status:hover,
 .dts-office-status-item:hover,
 .dts-office-status-item:focus-visible {
     color: var(--dts-green-dark);
-    background: #bedcc4;
+    background: var(--dts-green-focus-soft);
     box-shadow: inset 4px 0 var(--dts-green);
 }
 
@@ -2269,24 +2332,24 @@ a.dts-record-status:hover,
 }
 
 .dts-record-dialog {
-    width: min(680px, calc(100vw - 32px));
+    width: min(680px, calc(100% - 32px));
     max-height: calc(100vh - 40px);
     padding: 0;
     border: 0;
     border-radius: 6px;
     color: var(--dts-charcoal);
-    box-shadow: 0 18px 55px rgb(29 42 58 / 25%);
+    box-shadow: 0 18px 55px var(--dts-shadow-25);
 }
 
 .dts-app-dialog {
-    width: min(460px, calc(100vw - 32px));
+    width: min(460px, calc(100% - 32px));
     max-height: calc(100vh - 40px);
     padding: 0;
     border: 0;
     border-radius: 6px;
     color: var(--dts-charcoal);
-    background: #fff;
-    box-shadow: 0 18px 55px rgb(29 42 58 / 25%);
+    background: var(--dts-paper);
+    box-shadow: 0 18px 55px var(--dts-shadow-25);
 }
 
 /* Orchid sets "label { white-space: nowrap }"; a checkbox label in a dialog has to wrap to the dialog width. */
@@ -2295,7 +2358,7 @@ a.dts-record-status:hover,
 }
 
 .dts-app-dialog::backdrop {
-    background: rgb(20 30 44 / 48%);
+    background: var(--dts-scrim-48);
 }
 
 .dts-document-workspace {
@@ -2308,11 +2371,11 @@ a.dts-record-status:hover,
     border-radius: 12px;
     color: var(--dts-charcoal);
     background: var(--dts-surface);
-    box-shadow: 0 24px 70px rgb(20 30 44 / 30%);
+    box-shadow: 0 24px 70px var(--dts-scrim-30);
 }
 
 .dts-document-workspace::backdrop {
-    background: rgb(20 30 44 / 62%);
+    background: var(--dts-scrim-62);
 }
 
 .dts-document-workspace [hidden] {
@@ -2337,7 +2400,7 @@ a.dts-record-status:hover,
     gap: 20px;
     padding: 16px 28px 12px;
     border-top: 4px solid var(--dts-green);
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-workspace-title-row {
@@ -2389,7 +2452,7 @@ a.dts-record-status:hover,
     gap: 4px;
     padding: 0 24px;
     border-bottom: 1px solid var(--dts-border);
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-workspace-tabs button {
@@ -2427,7 +2490,7 @@ a.dts-record-status:hover,
 
 .dts-workspace-panel + .dts-workspace-panel {
     border-left: 1px solid var(--dts-border);
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-workspace-section-heading,
@@ -2461,7 +2524,7 @@ a.dts-record-status:hover,
     padding: 16px;
     border: 1px solid var(--dts-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--dts-paper);
     overflow-wrap: anywhere;
 }
 
@@ -2558,7 +2621,7 @@ a.dts-record-status:hover,
     padding: 6px 10px;
     border: 1px solid var(--dts-border-strong);
     border-radius: 7px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
     font: inherit;
     font-weight: 400;
@@ -2582,13 +2645,13 @@ a.dts-record-status:hover,
     margin: 64px -28px -24px;
     padding: 12px 28px calc(12px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--dts-border);
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-workspace-form-errors {
     margin-bottom: 12px;
     padding: 12px;
-    border: 1px solid #efb2b9;
+    border: 1px solid var(--dts-danger-line);
     border-radius: 7px;
     background: var(--dts-danger-soft);
     color: var(--dts-danger-dark);
@@ -2596,8 +2659,10 @@ a.dts-record-status:hover,
 }
 
 .dts-document-workspace button:disabled {
-    opacity: .6;
     cursor: wait;
+    border-color: var(--dts-border);
+    background: var(--dts-surface-2);
+    color: var(--dts-text-muted);
 }
 
 .dts-workspace-entry {
@@ -2702,7 +2767,7 @@ a.dts-record-status:hover,
     padding: 6px 10px;
     border: 1px solid var(--dts-border-strong);
     border-radius: 7px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
     font: inherit;
     font-weight: 400;
@@ -2721,7 +2786,7 @@ a.dts-record-status:hover,
     padding: 12px;
     border: 1px solid var(--dts-border);
     border-radius: 8px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-workspace-destination > span {
@@ -2791,9 +2856,9 @@ a.dts-record-status:hover,
 }
 
 .dts-workspace-history-modes button[aria-pressed="true"] {
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-green);
-    box-shadow: 0 1px 4px rgb(20 30 44 / 10%);
+    box-shadow: 0 1px 4px var(--dts-scrim-10);
 }
 
 .dts-workspace-history-modes button:disabled {
@@ -2839,12 +2904,10 @@ a.dts-record-status:hover,
     z-index: 2;
     margin: 0;
     padding: 8px 0;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-muted);
     font-size: .875rem;
     font-weight: 650;
-    letter-spacing: .04em;
-    text-transform: uppercase;
 }
 
 .dts-workspace-timeline .dts-workspace-timeline-entry {
@@ -2866,7 +2929,7 @@ a.dts-record-status:hover,
     bottom: 2px;
     left: 15px;
     width: 2px;
-    background: #d8d2be;
+    background: var(--dts-step-line);
     content: '';
 }
 
@@ -2912,7 +2975,7 @@ a.dts-record-status:hover,
 .dts-workspace-timeline .dts-workspace-history-remarks {
     margin-top: 8px;
     padding: 8px 12px;
-    border: 1px solid #cbd5e1;
+    border: 1px solid var(--dts-slate-line);
     border-radius: 4px;
     background: var(--dts-surface);
 }
@@ -2977,13 +3040,13 @@ a.dts-record-status:hover,
 }
 
 .dts-record-status[data-status="remark"] {
-    color: #5a3d91;
-    background: #f0ecfb;
+    color: var(--dts-violet-text);
+    background: var(--dts-violet-soft);
 }
 
 .dts-record-status[data-status="registered"],
 .dts-record-status[data-status="update"] {
-    color: #45576d;
+    color: var(--dts-update-text);
     background: var(--dts-surface-2);
 }
 
@@ -3016,7 +3079,7 @@ a.dts-record-status:hover,
 
 @media (max-width: 900px) {
     .dts-document-workspace {
-        width: 95vw;
+        width: 95%;
     }
 
     .dts-workspace-panels {
@@ -3030,7 +3093,8 @@ a.dts-record-status:hover,
 
 @media (max-width: 767px) {
     .dts-document-workspace {
-        width: 100vw;
+        width: 100%;
+        max-width: 100%;
         height: 100dvh;
         max-height: 100dvh;
         margin: 0;
@@ -3204,12 +3268,12 @@ a.dts-record-status:hover,
 
 .toast-wrapper .toast {
     --dts-toast-color: var(--dts-green);
-    width: min(400px, calc(100vw - 32px));
+    width: min(400px, 100%);
     border: 1px solid var(--dts-border);
     border-left: 4px solid var(--dts-toast-color);
     border-radius: 6px !important;
     color: var(--dts-charcoal);
-    box-shadow: 0 8px 28px rgb(29 42 58 / 14%) !important;
+    box-shadow: 0 8px 28px var(--dts-shadow-14) !important;
 }
 
 .toast-wrapper .toast:has([data-toast-type="danger"]) { --dts-toast-color: var(--dts-danger); }
@@ -3328,7 +3392,7 @@ a.dts-record-status:hover,
 }
 
 .dts-record-dialog::backdrop {
-    background: rgb(20 30 44 / 48%);
+    background: var(--dts-scrim-48);
 }
 
 .dts-record-dialog>header {
@@ -3340,7 +3404,7 @@ a.dts-record-status:hover,
     justify-content: space-between;
     gap: 18px;
     padding: 22px 24px;
-    background: #fff;
+    background: var(--dts-paper);
     border-bottom: 1px solid var(--dts-border);
 }
 
@@ -3412,12 +3476,10 @@ a.dts-record-status:hover,
     z-index: 2;
     margin: 0;
     padding: 6px 0;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-muted);
     font-size: 0.875rem;
     font-weight: 650;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
 .dts-staff-timeline {
@@ -3503,7 +3565,7 @@ a.dts-record-status:hover,
     align-items: flex-start;
     gap: 12px;
     padding: 12px 14px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-audit-list strong,
@@ -3602,7 +3664,7 @@ a.dts-record-status:hover,
     padding: 8px 18px;
     border: 2px solid var(--dts-green);
     border-radius: var(--dts-radius);
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-green-dark);
     font-size: var(--dts-text);
     font-weight: 700;
@@ -3624,7 +3686,7 @@ a.dts-record-status:hover,
 
 .dts-action-choice[aria-pressed="true"] {
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-action-choice[aria-pressed="true"]::before {
@@ -3694,12 +3756,12 @@ a.dts-record-status:hover,
 }
 
 .dts-action-choice.is-restore:hover {
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-action-choice.is-restore[aria-pressed="true"] {
     background: var(--dts-brown);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-workflow-actions {
@@ -3795,7 +3857,7 @@ a.dts-record-status:hover,
 }
 
 .dts-dot.amber {
-    background: #c79936;
+    background: var(--dts-amber);
 }
 
 .dts-dot.red {
@@ -3837,7 +3899,7 @@ a:focus-visible {
     padding: 6px 14px;
     border: 1px solid var(--dts-border);
     border-radius: 5px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-body);
     font: inherit;
     font-size: 1rem;
@@ -3860,12 +3922,12 @@ a:focus-visible {
 .dts-button-primary {
     background: var(--dts-green);
     border-color: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-button-primary:hover {
     background: var(--dts-green-dark);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-button-secondary {
@@ -3882,25 +3944,25 @@ a:focus-visible {
 .dts-button-danger {
     background: var(--dts-danger);
     border-color: var(--dts-danger);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-button-danger:hover {
     background: var(--dts-danger-dark);
     border-color: var(--dts-danger-dark);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-button.dts-apply-filters {
     background: var(--dts-green);
     border-color: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-button.dts-apply-filters:hover {
     background: var(--dts-green-dark);
     border-color: var(--dts-green-dark);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 /* Only "Apply" is a filled button; the column menu is a secondary control. */
@@ -4012,7 +4074,7 @@ a:focus-visible {
 }
 
 .dts-steps [aria-current]>span {
-    color: #fff;
+    color: var(--dts-paper);
     background: var(--dts-green);
     border-color: var(--dts-green);
 }
@@ -4109,7 +4171,7 @@ a:focus-visible {
     min-width: 0;
     border: 1px solid var(--dts-input-border);
     border-radius: 5px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
     padding: 6px 10px;
     font: inherit;
@@ -4142,8 +4204,8 @@ dts-searchable [data-suggestions] {
     overflow-y: auto;
     border: 1px solid var(--dts-border);
     border-radius: 5px;
-    background: #fff;
-    box-shadow: 0 10px 22px rgb(38 50 68 / 15%);
+    background: var(--dts-paper);
+    box-shadow: 0 10px 22px var(--dts-slate-a15);
 }
 
 dts-searchable [data-choice] {
@@ -4151,7 +4213,7 @@ dts-searchable [data-choice] {
     width: 100%;
     padding: 9px 12px;
     border: 0;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
     font: inherit;
     font-size: 0.875rem;
@@ -4212,7 +4274,7 @@ dts-searchable [data-suggestions] p {
     padding: 14px;
     border: 1px solid var(--dts-border);
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-route-destination-fields {
@@ -4273,7 +4335,7 @@ dts-searchable [data-suggestions] p {
 
 .dts-route-destination-row .dts-icon-button {
     border: 1px solid var(--dts-border);
-    background: #fff;
+    background: var(--dts-paper);
     margin-top: 27px;
 }
 
@@ -4388,7 +4450,7 @@ dts-searchable [data-suggestions] p {
     padding: 25px 14px;
     border: 1px dashed var(--dts-border-strong);
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
     cursor: pointer;
     text-align: center;
 }
@@ -4705,7 +4767,7 @@ dts-searchable [data-suggestions] p {
     padding: 9px;
     border: 1px solid var(--dts-border-strong);
     border-radius: 4px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-charcoal);
 }
 
@@ -4739,7 +4801,6 @@ dts-searchable [data-suggestions] p {
     font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.3;
-    text-transform: uppercase;
 }
 
 .dts-tracking-label-details dd {
@@ -4758,7 +4819,7 @@ dts-searchable [data-suggestions] p {
 }
 
 .dts-tracking-label-footer strong {
-    font-family: Consolas, "Courier New", monospace;
+    font-family: var(--dts-font-mono);
     font-size: 1.25rem;
     font-weight: 800;
     overflow-wrap: anywhere;
@@ -4766,8 +4827,6 @@ dts-searchable [data-suggestions] p {
 
 .dts-tracking-label-status {
     font-weight: 800;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
 }
 
 .dts-print-label-button {
@@ -4829,7 +4888,7 @@ dts-searchable [data-suggestions] p {
 
 .dts-attachment-actions .dts-icon-button {
     border: 1px solid var(--dts-border-strong);
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-green);
     text-decoration: none;
 }
@@ -4906,7 +4965,7 @@ dts-searchable [data-suggestions] p {
     padding: 8px 10px;
     border: 1px solid var(--dts-border-strong);
     border-radius: 4px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-strong);
     cursor: pointer;
 }
@@ -5071,7 +5130,7 @@ dts-searchable [data-suggestions] p {
     border: 1px solid var(--dts-border);
     border-top-width: 3px;
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .dts-health-check-heading {
@@ -5123,7 +5182,7 @@ dts-searchable [data-suggestions] p {
 }
 
 .dts-health-ok {
-    border-color: #9fd5bf;
+    border-color: var(--dts-ok-line);
     color: var(--dts-green);
 }
 
@@ -5135,7 +5194,7 @@ dts-searchable [data-suggestions] p {
 }
 
 .dts-health-warning {
-    border-color: #e6c977;
+    border-color: var(--dts-warning-line);
     color: var(--dts-warning-text);
 }
 
@@ -5147,7 +5206,7 @@ dts-searchable [data-suggestions] p {
 }
 
 .dts-health-critical {
-    border-color: #e3a3ad;
+    border-color: var(--dts-critical-line);
     color: var(--dts-danger-text);
 }
 
@@ -5198,7 +5257,7 @@ input.form-control,
 
 .form-check-input:focus {
     border-color: var(--dts-green);
-    box-shadow: 0 0 0 0.2rem rgb(33 110 57 / 25%);
+    box-shadow: 0 0 0 0.2rem var(--dts-green-a25);
 }
 
 
@@ -5279,10 +5338,6 @@ select:focus-visible,
         flex: 0 0 256px;
     }
 
-    .dts-sidebar-ready .aside {
-        transition: width 240ms ease, max-width 240ms ease, flex-basis 240ms ease, padding-inline 240ms ease;
-    }
-
     .aside+div {
         flex: 1 1 0;
         width: auto;
@@ -5304,13 +5359,13 @@ select:focus-visible,
         place-items: center;
         width: 36px;
         height: 36px;
-        border: 1px solid #d4e0ef;
+        border: 1px solid var(--dts-toggle-line);
         border-radius: 8px;
         background: var(--dts-cream);
         color: var(--dts-green);
         cursor: pointer;
         z-index: 2;
-        box-shadow: 0 2px 8px rgb(38 50 68 / 12%);
+        box-shadow: 0 2px 8px var(--dts-slate-a12);
     }
 
     .dts-sidebar-ready .dts-sidebar-toggle {
@@ -5319,7 +5374,7 @@ select:focus-visible,
 
     .dts-sidebar-toggle:hover {
         background: var(--dts-green-soft);
-        border-color: #b7c9b5;
+        border-color: var(--dts-toggle-line-hover);
     }
 
     .dts-sidebar-toggle svg {
@@ -5439,7 +5494,7 @@ select:focus-visible,
         overflow-y: auto;
         overscroll-behavior-y: contain;
         scrollbar-width: thin;
-        scrollbar-color: #b8c6d7 transparent;
+        scrollbar-color: var(--dts-scrollbar) transparent;
     }
 
     .aside>.aside-collapse>.nav::-webkit-scrollbar {
@@ -5452,7 +5507,7 @@ select:focus-visible,
 
     .aside>.aside-collapse>.nav::-webkit-scrollbar-thumb {
         border-radius: 8px;
-        background: #b8c6d7;
+        background: var(--dts-scrollbar);
     }
 
     .aside>.aside-collapse>.nav::-webkit-scrollbar-thumb:hover {
@@ -5704,10 +5759,10 @@ select:focus-visible,
     gap: 2px;
     min-width: 190px;
     padding: 6px;
-    background: #fff;
+    background: var(--dts-paper);
     border: 1px solid var(--dts-border);
     border-radius: 10px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+    box-shadow: 0 12px 28px var(--dts-navy-a18);
 }
 
 .dts-profile-menu[hidden] {
@@ -5907,7 +5962,7 @@ select:focus-visible,
             padding: 2px 10px !important;
             border: 1px solid var(--dts-grid);
             border-radius: 999px;
-            background: #fff;
+            background: var(--dts-paper);
             box-shadow: none;
         }
 
@@ -6028,6 +6083,8 @@ td[data-column="select"] {
 /* Permissions only an administrator can grant stay legible; Bootstrap's 50% fade is too faint for older staff. */
 .page-platform-systems-roles-edit .form-check-input:disabled~.form-check-label {
     opacity: 0.8;
+    color: var(--dts-text-muted);
+    cursor: not-allowed;
 }
 
 /* Office picker locked for non-administrators: show the offices as plain, readable chips with no remove buttons. */
@@ -6333,7 +6390,7 @@ dts-searchable [data-suggestions]:focus {
     padding: 1px 8px;
     border-radius: 999px;
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-size: var(--dts-text-xs);
     font-weight: 700;
     line-height: 1.5;
@@ -6382,8 +6439,8 @@ dts-searchable [data-suggestions]:focus {
     padding: 14px 16px;
     border: 1px solid var(--dts-border);
     border-radius: 6px;
-    background: #fff;
-    box-shadow: 0 10px 28px rgb(29 42 58 / 16%);
+    background: var(--dts-paper);
+    box-shadow: 0 10px 28px var(--dts-shadow-16);
 }
 
 .dts-status-guide-panel > strong {
@@ -6788,7 +6845,7 @@ dts-searchable [data-suggestions]:focus {
     padding: 1px 8px;
     border-radius: 999px;
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-size: var(--dts-text-xs);
     font-weight: 700;
     line-height: 1.5;
@@ -6837,8 +6894,8 @@ dts-searchable [data-suggestions]:focus {
     padding: 14px 16px;
     border: 1px solid var(--dts-border);
     border-radius: 6px;
-    background: #fff;
-    box-shadow: 0 10px 28px rgb(29 42 58 / 16%);
+    background: var(--dts-paper);
+    box-shadow: 0 10px 28px var(--dts-shadow-16);
 }
 
 .dts-status-guide-panel > strong {
@@ -7019,7 +7076,7 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 }
 
 .dts-change-before {
-    color: var(--dts-text-muted, #5f6368);
+    color: var(--dts-text-muted);
     text-decoration: line-through;
 }
 
@@ -7039,7 +7096,7 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
     padding: 0;
     border: 1px solid var(--dts-green);
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-green);
     text-decoration: none;
 }
@@ -7055,7 +7112,7 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 
 .dts-queue-icon.is-primary {
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .dts-queue-icon.is-primary:hover {
@@ -7134,12 +7191,12 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
     padding: 10px 24px;
     border-color: var(--dts-green);
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-size: 1.0625rem;
 }
 
 .dts-button.dts-button-receive:hover:not(:disabled) {
-    background: #18542b;
+    background: var(--dts-green-dark);
 }
 
 /* "Add remark": a separate control under the routing form, for received, active routes. */
@@ -7207,7 +7264,7 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 /* Outgoing list: "Send to another office" row action, outlined so Edit stays the main button. */
 .dts-row-actions .dts-row-action.dts-row-action-send {
     border: 1px solid var(--dts-green);
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-green);
 }
 
@@ -7270,7 +7327,7 @@ body .invalid-feedback {
 
 .form-control.is-invalid:focus {
     border-color: var(--dts-danger);
-    box-shadow: 0 0 0 0.2rem rgb(180 35 24 / 20%);
+    box-shadow: 0 0 0 0.2rem var(--dts-danger-a20);
 }
 
 .dts-password-match {
@@ -7295,7 +7352,7 @@ body .invalid-feedback {
     right: 1.5rem;
     bottom: 1.5rem;
     left: auto;
-    width: min(24rem, calc(100vw - 2rem));
+    width: min(24rem, calc(100% - 2rem));
     overflow: visible;
 }
 
@@ -7335,11 +7392,11 @@ body .invalid-feedback {
     padding: 12px 14px;
     /* Each card is filled with its own colour and edged in a darker shade of it, so the cards stand apart from the
        white page and from each other. Text keeps at least 4.5:1 contrast on every fill (2026-10-31 check). */
-    border: 1px solid color-mix(in srgb, var(--dts-metric-tone) 45%, #fff);
+    border: 1px solid color-mix(in srgb, var(--dts-metric-tone) 45%, var(--dts-paper));
     border-top: 4px solid var(--dts-metric-tone);
     border-radius: 12px;
     background: rgb(var(--dts-metric-tint));
-    box-shadow: 0 1px 3px rgb(38 51 43 / 10%);
+    box-shadow: 0 1px 3px var(--dts-charcoal-a10);
     color: var(--dts-text-strong);
     text-decoration: none;
     transition: transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out;
@@ -7347,7 +7404,7 @@ body .invalid-feedback {
 
 .dts-metrics-bold .dts-metric:hover {
     border-color: var(--dts-metric-tone);
-    box-shadow: 0 6px 16px rgb(38 51 43 / 14%);
+    box-shadow: 0 6px 16px var(--dts-charcoal-a14);
     transform: translateY(-2px);
 }
 
@@ -7375,8 +7432,8 @@ body .invalid-feedback {
     height: 32px;
     border-radius: 50%;
     background: var(--dts-metric-tone);
-    color: #fff;
-    box-shadow: 0 2px 6px rgb(38 51 43 / 18%);
+    color: var(--dts-paper);
+    box-shadow: 0 2px 6px var(--dts-charcoal-a18);
 }
 
 .dts-metrics-bold .dts-icon svg {
@@ -7399,12 +7456,12 @@ body .invalid-feedback {
     line-height: 1.35;
 }
 
-.dts-metrics-bold .dts-metric-green { --dts-metric-tone: #216e39; --dts-metric-tint: 200 227 204; }
-.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: #92400e; --dts-metric-tint: 253 230 160; }
-.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: #86562d; --dts-metric-tint: 234 210 185; }
-.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: #1f5f8b; --dts-metric-tint: 199 220 239; }
-.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: #0f6b66; --dts-metric-tint: 191 227 223; }
-.dts-metrics-bold .dts-metric-slate { --dts-metric-tone: #475569; --dts-metric-tint: 218 225 234; }
+.dts-metrics-bold .dts-metric-green { --dts-metric-tone: var(--dts-green); --dts-metric-tint: 200 227 204; }
+.dts-metrics-bold .dts-metric-gold { --dts-metric-tone: var(--dts-warning-text); --dts-metric-tint: 253 230 160; }
+.dts-metrics-bold .dts-metric-brown { --dts-metric-tone: var(--dts-brand-brown); --dts-metric-tint: 234 210 185; }
+.dts-metrics-bold .dts-metric-blue { --dts-metric-tone: var(--dts-info-text); --dts-metric-tint: 199 220 239; }
+.dts-metrics-bold .dts-metric-teal { --dts-metric-tone: var(--dts-teal); --dts-metric-tint: 191 227 223; }
+.dts-metrics-bold .dts-metric-slate { --dts-metric-tone: var(--dts-ink-2); --dts-metric-tint: 218 225 234; }
 
 /* No card left alone on a row: five cards put the two most urgent on top (larger), four go two by two; wide
    screens fit them all in one row. */
@@ -7482,10 +7539,8 @@ body .invalid-feedback {
     padding-inline: 12px;
     border-top-color: var(--dts-border);
     border-radius: 10px 10px 0 0;
-    background: rgb(255 255 255 / 92%);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 -6px 18px rgb(38 51 43 / 12%);
+    background: var(--dts-paper);
+    box-shadow: 0 -6px 18px var(--dts-charcoal-a12);
 }
 
 .dts-queue-pager-count {
@@ -7511,7 +7566,7 @@ body .invalid-feedback {
     padding: 4px 10px;
     border: 1px solid var(--dts-grid);
     border-radius: 4px;
-    background: #fff;
+    background: var(--dts-paper);
     color: var(--dts-text-body);
     font-size: 0.9375rem;
     text-decoration: none;
@@ -7526,7 +7581,7 @@ body .invalid-feedback {
 .dts-queue-pager .page-item.active .page-link {
     border-color: var(--dts-green);
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-weight: 700;
 }
 
@@ -7560,16 +7615,14 @@ body .invalid-feedback {
     position: sticky;
     bottom: -1px;
     z-index: 5;
-    background: #fff;
+    background: var(--dts-paper);
     transition: box-shadow 120ms ease-out;
 }
 
 [data-controller="table"] > footer.is-stuck {
     border-top: 1px solid var(--dts-border);
-    background: rgb(255 255 255 / 94%);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 -6px 18px rgb(38 51 43 / 12%);
+    background: var(--dts-paper);
+    box-shadow: 0 -6px 18px var(--dts-charcoal-a12);
 }
 
 .dts-queue-pager-controls {
@@ -7617,7 +7670,7 @@ body .invalid-feedback {
     overflow-x: auto;
     overflow-y: hidden;
     border-top: 1px solid var(--dts-grid);
-    background: rgb(255 255 255 / 94%);
+    background: var(--dts-paper-a94);
 }
 
 .dts-sticky-scrollbar > div {
@@ -7639,13 +7692,9 @@ body .invalid-feedback {
 /* Status badges in capitals everywhere (staff lists, queue, workspace, guides). Display only: the text stays
    "Pending", "Received"…, so search, filters and screen readers are unchanged. */
 .dts-record-status {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 :is(.dts-record-timeline, .dts-staff-timeline) .dts-timeline-status {
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
 }
 
 /* Workspace history: remarks are shown in full under the entry (they used to sit behind "View remarks"). */
@@ -7724,7 +7773,7 @@ body .invalid-feedback {
     padding: 8px 12px;
     border: 1px solid var(--dts-border);
     border-radius: 6px;
-    background: #fff;
+    background: var(--dts-paper);
     font-weight: 600;
 }
 
@@ -7738,7 +7787,7 @@ body .invalid-feedback {
     padding: 6px 10px;
     border: 1px solid var(--dts-grid);
     border-radius: var(--dts-radius-sm);
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 /* Help under a field inside a bold label (the optional receiver's name at Release) reads as plain text. */
@@ -7758,7 +7807,7 @@ body .invalid-feedback {
     display: grid;
     place-items: center;
     padding: 16px;
-    background: rgb(255 255 255 / 0.65);
+    background: var(--dts-paper-a65);
     cursor: progress;
 }
 
@@ -7797,11 +7846,11 @@ body .invalid-feedback {
     border: 1px solid var(--dts-green-dark);
     border-radius: 999px;
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-size: 1.125rem;
     font-weight: 600;
     line-height: 1.2;
-    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    box-shadow: 0 6px 18px var(--dts-black-a18);
 }
 
 /* First page load: the cover is drawn by the stylesheet, so it is up before any script runs, and dts.js adds
@@ -7818,7 +7867,7 @@ html:not(.dts-ready)::after {
 html:not(.dts-ready) body::after {
     content: '';
     inset: 0;
-    background: rgb(255 255 255 / 0.65);
+    background: var(--dts-paper-a65);
     cursor: progress;
 }
 
@@ -7830,14 +7879,14 @@ html:not(.dts-ready)::after {
     transform: translate(-50%, -50%);
     border: 1px solid var(--dts-green-dark);
     border-radius: 999px;
-    background: var(--dts-green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='rgba(255,255,255,0.35)' stroke-width='3'/%3E%3Cpath d='M12 3a9 9 0 0 1 9 9' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='0.8s' repeatCount='indefinite'/%3E%3C/path%3E%3C/svg%3E") no-repeat 22px center / 20px 20px;
-    color: #fff;
-    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--dts-green) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='var(--dts-paper-a35)' stroke-width='3'/%3E%3Cpath d='M12 3a9 9 0 0 1 9 9' fill='none' stroke='white' stroke-width='3' stroke-linecap='round'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='0.8s' repeatCount='indefinite'/%3E%3C/path%3E%3C/svg%3E") no-repeat 22px center / 20px 20px;
+    color: var(--dts-paper);
+    font-family: var(--dts-font-sans);
     font-size: 1.125rem;
     font-weight: 600;
     line-height: 1.2;
     white-space: nowrap;
-    box-shadow: 0 6px 18px rgb(0 0 0 / 0.18);
+    box-shadow: 0 6px 18px var(--dts-black-a18);
     pointer-events: none;
 }
 
@@ -7854,8 +7903,8 @@ html:not(.dts-ready)::after {
     width: 18px;
     height: 18px;
     flex: none;
-    border: 3px solid rgb(255 255 255 / 0.35);
-    border-top-color: #fff;
+    border: 3px solid var(--dts-paper-a35);
+    border-top-color: var(--dts-paper);
     border-radius: 50%;
     animation: dts-page-loading-spin 0.8s linear infinite;
 }
@@ -7911,9 +7960,9 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 .dts-auth-hero {
     position: relative;
     display: none;
-    color: #fff;
+    color: var(--dts-paper);
     background:
-        linear-gradient(160deg, rgb(24 84 43 / 0.94) 0%, rgb(24 84 43 / 0.86) 55%, rgb(38 51 43 / 0.92) 100%),
+        linear-gradient(160deg, var(--dts-green-dark-a94) 0%, var(--dts-green-dark-a86) 55%, var(--dts-charcoal-a92) 100%),
         var(--dts-auth-photo) center / cover no-repeat,
         var(--dts-green-dark);
 }
@@ -7923,7 +7972,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     position: absolute;
     inset: auto 0 0 0;
     height: 6px;
-    background: linear-gradient(90deg, #f2c230 0 60%, #86562d 60% 100%);
+    background: linear-gradient(90deg, var(--dts-brand-gold) 0 60%, var(--dts-brand-brown) 60% 100%);
 }
 
 .dts-auth-hero__inner {
@@ -7942,7 +7991,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     gap: 16px;
     font-size: 1rem;
     line-height: 1.35;
-    color: rgb(255 255 255 / 0.88);
+    color: var(--dts-paper-a88);
 }
 
 .dts-auth-hero__org img {
@@ -7950,12 +7999,12 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     height: 64px;
     flex: none;
     border-radius: 50%;
-    background: #fff;
+    background: var(--dts-paper);
     padding: 2px;
 }
 
 .dts-auth-hero__org strong {
-    color: #fff;
+    color: var(--dts-paper);
     font-weight: 700;
 }
 
@@ -7972,7 +8021,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     max-width: 30em;
     font-size: 1.125rem;
     line-height: 1.55;
-    color: rgb(255 255 255 / 0.9);
+    color: var(--dts-paper-a90);
 }
 
 
@@ -8017,8 +8066,8 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     padding: 32px 28px;
     border: 1px solid var(--dts-line);
     border-radius: 10px;
-    background: #fff;
-    box-shadow: 0 1px 2px rgb(38 51 43 / 0.05), 0 12px 32px rgb(38 51 43 / 0.08);
+    background: var(--dts-paper);
+    box-shadow: 0 1px 2px var(--dts-charcoal-a5), 0 12px 32px var(--dts-charcoal-a8);
 }
 
 .dts-auth-title {
@@ -8056,7 +8105,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     /* !important: Orchid's .btn-default forces a white button with !important. */
     background-color: var(--dts-green) !important;
     border-color: var(--dts-green) !important;
-    color: #fff !important;
+    color: var(--dts-paper) !important;
     font-weight: 700;
 }
 
@@ -8068,7 +8117,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 /* Orchid's .btn-default turns the text dark grey on hover/focus/press (!important), unreadable on the dark green. */
 .dts-auth-submit:is(:hover, :focus, :focus-visible, :active),
 .dts-auth-submit:is(:hover, :focus, :focus-visible, :active) svg {
-    color: #fff !important;
+    color: var(--dts-paper) !important;
 }
 
 .dts-auth-submit:is(:focus, :active) {
@@ -8198,7 +8247,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 }
 
 .dts-kiosk-status[data-tone="warning"] {
-    border-color: #c79936;
+    border-color: var(--dts-amber);
     background: var(--dts-warning-soft);
     color: var(--dts-warning-text);
 }
@@ -8230,8 +8279,8 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 }
 
 .dts-email-alerts-status.is-pending {
-    background: var(--dts-warning-soft, #fff4d9);
-    color: var(--dts-warning-text, #866314);
+    background: var(--dts-warning-soft);
+    color: var(--dts-warning-text);
 }
 
 .dts-email-alerts-status.is-active {
@@ -8280,10 +8329,10 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 .dts-release-waiting {
     margin: 8px 0 0;
     padding: 8px 12px;
-    border-left: 3px solid var(--dts-gold, #c99a2e);
+    border-left: 3px solid var(--dts-gold);
     border-radius: 4px;
-    background: var(--dts-warning-soft, #fff4d9);
-    color: var(--dts-warning-text, #866314);
+    background: var(--dts-warning-soft);
+    color: var(--dts-warning-text);
     font-size: 0.9375rem;
     font-weight: 600;
     line-height: 1.45;
@@ -8341,13 +8390,13 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     padding: 10px 16px;
     border-radius: var(--dts-radius);
     background: var(--dts-green);
-    color: #fff;
+    color: var(--dts-paper);
     font-weight: 600;
 }
 
 /* Orchid forces a grey (!important) on the current page number, which is unreadable on the green box (2:1). */
 .pagination .page-item.active :is(.page-link, span) {
-    color: #fff !important;
+    color: var(--dts-paper) !important;
 }
 
 /* Column sort links: a full-height target instead of a 20px line of text. */
@@ -8423,8 +8472,8 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
         position: sticky;
         right: 0;
         z-index: 1;
-        background: #fff;
-        box-shadow: -1px 0 var(--dts-grid), -6px 0 8px -6px rgb(38 51 43 / 18%);
+        background: var(--dts-paper);
+        box-shadow: -1px 0 var(--dts-grid), -6px 0 8px -6px var(--dts-charcoal-a18);
     }
 
     [data-controller="table"] th[data-column="actions"],
@@ -8444,30 +8493,30 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 
 .aside > header .dts-brand,
 .aside > header .dts-brand strong {
-    color: #fff;
+    color: var(--dts-paper);
 }
 
 .aside > header .dts-brand-accent {
-    color: #f2c230; /* brand gold */
+    color: var(--dts-brand-gold); /* brand gold */
 }
 
 .aside > header .dts-brand small {
-    color: #dbe9dd;
+    color: var(--dts-brand-subtitle);
 }
 
 /* The app icon is green itself, so a white backing keeps it visible on the green block. */
 .aside > header .dts-brand-mark {
     padding: 2px;
-    background: #fff;
+    background: var(--dts-paper);
 }
 
 .aside > header .header-toggler {
-    color: #fff !important;
+    color: var(--dts-paper) !important;
 }
 
 .aside > header .header-brand:focus-visible,
 .aside > header .header-toggler:focus-visible {
-    outline: 3px solid #fff;
+    outline: 3px solid var(--dts-paper);
     outline-offset: 2px;
 }
 
@@ -8527,8 +8576,8 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 .aside footer > .bg-dark {
     margin-inline: -12px;
     padding-bottom: 10px !important;
-    background: #fbe7a1 !important;
-    border-top: 1px solid #e3c25a;
+    background: var(--dts-profile-soft) !important;
+    border-top: 1px solid var(--dts-profile-line);
 }
 
 .dts-sidebar-collapsed .aside footer > .bg-dark {
@@ -8548,15 +8597,15 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 }
 
 .aside .profile-container .text-white {
-    color: #1e293b !important;
+    color: var(--dts-ink) !important;
 }
 
 .aside .profile-container .text-muted {
-    color: #5c4a0b !important;
+    color: var(--dts-profile-muted) !important;
 }
 
 .aside .profile-container [data-dts-notification] {
-    color: #1e293b !important;
+    color: var(--dts-ink) !important;
 }
 
 /* Collapsed sidebar: one centre line for every icon (logo, menu, avatar, bell). The menu's scrollbar would take 10px
@@ -8749,9 +8798,9 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 
 /* Timeline remarks stand out: the brand cream with a gold edge on the left (text 9.4:1 on cream). */
 .dts-workspace-timeline .dts-workspace-history-remarks {
-    border: 1px solid #e3d6b3;
-    border-left: 4px solid #d9a521;
-    background: #f8f4e7;
+    border: 1px solid var(--dts-remark-line);
+    border-left: 4px solid var(--dts-remark-edge);
+    background: var(--dts-remark-wash);
 }
 
 .dts-workspace-timeline .dts-workspace-history-remarks strong {
@@ -8836,7 +8885,7 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 }
 
 .dts-count-strong {
-    border-color: color-mix(in srgb, var(--dts-green) 40%, #fff);
+    border-color: color-mix(in srgb, var(--dts-green) 40%, var(--dts-paper));
     background: var(--dts-green-soft);
     color: var(--dts-green-dark);
     font-weight: 700;

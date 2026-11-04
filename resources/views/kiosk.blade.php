@@ -12,11 +12,11 @@
 </head>
 {{-- The laptop outside the Records Unit (KioskController). It waits for a clerk's "Send to kiosk", shows only the
      tracking number and type of that one document, and sends back the recipient's name and signature. --}}
-<body class="min-h-screen bg-white font-sans text-[#26332B] antialiased" data-kiosk data-current-url="{{ route('kiosk.current') }}">
+<body class="min-h-screen bg-province-cream font-sans text-province-charcoal antialiased" data-kiosk data-current-url="{{ route('kiosk.current') }}">
     <div class="fixed inset-x-0 top-0 grid h-1.5 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
-        <span class="bg-[#216E39]"></span>
-        <span class="bg-[#F2C230]"></span>
-        <span class="bg-[#86562D]"></span>
+        <span class="bg-province-green"></span>
+        <span class="bg-province-gold"></span>
+        <span class="bg-province-brown"></span>
     </div>
 
     <header class="border-b border-province-line bg-white">
@@ -24,11 +24,11 @@
             <div class="flex min-w-0 items-center gap-3">
                 <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-14 shrink-0 rounded-xl">
                 <span class="min-w-0">
-                    <strong class="block text-3xl font-bold leading-none tracking-tight">Docu<span class="text-[#86562D]">TrackS</span></strong>
-                    <span class="block text-sm font-semibold text-slate-600">SDO – Nueva Vizcaya · Records Unit</span>
+                    <strong class="block text-3xl font-bold leading-none tracking-tight">Docu<span class="text-province-brown">TrackS</span></strong>
+                    <span class="block text-sm font-semibold text-slate-600">Records Unit, SDO Nueva Vizcaya</span>
                 </span>
             </div>
-            <p class="text-right text-base font-semibold text-[#216E39]">Document release<br>signing</p>
+            <p class="text-right text-base font-semibold text-province-green">Document release<br>signing</p>
         </div>
     </header>
 
@@ -37,17 +37,17 @@
         <section data-kiosk-idle class="grid place-items-center gap-5 rounded-md border border-province-line bg-white px-6 py-16 text-center shadow-sm" aria-live="polite">
             {{-- Waiting animation: a ring turning around the hourglass, and three dots under the text (still for reduced motion). --}}
             <span class="relative grid size-28 place-items-center" aria-hidden="true">
-                <span class="absolute inset-0 rounded-full border-[6px] border-[#216E39]/15 border-t-[#216E39] motion-safe:animate-spin"></span>
-                <span class="grid size-20 place-items-center rounded-full bg-[#E8F1E6] text-[#216E39]"><x-orchid-icon path="bs.hourglass-split" class="size-10" /></span>
+                <span class="absolute inset-0 rounded-full border-[6px] border-province-green/15 border-t-province-green motion-safe:animate-spin"></span>
+                <span class="grid size-20 place-items-center rounded-full bg-province-green-soft text-province-green"><x-orchid-icon path="bs.hourglass-split" class="size-10" /></span>
             </span>
             <h1 class="text-3xl font-bold text-slate-900">Please wait</h1>
-            <p class="max-w-xl text-xl leading-8 text-slate-700">Signing requests appear here when sent by Records staff.</p>
-            <span class="flex items-center gap-2 text-lg font-semibold text-[#216E39]">
+            <p class="max-w-xl text-xl leading-8 text-slate-700">The Records Unit staff will call your name. Your document will appear on this screen when it is ready for you to sign.</p>
+            <span class="flex items-center gap-2 text-lg font-semibold text-province-green">
                 Waiting for your document
                 <span class="flex gap-1.5 pt-2" aria-hidden="true">
-                    <span class="size-2.5 rounded-full bg-[#216E39] motion-safe:animate-bounce"></span>
-                    <span class="size-2.5 rounded-full bg-[#216E39] motion-safe:animate-bounce [animation-delay:150ms]"></span>
-                    <span class="size-2.5 rounded-full bg-[#216E39] motion-safe:animate-bounce [animation-delay:300ms]"></span>
+                    <span class="size-2.5 rounded-full bg-province-green motion-safe:animate-pulse"></span>
+                    <span class="size-2.5 rounded-full bg-province-green motion-safe:animate-pulse [animation-delay:150ms]"></span>
+                    <span class="size-2.5 rounded-full bg-province-green motion-safe:animate-pulse [animation-delay:300ms]"></span>
                 </span>
             </span>
             <p data-kiosk-connection class="text-base font-semibold text-red-700" role="alert" hidden>Cannot reach the system. Checking again…</p>
@@ -57,23 +57,23 @@
         <form data-kiosk-form class="grid gap-6 rounded-md border border-province-line bg-white p-6 shadow-sm sm:p-8" novalidate hidden aria-labelledby="kiosk-sign-heading">
             <div>
                 <h1 id="kiosk-sign-heading" class="text-3xl font-bold text-slate-900">Sign for your document</h1>
-                <p class="mt-2 text-lg text-slate-700">Check the tracking number and sign in the box. The name is optional.</p>
+                <p class="mt-2 text-lg text-slate-700">Check the tracking number, then sign inside the box. Typing your name is optional.</p>
             </div>
 
-            <dl class="grid gap-4 rounded-sm border border-[#216E39]/25 bg-[#F8F4E7] p-4 sm:grid-cols-2">
+            <dl class="grid gap-4 rounded-sm border border-province-green/25 bg-province-cream p-4 sm:grid-cols-2">
                 <div>
-                    <dt class="text-sm font-semibold uppercase tracking-wide text-slate-600">Tracking number</dt>
+                    <dt class="text-sm font-semibold text-slate-600">Tracking number</dt>
                     <dd data-kiosk-tracking class="mt-1 font-mono text-2xl font-extrabold text-slate-900 [overflow-wrap:anywhere]"></dd>
                 </div>
                 <div>
-                    <dt class="text-sm font-semibold uppercase tracking-wide text-slate-600">Type of document</dt>
+                    <dt class="text-sm font-semibold text-slate-600">Type of document</dt>
                     <dd data-kiosk-type class="mt-1 text-xl font-semibold text-slate-900"></dd>
                 </div>
             </dl>
 
             <div>
                 <label for="kiosk-name" class="block text-lg font-semibold text-slate-800">Your full name <span class="text-base font-normal text-slate-600">(optional)</span></label>
-                <input id="kiosk-name" name="recipient_name" maxlength="255" autocomplete="off" class="mt-2 block min-h-14 w-full rounded-sm border-2 border-[#B3843F] bg-white px-4 text-xl text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#F2C230]">
+                <input id="kiosk-name" name="recipient_name" maxlength="255" autocomplete="off" class="mt-2 block min-h-14 w-full rounded-sm border-2 border-province-line-strong bg-white px-4 text-xl text-slate-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-province-gold">
             </div>
 
             <div class="grid gap-2">
@@ -86,21 +86,21 @@
                     </div>
                     <div class="dts-signature-footer">
                         <p class="dts-signature-hint text-base" id="kiosk-signature-hint" data-signature-hint>Hold the mouse button down and write your signature.</p>
-                        <button type="button" class="inline-flex min-h-12 items-center rounded-sm border-2 border-[#216E39] bg-white px-5 text-lg font-semibold text-[#216E39] hover:bg-[#EEF5EC] disabled:opacity-50" data-signature-clear disabled>Clear</button>
+                        <button type="button" class="inline-flex min-h-12 items-center rounded-sm border-2 border-province-green bg-white px-5 text-lg font-semibold text-province-green hover:bg-province-green-wash active:bg-province-green-soft disabled:opacity-50" data-signature-clear disabled>Clear</button>
                     </div>
                 </dts-signature-pad>
             </div>
 
             <p data-kiosk-error class="rounded-sm border border-red-300 bg-red-50 px-4 py-3 text-lg font-semibold text-red-800" role="alert" hidden></p>
 
-            <button type="submit" data-kiosk-submit class="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-sm bg-[#216E39] px-6 text-xl font-bold text-white hover:bg-[#18542B] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#F2C230] disabled:cursor-wait disabled:opacity-80">
+            <button type="submit" data-kiosk-submit class="inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-sm bg-province-green px-6 text-xl font-bold text-white hover:bg-province-green-dark active:bg-province-charcoal focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-province-gold disabled:cursor-wait disabled:opacity-80">
                 <x-orchid-icon path="bs.pen" class="size-6" /> <span data-kiosk-submit-label>Submit signature</span>
             </button>
         </form>
 
         {{-- Done --}}
         <section data-kiosk-done class="grid place-items-center gap-5 rounded-md border border-emerald-300 bg-emerald-50 px-6 py-16 text-center" role="status" hidden>
-            <span class="grid size-20 place-items-center rounded-full bg-[#216E39] text-white"><x-orchid-icon path="bs.check-lg" class="size-10" /></span>
+            <span class="grid size-20 place-items-center rounded-full bg-province-green text-white"><x-orchid-icon path="bs.check-lg" class="size-10" /></span>
             <h1 class="text-3xl font-bold text-emerald-900">Thank you</h1>
             <p class="max-w-xl text-xl leading-8 text-emerald-900">Your signature was sent to the Records Unit. Please wait for the staff to hand you your document.</p>
         </section>

@@ -10,7 +10,7 @@
 <div class="dts-workspace-shell" data-workspace-shell data-workspace-url="{{ route('platform.documents.workspace', $document) }}">
     <header class="dts-workspace-header">
         <div class="tw:min-w-0">
-            <p class="dts-eyebrow dts-tracking-eyebrow">DOCUMENT WORKSPACE · {{ $document->tracking_number }} @include('orchid.partials.copy-button', ['text' => $document->tracking_number])</p>
+            <p class="dts-eyebrow dts-tracking-eyebrow">Tracking no. {{ $document->tracking_number }} @include('orchid.partials.copy-button', ['text' => $document->tracking_number])</p>
             <div class="dts-workspace-title-row">
                 <h2 id="dts-workspace-title" class="tw:break-words">{{ $document->subject }}</h2>
                 <span class="dts-record-status" data-status="{{ str($document->status)->lower()->replace(' ', '-') }}" {{ \App\Support\StatusLabel::titleAttribute($document->status) }}>{{ \App\Support\StatusLabel::for($document->status) }}</span>
@@ -44,7 +44,7 @@
                 </div>
             @endif
             <div class="dts-workspace-section-heading">
-                <div><p class="dts-eyebrow">RECORD</p><h3 id="dts-workspace-details-heading">Document details</h3></div>
+                <div><h3 id="dts-workspace-details-heading">Document details</h3></div>
                 @if ($document->canBeEditedBy(request()->user()))
                     @if ($document->isClosedRecord())
                         {{-- Finished record: only the details can change, so the administrator gives the reason (asked in dts.js) first. --}}
@@ -154,7 +154,7 @@
 
     <div id="dts-workspace-routing" class="dts-workspace-panels" role="tabpanel" aria-labelledby="dts-workspace-routing-tab" data-workspace-panel="routing" hidden>
         <section class="dts-workspace-panel" aria-labelledby="dts-workspace-routes-heading">
-            <div class="dts-workspace-section-heading"><div><p class="dts-eyebrow">WORKFLOW</p><h3 id="dts-workspace-routes-heading">Office routes</h3></div>@php($waitingOffices = $document->pendingRouteOffices())@php($routeAssignments = $document->officeAssignments->reject(fn ($assignment) => $waitingOffices->isNotEmpty() && $assignment->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT))@php($routeCount = $routeAssignments->count() + $waitingOffices->count())<span class="dts-count dts-count-strong">{{ $routeCount }} {{ Str::plural('route', $routeCount) }}</span></div>
+            <div class="dts-workspace-section-heading"><div><h3 id="dts-workspace-routes-heading">Office routes</h3></div>@php($waitingOffices = $document->pendingRouteOffices())@php($routeAssignments = $document->officeAssignments->reject(fn ($assignment) => $waitingOffices->isNotEmpty() && $assignment->status === \App\Models\DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT))@php($routeCount = $routeAssignments->count() + $waitingOffices->count())<span class="dts-count dts-count-strong">{{ $routeCount }} {{ Str::plural('route', $routeCount) }}</span></div>
             <div class="dts-workspace-route-list">
                 {{-- While the client's offices wait for the paper copy, the Records Unit's holding row is left out. --}}
                 @forelse ($routeAssignments as $assignment)
@@ -245,7 +245,7 @@
             @endif
         </section>
         <section class="dts-workspace-panel" aria-labelledby="dts-workspace-history-heading">
-            <div class="dts-workspace-section-heading"><div><p class="dts-eyebrow">AUDIT TRAIL</p><h3 id="dts-workspace-history-heading">Activity history</h3></div></div>
+            <div class="dts-workspace-section-heading"><div><h3 id="dts-workspace-history-heading">Activity history</h3></div></div>
             <div class="dts-workspace-history-modes" aria-label="History scope"><button type="button" data-workspace-history-mode="all" aria-pressed="true">{{ $canViewAllHistory ? 'All document history' : 'My office history' }}</button><button type="button" data-workspace-history-mode="selected" aria-pressed="false" disabled>Selected route history</button></div>
             <p class="dts-muted" data-workspace-history-label hidden></p>
             <div class="dts-workspace-history-loading" data-workspace-history-loading role="status" hidden><span class="dts-workspace-spinner tw:motion-safe:animate-spin" aria-hidden="true"></span> Updating movement timeline…</div>

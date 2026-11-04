@@ -10,11 +10,11 @@
     @fonts
     @vite('resources/css/app.css')
 </head>
-<body class="min-h-screen bg-white font-sans text-[#26332B] antialiased">
+<body class="min-h-screen bg-white font-sans text-province-charcoal antialiased">
     <div class="fixed inset-x-0 top-0 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
-        <span class="bg-[#216E39]"></span>
-        <span class="bg-[#F2C230]"></span>
-        <span class="bg-[#86562D]"></span>
+        <span class="bg-province-green"></span>
+        <span class="bg-province-gold"></span>
+        <span class="bg-province-brown"></span>
     </div>
 
     <header class="border-b border-province-line bg-white">
@@ -22,27 +22,25 @@
             <a href="{{ route('tracking.index') }}" class="flex min-w-0 items-center gap-3 text-slate-900 no-underline">
                 <img src="{{ asset('images/icon.png') }}" alt="" width="56" height="56" class="size-12 shrink-0 rounded-xl sm:size-14">
                 <span class="min-w-0">
-                    <strong class="block text-2xl font-bold leading-none tracking-tight text-[#26332B] sm:text-3xl">Docu<span class="text-[#86562D]">TrackS</span></strong>
+                    <strong class="block text-2xl font-bold leading-none tracking-tight text-province-charcoal sm:text-3xl">Docu<span class="text-province-brown">TrackS</span></strong>
                     <span class="block text-sm font-semibold leading-tight text-slate-600">SDO – Nueva Vizcaya</span>
                     <span class="block text-sm leading-tight text-slate-600">Document Tracking System</span>
                 </span>
             </a>
-            <a href="{{ route('tracking.index') }}" aria-label="Track a document" class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 text-sm font-semibold text-[#216E39] hover:underline"><x-orchid-icon path="bs.search" class="size-5" /><span class="hidden sm:inline">Track a document</span></a>
+            <a href="{{ route('tracking.index') }}" aria-label="Track a document" class="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2 text-sm font-semibold text-province-green hover:underline"><x-orchid-icon path="bs.search" class="size-5" /><span class="hidden sm:inline">Track a document</span></a>
         </div>
     </header>
 
     <main class="mx-auto w-full max-w-3xl px-5 py-10 sm:px-8">
-        <p class="text-sm font-semibold uppercase tracking-wide text-[#216E39]">Fast Track</p>
-        <h1 class="mt-2 text-3xl font-semibold text-slate-900">Send a document</h1>
+        <h1 class="text-3xl font-semibold text-slate-900">Send a document</h1>
 @else
     <dialog id="submission-dialog" class="m-auto max-h-[calc(100vh-2rem)] w-[min(48rem,calc(100%-2rem))] overflow-y-auto rounded-sm border border-province-line bg-white p-0 text-slate-800 shadow-2xl backdrop:bg-slate-950/60" aria-labelledby="submission-dialog-title">
         <div class="p-5 sm:p-8">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-sm font-semibold uppercase tracking-wide text-[#216E39]">Fast Track</p>
-                    <h2 id="submission-dialog-title" class="mt-1 text-2xl font-semibold text-slate-900">Send a document</h2>
+                    <h2 id="submission-dialog-title" class="text-2xl font-semibold text-slate-900">Send a document</h2>
                 </div>
-                <button type="button" data-close-submission class="grid size-11 shrink-0 place-items-center rounded-sm border border-province-line-strong text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39]" aria-label="Close document form">
+                <button type="button" data-close-submission class="grid size-11 shrink-0 place-items-center rounded-sm border border-province-line-strong text-slate-600 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green" aria-label="Close document form">
                     <x-orchid-icon path="bs.x-lg" class="size-4" />
                 </button>
             </div>
@@ -78,12 +76,12 @@
 
             <div>
                 <label for="client-name" class="block text-sm font-semibold text-slate-800">Your name <span class="text-red-700">*</span></label>
-                <input id="client-name" name="name" value="{{ old('name') }}" required maxlength="180" autocomplete="name" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
+                <input id="client-name" name="name" value="{{ old('name') }}" required maxlength="180" autocomplete="name" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-province-green focus:outline-2 focus:outline-province-green">
             </div>
             <div>
                 <label for="client-office" class="block text-sm font-semibold text-slate-800">Your school or office <span class="text-red-700">*</span></label>
                 <div class="relative" data-combo>
-                    <input id="client-office" name="office" data-searchable data-options="origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="client-office-choices" value="{{ old('office') }}" required maxlength="180" placeholder="Search or enter your school or office" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong bg-white px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
+                    <input id="client-office" name="office" data-searchable data-options="origin-units" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="client-office-choices" value="{{ old('office') }}" required maxlength="180" placeholder="Search or enter your school or office" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong bg-white px-3 py-2 focus:border-province-green focus:outline-2 focus:outline-province-green">
                     <div id="client-office-choices" data-suggestions role="listbox" tabindex="-1" hidden class="focus:outline-none absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-sm border border-province-line-strong bg-white py-1 shadow-lg"></div>
                 </div>
                 <datalist id="origin-units">
@@ -96,15 +94,15 @@
             {{-- Optional: the sender gets an email each time the document is routed to an office. --}}
             <div class="sm:col-span-2">
                 <label for="client-email" class="block text-sm font-semibold text-slate-800">Email for updates <span class="font-normal text-slate-600">(optional)</span></label>
-                <input id="client-email" name="email" type="email" value="{{ old('email') }}" maxlength="255" autocomplete="email" inputmode="email" aria-describedby="client-email-hint @error('email') client-email-error @enderror" @error('email') aria-invalid="true" @enderror @class(['mt-2 min-h-11 w-full rounded-sm border px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]', 'border-province-line-strong' => ! $errors->has('email'), 'border-2 border-red-700' => $errors->has('email')])>
-                <p id="client-email-hint" class="mt-2 text-sm text-slate-600">We will email you each time your document is routed to an office. If our email is not in your Inbox, check your Spam folder and mark it "Report not spam".</p>
+                <input id="client-email" name="email" type="email" value="{{ old('email') }}" maxlength="255" autocomplete="email" inputmode="email" aria-describedby="client-email-hint @error('email') client-email-error @enderror" @error('email') aria-invalid="true" @enderror @class(['mt-2 min-h-11 w-full rounded-sm border px-3 py-2 focus:border-province-green focus:outline-2 focus:outline-province-green', 'border-province-line-strong' => ! $errors->has('email'), 'border-2 border-red-700' => $errors->has('email')])>
+                <p id="client-email-hint" class="mt-2 text-sm text-slate-600">We will email you each time your document is routed to an office. If our email is not in your Inbox, check your Spam folder and mark it “Report not spam”.</p>
                 @error('email')<p id="client-email-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
             </div>
 
             <div class="sm:col-span-2">
                 <label for="document-type" class="block text-sm font-semibold text-slate-800">Type of document <span class="text-red-700">*</span></label>
                 <div class="relative" data-combo>
-                    <input id="document-type" name="type" data-searchable data-options="document-types" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-type-choices" value="{{ old('type') }}" required placeholder="Search document types" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong bg-white px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
+                    <input id="document-type" name="type" data-searchable data-options="document-types" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="document-type-choices" value="{{ old('type') }}" required placeholder="Search document types" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong bg-white px-3 py-2 focus:border-province-green focus:outline-2 focus:outline-province-green">
                     <div id="document-type-choices" data-suggestions role="listbox" tabindex="-1" hidden class="focus:outline-none absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-y-auto rounded-sm border border-province-line-strong bg-white py-1 shadow-lg"></div>
                 </div>
                 <datalist id="document-types">
@@ -116,7 +114,7 @@
 
             <div class="sm:col-span-2">
                 <label for="document-title" class="block text-sm font-semibold text-slate-800">Document title <span class="text-red-700">*</span></label>
-                <input id="document-title" name="title" value="{{ old('title') }}" required maxlength="255" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">
+                <input id="document-title" name="title" value="{{ old('title') }}" required maxlength="255" autocomplete="off" class="mt-2 min-h-11 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-province-green focus:outline-2 focus:outline-province-green">
             </div>
 
             {{-- How the paper copy reaches the Records Unit; Records sees it when they look up the submission. --}}
@@ -128,8 +126,8 @@
                         'Official channel' => 'It comes through official mail or your school or office messenger.',
                     ] as $deliveryMethod => $deliveryHint)
                         @continue(! in_array($deliveryMethod, \App\Models\Document::DELIVERY_METHODS, true))
-                        <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border border-province-line-strong bg-white p-3 has-[:checked]:border-[#216E39] has-[:checked]:bg-[#216E39]/5">
-                            <input type="radio" name="delivery_method" value="{{ $deliveryMethod }}" required @checked(old('delivery_method') === $deliveryMethod) class="mt-0.5 size-5 shrink-0 accent-[#216E39]">
+                        <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border border-province-line-strong bg-white p-3 has-[:checked]:border-province-green has-[:checked]:bg-province-green/5">
+                            <input type="radio" name="delivery_method" value="{{ $deliveryMethod }}" required @checked(old('delivery_method') === $deliveryMethod) class="mt-0.5 size-5 shrink-0 accent-province-green">
                             <span><span class="block font-semibold text-slate-900">{{ $deliveryMethod }}</span><span class="block text-sm text-slate-600">{{ $deliveryHint }}</span></span>
                         </label>
                     @endforeach
@@ -140,14 +138,14 @@
             <div class="sm:col-span-2">
                 <label for="client-remarks" class="block text-sm font-semibold text-slate-800">Instructions for Records <span class="font-normal text-slate-600">(optional)</span></label>
                 <p id="client-remarks-hint" class="mt-1 text-sm text-slate-600">Enter destination offices or routing instructions.</p>
-                <textarea id="client-remarks" name="client_remarks" rows="3" maxlength="1000" autocomplete="off" aria-describedby="client-remarks-hint @error('client_remarks') client-remarks-error @enderror" class="mt-2 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-[#216E39] focus:outline-2 focus:outline-[#216E39]">{{ old('client_remarks') }}</textarea>
+                <textarea id="client-remarks" name="client_remarks" rows="3" maxlength="1000" autocomplete="off" aria-describedby="client-remarks-hint @error('client_remarks') client-remarks-error @enderror" class="mt-2 w-full rounded-sm border border-province-line-strong px-3 py-2 focus:border-province-green focus:outline-2 focus:outline-province-green">{{ old('client_remarks') }}</textarea>
                 @error('client_remarks')<p id="client-remarks-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
             </div>
 
             @if (config('app.document_uploads_enabled'))
             <div class="sm:col-span-2">
                 <label for="document-file" class="block text-sm font-semibold text-slate-800">Document file <span class="font-normal text-slate-600">(optional)</span></label>
-                <input id="document-file" name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.xls,.csv" class="mt-2 block w-full rounded-sm border border-province-line-strong bg-white p-3 text-sm file:mr-4 file:rounded-sm file:border-0 file:bg-[#216E39]/10 file:px-3 file:py-2 file:font-semibold file:text-[#216E39]">
+                <input id="document-file" name="attachment" type="file" accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.xls,.csv" class="mt-2 block w-full rounded-sm border border-province-line-strong bg-white p-3 text-sm file:mr-4 file:rounded-sm file:border-0 file:bg-province-green/10 file:px-3 file:py-2 file:font-semibold file:text-province-green">
             </div>
             @endif
 
@@ -155,26 +153,26 @@
             <div class="sm:col-span-2 rounded-sm border border-province-line bg-slate-50 p-4">
                 <h2 class="text-sm font-semibold text-slate-800">Privacy notice</h2>
                 <p class="mt-2 text-sm text-slate-700">We use your name, office and contact details only to process and track this document, and keep them as long as records rules require.</p>
-                <p class="mt-2 text-sm text-slate-700">Anyone who has the tracking number can see the document's history on the tracking page: the offices it went to, the status and dates, the SDO staff who handled each step, their remarks, your instructions for Records, and the name of the person who received or signed for it. Your own name, email address and signature are not shown there. Keep your tracking number private.</p>
+                <p class="mt-2 text-sm text-slate-700">Anyone who has the tracking number can see the document’s history on the tracking page: the offices it went to, the status and dates, the SDO staff who handled each step, their remarks, your instructions for Records, and the name of the person who received or signed for it. Your own name, email address and signature are not shown there. Keep your tracking number private.</p>
                 <p class="mt-2 text-sm text-slate-700">To see or correct your information, contact the Division's Data Protection Officer.</p>
                 <label class="mt-3 flex items-start gap-3 text-sm font-medium text-slate-800">
-                    <input type="checkbox" name="privacy_consent" value="1" required @checked(old('privacy_consent')) aria-describedby="privacy-consent-error" class="size-6 shrink-0 accent-[#216E39]">
+                    <input type="checkbox" name="privacy_consent" value="1" required @checked(old('privacy_consent')) aria-describedby="privacy-consent-error" class="size-6 shrink-0 accent-province-green">
                     <span>I have read the privacy notice and agree to the collection and use of my information for this document. <span class="text-red-700">*</span></span>
                 </label>
                 @error('privacy_consent')<p id="privacy-consent-error" class="mt-2 text-sm font-semibold text-red-700">{{ $message }}</p>@enderror
             </div>
 
             <div class="sm:col-span-2">
-                <button type="submit" data-submit-button class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#216E39] px-6 py-3 font-semibold text-white hover:bg-[#18542B] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#216E39] disabled:cursor-wait disabled:opacity-80">
+                <button type="submit" data-submit-button class="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-sm bg-province-green px-6 py-3 font-semibold text-white hover:bg-province-green-dark active:bg-province-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green disabled:cursor-wait disabled:opacity-80">
                     <span data-submit-idle class="inline-flex items-center gap-2"><x-orchid-icon path="bs.send" class="size-4" /> Send document</span>
-                    <span data-submit-busy hidden class="inline-flex items-center gap-2"><span class="size-5 animate-spin rounded-full border-[3px] border-white/40 border-t-white" aria-hidden="true"></span> Sending… please wait</span>
+                    <span data-submit-busy hidden class="inline-flex items-center gap-2"><span class="size-5 motion-safe:animate-spin rounded-full border-[3px] border-white/40 border-t-white" aria-hidden="true"></span> Sending… please wait</span>
                 </button>
             </div>
 
             {{-- Shown when sending takes longer than a moment (large files, slow connection). --}}
             <div data-submit-overlay hidden class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" role="status" aria-live="assertive">
                 <div class="flex max-w-sm flex-col items-center gap-4 rounded-sm bg-white p-6 text-center shadow-xl">
-                    <span class="size-12 animate-spin rounded-full border-4 border-[#216E39]/25 border-t-[#216E39]" aria-hidden="true"></span>
+                    <span class="size-12 motion-safe:animate-spin rounded-full border-4 border-province-green/25 border-t-province-green" aria-hidden="true"></span>
                     <p class="text-lg font-semibold text-slate-900">Sending your document…</p>
                     <p class="text-base text-slate-700">This can take a moment for large files or a slow connection. Please don't close or refresh this page.</p>
                 </div>
@@ -183,7 +181,8 @@
 @if (! $embedded)
     </main>
     <footer class="mx-auto w-full max-w-3xl px-5 pb-8 text-center sm:px-8">
-        <p class="text-sm text-slate-600">Department of Education &middot; Document Tracking System &middot; Developed by the SDO ICT Unit</p>
+        <p class="text-sm text-slate-600">Department of Education</p>
+        <p class="text-sm text-slate-600">Document Tracking System, developed by the SDO ICT Unit</p>
     </footer>
 @else
         </div>
@@ -211,7 +210,7 @@
                 option.dataset.choice = value;
                 option.setAttribute('role', 'option');
                 option.setAttribute('aria-selected', String(index === active));
-                option.className = 'block w-full whitespace-normal break-words px-3 py-2 text-left text-sm text-slate-800 hover:bg-[#216E39]/10 focus:bg-[#216E39]/10 focus:outline-none aria-selected:bg-[#216E39]/10';
+                option.className = 'block w-full whitespace-normal break-words px-3 py-2 text-left text-sm text-slate-800 hover:bg-province-green/10 focus:bg-province-green/10 focus:outline-none aria-selected:bg-province-green/10';
                 option.textContent = value;
                 return option;
             }));

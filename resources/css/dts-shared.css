@@ -1,5 +1,51 @@
 /* Shared by the admin panel (dts.css) and the public pages (app.css). Colors fall back for pages without DTS tokens. */
 
+/* Token block. The admin panel (dts.css) imports this file first and sets most of these again on its own :root
+   further down, so its values win there; the public pages (app.css) get the values below. */
+:root {
+    --dts-control-h: 44px;
+    --dts-input-border: #b3843f;
+    --dts-control-radius: 5px;
+    --dts-charcoal: #26332b;
+    --dts-green: #216e39;
+    --dts-surface-2: #f3f4f6;
+    --dts-text-strong: #334155;
+    --dts-control-h-sm: 44px;
+    --dts-border-strong: #b3843f;
+    --dts-cream: #f8f4e7;
+    --dts-green-soft: #e8f1e6;
+    --dts-warning-soft: #fff4d9;
+    --dts-warning-text: #866314;
+    --dts-brown: #86562d;
+    --dts-radius: 6px;
+    --dts-danger: #b52e3d;
+    --dts-danger-soft: #fcecef;
+    --dts-gold: #f2c230;
+    --dts-grid: #968a6a;
+    --dts-text-subtle: #556274;
+    --dts-text-xs: 0.875rem;
+    --dts-text-muted: #526174;
+    --dts-text-sm: 0.9375rem;
+    --dts-danger-text: #a12837;
+    /* Colours only the shared parts use. */
+    --dts-paper: #fff;
+    --dts-failed-edge: #b52e3d;
+    --dts-failed-text: #a12837;
+    --dts-hold-soft: #fff4d9;
+    --dts-hold-text: #866314;
+    --dts-done-wash: #f6faf5;
+    --dts-waiting-line: #e6e1d2;
+    --dts-step-line: #d8d2be;
+    --dts-dot-soft: #f1eee4;
+    --dts-dot-text: #526174;
+    --dts-returned-soft: #fcecef;
+    --dts-remark-soft: #fdf3d2;
+    --dts-remark-text: #765709;
+    --dts-cancelled-soft: #eceff3;
+    --dts-green-ring: rgb(33 110 57 / 35%);
+    --dts-green-ring-end: rgb(33 110 57 / 0%);
+}
+
 /* A hand cursor on everything clickable (browsers and Tailwind's reset show the arrow on buttons), and a "not
    allowed" cursor on disabled controls. :where() keeps this at zero specificity so specific rules still win. */
 :where(button, [type="button"], [type="submit"], [type="reset"], [role="button"], [role="tab"], summary, select, label[for], input[type="checkbox"], input[type="radio"], input[type="file"]):not(:disabled, [aria-disabled="true"]) {
@@ -15,12 +61,12 @@
    below. Orchid's searchable selects (Tom Select) are drawn to match in dts.css. */
 select:not([multiple], [size]) {
     appearance: none;
-    min-height: var(--dts-control-h, 44px);
+    min-height: var(--dts-control-h);
     padding: 6px 36px 6px 12px;
-    border: 1px solid var(--dts-input-border, #b3843f);
-    border-radius: var(--dts-control-radius, 5px);
-    background: #fff var(--dts-select-chevron) no-repeat right 12px center / 14px 14px;
-    color: var(--dts-charcoal, #26332b);
+    border: 1px solid var(--dts-input-border);
+    border-radius: var(--dts-control-radius);
+    background: var(--dts-paper) var(--dts-select-chevron) no-repeat right 12px center / 14px 14px;
+    color: var(--dts-charcoal);
     font: inherit;
     font-size: 1rem;
     line-height: 1.4;
@@ -31,23 +77,23 @@ select:not([multiple], [size]) {
 }
 
 select:not([multiple], [size]):hover:not(:disabled) {
-    border-color: var(--dts-green, #216e39);
+    border-color: var(--dts-green);
 }
 
 select:focus-visible {
-    outline: 2px solid var(--dts-green, #216e39);
+    outline: 2px solid var(--dts-green);
     outline-offset: 1px;
-    border-color: var(--dts-green, #216e39);
+    border-color: var(--dts-green);
 }
 
 select:not([multiple], [size]):disabled {
-    background-color: var(--dts-surface-2, #f3f4f6);
-    color: var(--dts-text-strong, #334155);
+    background-color: var(--dts-surface-2);
+    color: var(--dts-text-strong);
 }
 
 /* Compact size: the table toolbar's page-size box and the pager. */
 :is(.dts-page-size-toolbar, .dts-page-controls) select {
-    min-height: var(--dts-control-h-sm, 44px);
+    min-height: var(--dts-control-h-sm);
     padding: 3px 30px 3px 10px;
     background-position: right 10px center;
     font-size: 0.875rem;
@@ -61,10 +107,10 @@ select:not([multiple], [size]):disabled {
     width: 32px;
     min-height: 32px;
     padding: 0;
-    border: 1px solid var(--dts-border-strong, #b3843f);
+    border: 1px solid var(--dts-border-strong);
     border-radius: 4px;
-    background: #fff;
-    color: var(--dts-green, #216e39);
+    background: var(--dts-paper);
+    color: var(--dts-green);
     font: inherit;
     font-size: 0.875rem;
     font-weight: 600;
@@ -78,11 +124,11 @@ select:not([multiple], [size]):disabled {
 }
 
 .dts-copy-button:hover {
-    background: var(--dts-cream, #f8f4e7);
+    background: var(--dts-cream);
 }
 
 .dts-copy-button:focus-visible {
-    outline: 2px solid var(--dts-green, #216e39);
+    outline: 2px solid var(--dts-green);
     outline-offset: 2px;
 }
 
@@ -102,13 +148,13 @@ select:not([multiple], [size]):disabled {
 }
 
 .dts-copy-button[data-copy-state="copied"] {
-    border-color: var(--dts-green, #216e39);
-    background: var(--dts-green-soft, #e8f1e6);
+    border-color: var(--dts-green);
+    background: var(--dts-green-soft);
 }
 
 .dts-copy-button[data-copy-state="failed"] {
-    border-color: #b52e3d;
-    color: #a12837;
+    border-color: var(--dts-failed-edge);
+    color: var(--dts-failed-text);
 }
 
 /* Icon only: the label stays for screen readers ("Copy", then "Copied"); the hover text says the same. */
@@ -195,27 +241,27 @@ select:not([multiple], [size]):disabled {
 }
 
 [data-route-state="done"] .dts-route-state {
-    background: var(--dts-green, #216e39);
-    color: #fff;
+    background: var(--dts-green);
+    color: var(--dts-paper);
 }
 
 [data-route-state="paused"] .dts-route-state {
-    background: #fff4d9;
-    color: #866314;
+    background: var(--dts-hold-soft);
+    color: var(--dts-hold-text);
 }
 
 [data-route-state="active"] .dts-route-state {
-    border: 3px solid var(--dts-green-soft, #e8f1e6);
-    border-top-color: var(--dts-green, #216e39);
+    border: 3px solid var(--dts-green-soft);
+    border-top-color: var(--dts-green);
 }
 
 [data-route-state="done"] {
-    background: #f6faf5;
+    background: var(--dts-done-wash);
 }
 
 /* Offices of a paper submission that get the document once the paper copy reaches Records: not started yet. */
 [data-route-state="waiting"] .dts-route-state {
-    border: 3px solid #e6e1d2;
+    border: 3px solid var(--dts-waiting-line);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -234,8 +280,8 @@ select:not([multiple], [size]):disabled {
     margin-left: 6px;
     padding: 1px 8px;
     border-radius: 999px;
-    background: var(--dts-warning-soft, #fff4d9);
-    color: var(--dts-warning-text, #866314);
+    background: var(--dts-warning-soft);
+    color: var(--dts-warning-text);
     font-size: 0.875rem;
     font-weight: 650;
     vertical-align: 1px;
@@ -254,16 +300,16 @@ select:not([multiple], [size]):disabled {
 }
 
 .dts-route-link:hover {
-    background: var(--dts-cream, #f8f4e7);
+    background: var(--dts-cream);
 }
 
 .dts-route-link:focus-visible {
-    outline: 2px solid var(--dts-green, #216e39);
+    outline: 2px solid var(--dts-green);
     outline-offset: 2px;
 }
 
 .dts-route-link[aria-current="true"] {
-    box-shadow: inset 0 0 0 2px var(--dts-green, #216e39);
+    box-shadow: inset 0 0 0 2px var(--dts-green);
 }
 
 /* Step timeline (Fast Track and staff document page): colored step dots joined by a line. */
@@ -291,7 +337,7 @@ select:not([multiple], [size]):disabled {
     bottom: 2px;
     left: 15px;
     width: 2px;
-    background: #d8d2be;
+    background: var(--dts-step-line);
 }
 
 .dts-timeline-dot {
@@ -302,8 +348,8 @@ select:not([multiple], [size]):disabled {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    background: #f1eee4;
-    color: #526174;
+    background: var(--dts-dot-soft);
+    color: var(--dts-dot-text);
 }
 
 .dts-timeline-dot svg {
@@ -313,41 +359,41 @@ select:not([multiple], [size]):disabled {
 
 [data-kind="registered"] .dts-timeline-dot,
 [data-kind="received"] .dts-timeline-dot {
-    background: var(--dts-green-soft, #e8f1e6);
-    color: var(--dts-green, #216e39);
+    background: var(--dts-green-soft);
+    color: var(--dts-green);
 }
 
 [data-kind="moved"] .dts-timeline-dot {
-    background: var(--dts-cream, #f8f4e7);
-    color: var(--dts-brown, #86562d);
+    background: var(--dts-cream);
+    color: var(--dts-brown);
 }
 
 [data-kind="done"] .dts-timeline-dot,
 [data-kind="signed"] .dts-timeline-dot {
-    background: var(--dts-green, #216e39);
-    color: #fff;
+    background: var(--dts-green);
+    color: var(--dts-paper);
 }
 
 [data-kind="hold"] .dts-timeline-dot {
-    background: #fff4d9;
-    color: #866314;
+    background: var(--dts-hold-soft);
+    color: var(--dts-hold-text);
 }
 
 [data-kind="returned"] .dts-timeline-dot {
-    background: #fcecef;
-    color: #a12837;
+    background: var(--dts-returned-soft);
+    color: var(--dts-failed-text);
 }
 
 /* A withdrawn route: grey, not red, because nothing went wrong with the document itself. */
 /* A remark an office added: gold, so it reads as a note rather than a move. */
 [data-kind="remark"] .dts-timeline-dot {
-    background: #fdf3d2;
-    color: #765709;
+    background: var(--dts-remark-soft);
+    color: var(--dts-remark-text);
 }
 
 [data-kind="cancelled"] .dts-timeline-dot {
-    background: #eceff3;
-    color: #526174;
+    background: var(--dts-cancelled-soft);
+    color: var(--dts-dot-text);
 }
 
 /* Hover text: shown on hover and on keyboard focus, above the button. */
@@ -363,8 +409,8 @@ select:not([multiple], [size]):disabled {
     z-index: 30;
     padding: 4px 8px;
     border-radius: 4px;
-    background: var(--dts-charcoal, #26332b);
-    color: #fff;
+    background: var(--dts-charcoal);
+    color: var(--dts-paper);
     font-size: 0.875rem;
     font-weight: 600;
     letter-spacing: 0;
@@ -407,8 +453,8 @@ select:not([multiple], [size]):disabled {
     max-width: min(320px, calc(100vw - 8px));
     padding: 4px 8px;
     border-radius: 4px;
-    background: var(--dts-charcoal, #26332b);
-    color: #fff;
+    background: var(--dts-charcoal);
+    color: var(--dts-paper);
     font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.3;
@@ -449,31 +495,31 @@ details[open] > [data-tooltip]::after {
 /* Timeline steps reveal as they scroll into view (resources/js/timeline-reveal.js adds .dts-reveal-step, then
    .is-revealed): the dot pops in with a soft ring, then the line to the next step draws down. */
 @media (prefers-reduced-motion: no-preference) {
-    .dts-reveal-step .dts-timeline-dot {
+    .js-timeline-reveal .dts-reveal-step .dts-timeline-dot {
         opacity: 0;
         transform: scale(0.4);
         transition: opacity 220ms ease-out, transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
-    .dts-reveal-step.is-revealed .dts-timeline-dot {
+    .js-timeline-reveal .dts-reveal-step.is-revealed .dts-timeline-dot {
         opacity: 1;
         transform: scale(1);
         animation: dts-dot-ring 700ms ease-out 120ms;
     }
 
-    .dts-reveal-step::before {
+    .js-timeline-reveal .dts-reveal-step::before {
         transform: scaleY(0);
         transform-origin: top;
         transition: transform 520ms ease-out 180ms;
     }
 
-    .dts-reveal-step.is-revealed::before {
+    .js-timeline-reveal .dts-reveal-step.is-revealed::before {
         transform: scaleY(1);
     }
 
     @keyframes dts-dot-ring {
-        from { box-shadow: 0 0 0 0 rgb(33 110 57 / 35%); }
-        to { box-shadow: 0 0 0 10px rgb(33 110 57 / 0%); }
+        from { box-shadow: 0 0 0 0 var(--dts-green-ring); }
+        to { box-shadow: 0 0 0 10px var(--dts-green-ring-end); }
     }
 }
 
@@ -491,20 +537,20 @@ dts-signature-pad {
 .dts-signature-box {
     position: relative;
     min-width: 0;
-    border: 2px dashed var(--dts-input-border, #b3843f);
-    border-radius: var(--dts-radius, 6px);
-    background: #fff;
+    border: 2px dashed var(--dts-input-border);
+    border-radius: var(--dts-radius);
+    background: var(--dts-paper);
 }
 
 dts-signature-pad.is-signed .dts-signature-box {
     border-style: solid;
-    border-color: var(--dts-green, #216e39);
+    border-color: var(--dts-green);
 }
 
 dts-signature-pad.is-invalid .dts-signature-box {
     border-style: solid;
-    border-color: var(--dts-danger, #b52e3d);
-    background: var(--dts-danger-soft, #fcecef);
+    border-color: var(--dts-danger);
+    background: var(--dts-danger-soft);
 }
 
 .dts-signature-box canvas {
@@ -518,7 +564,7 @@ dts-signature-pad.is-invalid .dts-signature-box {
 }
 
 .dts-signature-box:focus-within {
-    outline: 3px solid var(--dts-gold, #f2c230);
+    outline: 3px solid var(--dts-gold);
     outline-offset: 2px;
 }
 
@@ -529,9 +575,9 @@ dts-signature-pad.is-invalid .dts-signature-box {
     bottom: 36px;
     left: 24px;
     padding-top: 4px;
-    border-top: 1px solid var(--dts-grid, #968a6a);
-    color: var(--dts-text-subtle, #556274);
-    font-size: var(--dts-text-xs, 0.875rem);
+    border-top: 1px solid var(--dts-grid);
+    color: var(--dts-text-subtle);
+    font-size: var(--dts-text-xs);
     text-align: center;
     pointer-events: none;
 }
@@ -561,12 +607,12 @@ dts-signature-pad.is-invalid .dts-signature-box {
     flex: 1 1 260px;
     min-width: 0;
     margin: 0;
-    color: var(--dts-text-muted, #526174);
-    font-size: var(--dts-text-sm, 0.9375rem);
+    color: var(--dts-text-muted);
+    font-size: var(--dts-text-sm);
 }
 
 dts-signature-pad.is-invalid .dts-signature-hint {
-    color: var(--dts-danger-text, #a12837);
+    color: var(--dts-danger-text);
     font-weight: 600;
 }
 

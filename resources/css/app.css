@@ -1,3 +1,10 @@
+/* Hallmark · checked: 2026-11-04 · genre: modern-minimal (inferred)
+ * floor: 2 open (19 "SDO – Nueva Vizcaya" and 48 the wordmark class, both pinned by tests) · fixed: 12, 18, 26a, 26b, 27, 34, 48, 50, 54, 62, 63, 67, F1 · structural: 3 printed (3, 24b, 58)
+ * built: the project · redesign: polish · v2.0.0 */
+/* Hallmark · waive 81 · one empty tile, Records Unit counter, records.jpg not in public/images/landing · the office has not supplied its Records Unit counter photo yet; the tile is replaced when the file lands */
+/* Hallmark · dismissed 74 · the slate greys are the project's own neutral scale, shared with the admin panel */
+/* Hallmark · dismissed 49 · "Sending… please wait" is the busy label of a full-width button, and "Get updates on this phone" stays on one line at 375px (208px wide, 44px tall) */
+/* Hallmark · answered F24 · the send-a-document dialog keeps its gold edge and its shadow: the edge carries the brand, the shadow lifts it off the dimmed page */
 @import 'tailwindcss';
 @import './dts-shared.css';
 
@@ -16,13 +23,32 @@
     /* Card and field borders on the public pages (gold line; stronger brown for fields and emphasis). */
     --color-province-line: #d8c66f;
     --color-province-line-strong: #b3843f;
+    /* Hover, soft and edge steps of the brand colours, and the photo stand-in surfaces. */
+    --color-province-green-dark: #18542b;
+    --color-province-green-soft: #e8f1e6;
+    --color-province-green-wash: #eef5ec;
+    --color-province-gold-dark: #d9a91c;
+    --color-province-gold-edge: #d9a520;
+    --color-province-gold-soft: #fff8e1;
+    --color-province-gold-wash: #fffbea;
+    --color-province-gold-ink: #5b4300;
+    --color-province-paper: #fff;
+    --color-province-stand-in: #efe7d2;
+    --color-province-stand-in-line: #e6dcc3;
+    --color-province-scrim: rgb(0 0 0 / 55%);
+}
+
+/* Nothing on the public pages may scroll sideways; clip (not hidden) keeps sticky headers working. */
+html,
+body {
+    overflow-x: clip;
 }
 
 /* Public pages: the copy button matches the Refresh button (44px square, green outline). */
 .dts-public-page .dts-copy-button {
     width: 44px;
     min-height: 44px;
-    border-color: #216e39;
+    border-color: var(--color-province-green);
 }
 
 .dts-public-status-guide[open] .dts-public-status-guide-chevron,
@@ -75,6 +101,12 @@
     to { transform: translate3d(0, 0, 0); }
 }
 
+/* Hovering pauses the photos, and the Pause photos button (document-tracking.blade.php) stops them until pressed again. */
+.dts-photo-marquee:hover .dts-photo-track,
+.dts-photo-marquee.is-paused .dts-photo-track {
+    animation-play-state: paused;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .dts-photo-track,
     .dts-photo-track.is-reverse {
@@ -89,7 +121,7 @@
     aspect-ratio: 4 / 3;
     margin: 0;
     overflow: hidden;
-    background: #f8f4e7;
+    background: var(--color-province-cream);
 }
 
 .dts-photo-card img {
@@ -105,8 +137,8 @@
     inset-inline: 0;
     bottom: 0;
     padding: 1.5rem 0.875rem 0.625rem;
-    background: linear-gradient(to top, rgb(0 0 0 / 55%), transparent);
-    color: #fff;
+    background: linear-gradient(to top, var(--color-province-scrim), transparent);
+    color: var(--color-province-paper);
     font-size: 0.875rem;
     font-weight: 600;
 }
@@ -115,13 +147,13 @@
     display: grid;
     height: 100%;
     place-items: center;
-    border: 1px solid #e6dcc3;
-    color: #86562d;
+    border: 1px solid var(--color-province-stand-in-line);
+    color: var(--color-province-brown);
 }
 
 /* Placeholders alternate two creams so the tiles still read as separate pictures. */
 .dts-photo-card:nth-child(even) .dts-photo-placeholder {
-    background: #efe7d2;
+    background: var(--color-province-stand-in);
 }
 
 .dts-photo-placeholder svg {
@@ -132,7 +164,7 @@
 
 .dts-photo-placeholder + figcaption {
     background: none;
-    color: #26332b;
+    color: var(--color-province-charcoal);
     text-align: center;
 }
 
@@ -149,7 +181,7 @@
 /* Printable receipt (document-receipt.blade.php): only the receipt card prints, without the page background. */
 @media print {
     .dts-receipt-page {
-        background: #fff;
+        background: var(--color-province-paper);
     }
 
     .dts-receipt-actions {
@@ -158,6 +190,6 @@
 
     .dts-receipt {
         margin: 0 auto;
-        border-color: #26332b;
+        border-color: var(--color-province-charcoal);
     }
 }
