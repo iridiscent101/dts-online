@@ -316,7 +316,8 @@ return [
     |
     */
 
-    'prevents_abandonment' => true,
+    // Off: the browser's "Leave page?" box also fired after harmless changes such as ticking a row or rows per page.
+    'prevents_abandonment' => false,
 
     /*
      |--------------------------------------------------------------------------

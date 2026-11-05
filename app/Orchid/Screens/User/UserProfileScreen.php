@@ -8,12 +8,14 @@ use App\Auth\AccountActivity;
 use App\Http\Controllers\RecoveryEmailController;
 use App\Http\Middleware\RequirePasswordChange;
 use App\Models\User;
+use App\Orchid\Layouts\User\ProfileConfirmPasswordLayout;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
 use App\Rules\EmailDomainReceivesMail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Orchid\Access\Impersonation;
@@ -99,7 +101,7 @@ class UserProfileScreen extends Screen
         }
 
         return [
-            Layout::block(UserEditLayout::class)
+            Layout::block([UserEditLayout::class, ProfileConfirmPasswordLayout::class])
                 ->title(__('Profile Information'))
                 ->description(__('Name, sign-in email and recovery email.'))
                 ->commands([
@@ -138,6 +140,19 @@ class UserProfileScreen extends Screen
         ]);
 
         $user = $request->user();
+
+        // The sign-in and recovery emails decide where password resets go, so changing them needs the same proof as
+        // changing the password. Otherwise a few minutes at an unattended computer become a lasting takeover.
+        $emailChanging = Str::lower(trim((string) $request->input('user.email'))) !== Str::lower((string) $user->email)
+            || ($request->has('user.notification_email')
+                && (filled($request->input('user.notification_email')) ? Str::lower(trim((string) $request->input('user.notification_email'))) : null) !== $user->notification_email);
+        if ($emailChanging) {
+            $request->validate([
+                'current_password' => ['required', 'current_password:'.config('platform.guard', 'web')],
+            ], [
+                'current_password.required' => __('Enter your current password to change the sign-in or recovery email.'),
+            ]);
+        }
         if ($request->has('user.notification_email')) {
             $user->setNotificationEmail($request->input('user.notification_email'));
         }

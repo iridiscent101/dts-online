@@ -375,6 +375,7 @@ class DocumentNotificationTest extends TestCase
         $loginEmail = $user->email;
 
         $this->actingAs($user)->post(route('platform.profile').'/save', [
+            'current_password' => 'password',
             'user' => ['name' => $user->name, 'email' => $loginEmail, 'notification_email' => 'alerts@gmail.com'],
         ])->assertSessionHasNoErrors();
 
@@ -382,6 +383,7 @@ class DocumentNotificationTest extends TestCase
         $this->assertSame('alerts@gmail.com', $user->fresh()->notification_email);
 
         $this->post(route('platform.profile').'/save', [
+            'current_password' => 'password',
             'user' => ['name' => $user->name, 'email' => $loginEmail, 'notification_email' => ''],
         ])->assertSessionHasNoErrors();
 

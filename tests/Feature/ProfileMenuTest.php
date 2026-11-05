@@ -111,7 +111,7 @@ class ProfileMenuTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('platform.logout'))
-            ->assertRedirect(route('tracking.index'));
+            ->assertRedirect(route('platform.login'));
 
         $this->assertGuest();
     }

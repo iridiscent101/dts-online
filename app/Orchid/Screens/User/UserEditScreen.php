@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -191,6 +192,17 @@ class UserEditScreen extends Screen
             'user.roles.*' => ['integer', Rule::exists(Role::class, 'id')],
         ]);
 
+        if ($user->exists && ! $request->user()?->isAdministrator()) {
+            abort_unless($request->user()->canManageAccount($user), 403);
+
+            $newEmail = Str::lower(trim((string) data_get($validated, 'user.email')));
+            $newRecovery = filled($request->input('user.notification_email')) ? Str::lower(trim((string) $request->input('user.notification_email'))) : null;
+            $credentialsChanging = $request->filled('user.password')
+                || $newEmail !== Str::lower((string) $user->email)
+                || ($request->has('user.notification_email') && $newRecovery !== $user->notification_email);
+            abort_if($credentialsChanging && ! $request->user()->canResetCredentialsOf($user), 403);
+        }
+
         if (! $request->user()?->isAdministrator()
             && ($request->has('user.office_ids') || $request->boolean('user.offices_submitted'))) {
             $submittedOffices = Office::query()->whereKey($this->officeIdsFromRequest($request))->pluck('name')->sort()->values()->all();
@@ -253,6 +265,7 @@ class UserEditScreen extends Screen
     public function deactivate(User $user, Request $request): RedirectResponse
     {
         abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
+        abort_unless($request->user()?->canManageAccount($user), 403);
 
         if (! $user->isDeactivated()) {
             $user->deactivate($request->user());
@@ -266,6 +279,7 @@ class UserEditScreen extends Screen
     public function reactivate(User $user, Request $request): RedirectResponse
     {
         abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
+        abort_unless($request->user()?->canManageAccount($user), 403);
 
         if ($user->isDeactivated()) {
             $user->reactivate($request->user());

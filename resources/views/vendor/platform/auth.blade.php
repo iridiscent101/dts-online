@@ -3,7 +3,7 @@
 
 @section('body')
     <div class="dts-auth">
-        <aside class="dts-auth-hero" style="--dts-auth-photo: url('{{ asset('images/landing/lobby.jpg') }}')">
+        <aside class="dts-auth-hero" @if (request()->routeIs('platform.login')) data-mesh-drift @endif style="--dts-auth-photo: url('{{ asset('images/landing/lobby.jpg') }}')">
             <div class="dts-auth-hero__inner">
                 <div class="dts-auth-hero__org">
                     <img src="{{ asset('images/SDO_NV.png') }}" alt="" width="64" height="64">

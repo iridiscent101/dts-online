@@ -68,7 +68,7 @@ class DocumentRoutingService
                 'remarks' => 'Correction reason: '.$reason,
                 'acted_by' => $user->id,
             ]);
-            $assignment->delete();
+            $this->undoSendToAssignment($currentDocument, $assignment, $originalMovement);
 
             $replacementMovement = $currentDocument->movements()->create([
                 'action' => $isInitialSend ? DocumentMovement::ACTION_SENT : DocumentMovement::ACTION_FORWARDED,
@@ -133,7 +133,7 @@ class DocumentRoutingService
                 ]);
             }
 
-            $assignment->delete();
+            $this->undoSendToAssignment($currentDocument, $assignment, $originalMovement);
             $originalMovement->delete();
 
             $remaining = $currentDocument->officeAssignments()
@@ -166,6 +166,30 @@ class DocumentRoutingService
                 'deletion_reason' => $reason,
             ]);
         });
+    }
+
+    /**
+     * Takes back a mistaken send. Forward reopens an office's finished row instead of adding a new one, so deleting the
+     * row would also erase that office's own finished route (and its access to the document). Put the row back to the
+     * office's last finished step from before this send; delete it only when the send created it.
+     */
+    private function undoSendToAssignment(Document $document, DocumentOfficeAssignment $assignment, DocumentMovement $send): void
+    {
+        $finished = $document->movements()
+            ->where('id', '<', $send->id)
+            ->where('to_office', $assignment->office)
+            ->whereIn('to_status', DocumentMovement::FINISHED_STATUSES)
+            ->reorder()
+            ->latest('id')
+            ->first();
+
+        if ($finished === null) {
+            $assignment->delete();
+
+            return;
+        }
+
+        $assignment->update(['status' => $finished->to_status, 'movement_id' => $finished->id]);
     }
 
     public function addAdditionalRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $remarks, string $reason): void

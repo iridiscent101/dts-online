@@ -62,10 +62,16 @@ class LimitLoginAttempts
             throw ValidationException::withMessages(['email' => self::lockedMessage($seconds)]);
         }
 
+        $guard = Auth::guard(config('platform.guard', 'web'));
+        // Someone already signed in is redirected before any password check, so their post proves nothing about the
+        // typed email. Leave every counter alone; otherwise any account could wipe another account's lockout.
+        if ($guard->check()) {
+            return $next($request);
+        }
+
         $response = $next($request);
 
-        $guard = Auth::guard(config('platform.guard', 'web'));
-        if ($guard->check()) {
+        if ($guard->check() && Str::lower((string) $guard->user()?->email) === $email) {
             RateLimiter::clear($key);
             Cache::forget($key.':lockouts');
 

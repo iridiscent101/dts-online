@@ -417,7 +417,7 @@ body::before {
             margin: 0;
             padding: 16px !important;
             border: 1px solid var(--dts-border);
-            border-radius: 6px;
+            border-radius: 0;
             background: var(--dts-paper);
     }
 
@@ -479,11 +479,11 @@ body::before {
     }
 
     & [data-controller="table"] {
-            /* clip, not hidden: it rounds the corners the same way but lets the footer pager stay sticky. */
+            /* Clip without blocking the sticky footer pager. */
             overflow: clip;
             margin-top: 16px;
             border: 1px solid var(--dts-grid);
-            border-radius: 6px !important;
+            border-radius: 0 !important;
             background: var(--dts-paper);
             box-shadow: none !important;
     }
@@ -906,11 +906,11 @@ body::before {
 
 :is(.page-platform-documents, .page-platform-incoming, .page-platform-outgoing, .page-platform-archived) {
     & [data-controller="table"] {
-            /* clip, not hidden: it rounds the corners the same way but lets the footer pager stay sticky. */
+            /* Clip without blocking the sticky footer pager. */
             overflow: clip;
             margin-top: 16px;
             border: 1px solid var(--dts-grid);
-            border-radius: 6px !important;
+            border-radius: 0 !important;
             background: var(--dts-paper);
             box-shadow: none !important;
     }
@@ -1397,10 +1397,10 @@ body::before {
 }
 
 .dts-table-frame {
-    /* clip, not hidden: rounds the corners without blocking the sticky scrollbar and pager below it. */
+    /* Clip without blocking the sticky scrollbar and pager below it. */
     overflow: clip;
     border: 1px solid var(--dts-grid);
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--dts-paper);
 }
 
@@ -1938,20 +1938,15 @@ turbo-frame:has(dts-column-menu) [data-controller="table"]>footer .btn-group {
 .dts-search-panel {
     padding: 16px;
     border: 1px solid var(--dts-border);
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--dts-paper);
-}
-
-.dts-search-panel:has(+ .dts-registry-panel:not([hidden])) {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
 }
 
 .dts-search-panel-more {
     padding: 16px;
     border: 1px solid var(--dts-border);
     border-top: 0;
-    border-radius: 0 0 6px 6px;
+    border-radius: 0;
     background: var(--dts-surface);
 }
 
@@ -2080,12 +2075,14 @@ a.dts-record-status:hover,
     align-items: baseline;
 }
 
+/* Statuses that change hands or finish carry a mark (forwarded, returned, rejected, cancelled, on hold, finished),
+   so they read without relying on colour. The others are words only: no decorative dot. */
 .dts-record-status::before {
-    content: var(--dts-status-mark, '\25CF');
+    content: var(--dts-status-mark, none);
     flex-shrink: 0;
     /* Spacing on the mark itself: some tables show badges as inline-block, where a flex gap does nothing. */
     margin-right: 5px;
-    font-size: var(--dts-status-mark-size, 0.7em);
+    font-size: 1em;
     font-weight: 700;
 }
 
@@ -2095,7 +2092,6 @@ a.dts-record-status:hover,
 
 .dts-record-status[data-status="forwarded"] {
     --dts-status-mark: '\2192';
-    --dts-status-mark-size: 1em;
     color: var(--dts-info-text);
     background: var(--dts-info-soft);
 }
@@ -2107,21 +2103,18 @@ a.dts-record-status:hover,
 
 .dts-record-status[data-status="returned"] {
     --dts-status-mark: '\21A9';
-    --dts-status-mark-size: 1em;
     color: var(--dts-danger-text);
     background: var(--dts-danger-soft);
 }
 
 .dts-record-status[data-status="rejected"] {
     --dts-status-mark: '\2715';
-    --dts-status-mark-size: 0.9em;
     color: var(--dts-danger-text);
     background: var(--dts-danger-soft);
 }
 
 .dts-record-status[data-status="cancelled"] {
     --dts-status-mark: '\2298';
-    --dts-status-mark-size: 1em;
     color: var(--dts-text-muted);
     background: var(--dts-cancelled-soft);
 }
@@ -2132,10 +2125,10 @@ a.dts-record-status:hover,
     background: var(--dts-violet-soft);
 }
 
-/* Finished work: a check mark. Completed and released are solid so they stand out from "Received". */
+/* Finished work: a check mark. Completed is solid green; Released (handed back to the client) is outlined, so the
+   two finished states are told apart at a glance and both stand out from "Received". */
 .dts-record-status:is([data-status="approved"], [data-status="completed"], [data-status="released"], [data-status="archived"]) {
     --dts-status-mark: '\2713';
-    --dts-status-mark-size: 1em;
 }
 
 .dts-record-status[data-status="approved"] {
@@ -2143,9 +2136,15 @@ a.dts-record-status:hover,
     background: var(--dts-green-soft);
 }
 
-.dts-record-status:is([data-status="completed"], [data-status="released"]) {
+.dts-record-status[data-status="completed"] {
     color: var(--dts-paper);
     background: var(--dts-green);
+}
+
+.dts-record-status[data-status="released"] {
+    color: var(--dts-green-dark);
+    background: var(--dts-paper);
+    box-shadow: inset 0 0 0 1.5px var(--dts-green);
 }
 
 .dts-record-status[data-status="archived"] {
@@ -2240,31 +2239,30 @@ a.dts-record-status:hover,
 
 .dts-record-status[data-status="on-hold"] {
     --dts-status-mark: '\2016';
-    --dts-status-mark-size: 1em;
     color: var(--dts-brown);
     background: var(--dts-cream);
     box-shadow: inset 0 0 0 1px var(--dts-border);
 }
 
+/* The list measures its own width (container query below), so every office in a column is laid out the same way:
+   status under the name in a narrow column, beside it in a wide one. */
 .dts-office-status-list {
     display: grid;
     max-width: 100%;
-    border: 1px solid var(--dts-border);
-    border-radius: 5px;
-    overflow: hidden;
+    min-width: 0;
+    container-type: inline-size;
 }
 
-/* Office name and status share a row when there is room; in a narrow column the badge drops below the name
-   instead of squeezing it to one letter per line. */
 .dts-office-status-item {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
     align-items: center;
     gap: 4px 10px;
     width: 100%;
     min-width: 0;
-    padding: 8px 10px;
+    padding: 6px 8px;
+    border-radius: 4px;
     border-bottom: 1px solid var(--dts-border);
     background: transparent;
     color: var(--dts-text-strong);
@@ -2276,6 +2274,12 @@ a.dts-record-status:hover,
     border-bottom: 0;
 }
 
+@container (min-width: 18rem) {
+    .dts-office-status-item {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+}
+
 .dts-office-status-item:hover,
 .dts-office-status-item:focus-visible {
     color: var(--dts-green-dark);
@@ -2283,10 +2287,17 @@ a.dts-record-status:hover,
     box-shadow: inset 4px 0 var(--dts-green);
 }
 
-/* The list clips overflow, so the outline sits inside the item. */
 .dts-office-status-item:focus-visible {
     outline: 3px solid var(--dts-green);
     outline-offset: -3px;
+}
+
+@media (max-width: 575px) {
+    .dts-office-status-item {
+        min-height: 44px;
+        border: 1px solid var(--dts-green-a25);
+        background: var(--dts-green-soft);
+    }
 }
 
 #document-routing-heading {
@@ -2294,7 +2305,6 @@ a.dts-record-status:hover,
 }
 
 .dts-office-status-name {
-    flex: 1 1 8rem;
     min-width: 0;
     overflow-wrap: break-word;
     white-space: normal; /* registry cells are nowrap (Orchid's text-truncate) */
@@ -3668,11 +3678,13 @@ a.dts-record-status:hover,
     color: var(--dts-green-dark);
     font-size: var(--dts-text);
     font-weight: 700;
+    box-shadow: 0 2px 5px var(--dts-shadow-16);
     cursor: pointer;
 }
 
 .dts-action-choice:hover {
     background: var(--dts-green-soft);
+    box-shadow: 0 4px 10px var(--dts-shadow-16);
 }
 
 .dts-action-choice.is-primary:not([aria-pressed="true"]) {
@@ -3877,6 +3889,13 @@ a.dts-record-status:hover,
     flex-wrap: wrap;
     color: var(--dts-text-muted);
     font-size: 0.875rem;
+}
+
+.dts-footer-deped {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
 }
 
 
@@ -7176,8 +7195,8 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 
 /* Before an office receives its route: one prominent Receive button and a short note (dts.js syncReceiveOnly). */
 .dts-receive-first {
-    margin: 0 0 12px;
-    padding: 10px 12px;
+    margin: 0;
+    padding: 7px 12px;
     border-left: 4px solid var(--dts-green);
     border-radius: 4px;
     background: var(--dts-green-soft);
@@ -7197,6 +7216,17 @@ dts-workflow-routing > .dts-workspace-fields:first-child {
 
 .dts-button.dts-button-receive:hover:not(:disabled) {
     background: var(--dts-green-dark);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .dts-button.dts-button-receive:not(:disabled) {
+        animation: dts-receive-pulse 2.4s ease-out infinite;
+    }
+
+    @keyframes dts-receive-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 transparent; }
+        45% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--dts-green) 25%, transparent); }
+    }
 }
 
 /* "Add remark": a separate control under the routing form, for received, active routes. */
@@ -7689,14 +7719,6 @@ body .invalid-feedback {
     height: 0;
 }
 
-/* Status badges in capitals everywhere (staff lists, queue, workspace, guides). Display only: the text stays
-   "Pending", "Received"…, so search, filters and screen readers are unchanged. */
-.dts-record-status {
-}
-
-:is(.dts-record-timeline, .dts-staff-timeline) .dts-timeline-status {
-}
-
 /* Workspace history: remarks are shown in full under the entry (they used to sit behind "View remarks"). */
 .dts-workspace-history-remarks > strong {
     display: block;
@@ -7746,14 +7768,12 @@ body .invalid-feedback {
 
 /* Document editor: the assigned offices once processing has started (Document::routeListIsLocked), read-only. */
 .dts-route-list-locked .dts-route-locked-hint {
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
+    display: block;
 }
 
 .dts-route-list-locked .dts-route-locked-hint svg {
-    flex: 0 0 auto;
-    margin-top: 3px;
+    margin-right: 8px;
+    vertical-align: -2px;
 }
 
 .dts-route-locked-list {
@@ -7792,8 +7812,11 @@ body .invalid-feedback {
 
 /* Help under a field inside a bold label (the optional receiver's name at Release) reads as plain text. */
 .dts-workspace-shared-remarks .dts-field-hint {
+    min-width: 0;
     margin-top: 0;
     font-weight: 400;
+    white-space: normal;
+    overflow-wrap: break-word;
 }
 
 /* Page-loading cover (see pageLoading in dts.js). While Turbo fetches the next page or a form is saving, a light cover
@@ -7957,14 +7980,57 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     background: var(--dts-surface);
 }
 
+/* The office photo and its green shade sit on their own layer (::before) so they can drift in slowly, a gentle zoom
+   in and back out over a minute, while the text above stays still. Reduced motion keeps the photo still. */
 .dts-auth-hero {
     position: relative;
     display: none;
+    overflow: hidden;
+    isolation: isolate;
     color: var(--dts-paper);
+    background: var(--dts-green-dark);
+}
+
+.dts-auth-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     background:
         linear-gradient(160deg, var(--dts-green-dark-a94) 0%, var(--dts-green-dark-a86) 55%, var(--dts-charcoal-a92) 100%),
-        var(--dts-auth-photo) center / cover no-repeat,
-        var(--dts-green-dark);
+        var(--dts-auth-photo) center / cover no-repeat;
+    transform-origin: 50% 40%;
+}
+
+.dts-auth-hero.is-mesh::before {
+    z-index: 1;
+    background: linear-gradient(160deg, rgba(18, 29, 33, 0.72), rgba(18, 29, 33, 0.48) 55%, rgba(18, 29, 33, 0.8));
+    animation: none;
+    transform: none;
+    pointer-events: none;
+}
+
+.dts-auth-mesh {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* The photo gets its own GPU layer (will-change, scale3d) so the browser scales the finished image instead of
+   redrawing it every frame, which made it shimmer and shake. */
+@media (prefers-reduced-motion: no-preference) {
+    .dts-auth-hero::before {
+        will-change: transform;
+        backface-visibility: hidden;
+        animation: dts-auth-photo-zoom 30s ease-in-out infinite alternate;
+    }
+
+    @keyframes dts-auth-photo-zoom {
+        from { transform: scale3d(1, 1, 1); }
+        to { transform: scale3d(1.12, 1.12, 1); }
+    }
 }
 
 .dts-auth-hero::after {
@@ -7976,6 +8042,8 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 }
 
 .dts-auth-hero__inner {
+    position: relative;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -8151,7 +8219,10 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
 }
 
 .dts-auth .dts-footer {
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    gap: 8px;
     margin-top: 24px;
     padding: 0;
     text-align: center;
@@ -8525,6 +8596,11 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
         padding-bottom: 18px !important;
         margin-bottom: 12px;
     }
+}
+
+/* Orchid adds an empty search divider above the menu when sidebar search is disabled. */
+#headerMenuCollapse > .divider {
+    display: none;
 }
 
 /* The brand fits inside the green block: it may shrink, and the subtitles wrap instead of being cut off. */

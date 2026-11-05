@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Auth\AccountActivity;
 use App\Auth\DtsUserProvider;
 use App\Auth\ResetUserPassword;
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Models\User;
 use App\Support\EmailLink;
@@ -22,6 +23,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Fortify;
 use Orchid\Icons\IconComponent;
+use Orchid\Platform\Http\Controllers\LoginController as OrchidLoginController;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -32,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Fortify::ignoreRoutes();
         $this->app->bind(IconComponent::class, OrchidIcon::class);
+        // Logout goes back to the sign-in page (see the subclass).
+        $this->app->bind(OrchidLoginController::class, LoginController::class);
     }
 
     /**

@@ -73,7 +73,7 @@ body {
     display: grid;
     gap: 0;
     width: 160%;
-    transform: translate(-50%, -50%) rotate(-4deg);
+    transform: translate(-50%, -50%) rotate(-3deg);
 }
 
 .dts-photo-row {
@@ -169,11 +169,11 @@ body {
 
 @media (min-width: 640px) {
     .dts-photo-marquee {
-        height: 30rem;
+        height: 26rem;
     }
 
     .dts-photo-card {
-        width: 28rem;
+        width: 24rem;
     }
 }
 

@@ -2,6 +2,7 @@ import './floating-tooltip.js';
 import './signature-pad.js';
 import './copy-button.js';
 import './timeline-reveal.js';
+import './mesh-drift.js';
 
 const motionAllowed = () => !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -175,14 +176,23 @@ function showDtsDialog({ type = 'confirm', title, message, confirmLabel = 'Conti
             </div>`;
         dialog.addEventListener('click', (event) => {
             if (event.target.closest('[data-dialog-cancel]')) dialog.close('cancel');
-            if (event.target.closest('[data-dialog-confirm]')) dialog.close('confirm');
+            if (event.target.closest('[data-dialog-confirm]')) {
+                const input = dialog.querySelector('#dts-dialog-input');
+                if (dialog.dataset.type === 'prompt' && !input.value.trim()) {
+                    input.setCustomValidity('Enter a reason.');
+                    input.reportValidity();
+                    return;
+                }
+                dialog.close('confirm');
+            }
         });
         dialog.querySelector('#dts-dialog-input').addEventListener('keydown', (event) => {
             if (event.key === 'Enter') {
                 event.preventDefault();
-                dialog.close('confirm');
+                dialog.querySelector('[data-dialog-confirm]').click();
             }
         });
+        dialog.querySelector('#dts-dialog-input').addEventListener('input', (event) => event.target.setCustomValidity(''));
         document.body.append(dialog);
     }
 
@@ -196,8 +206,10 @@ function showDtsDialog({ type = 'confirm', title, message, confirmLabel = 'Conti
     const inputWrap = dialog.querySelector('[data-dialog-input-wrap]');
     const input = dialog.querySelector('#dts-dialog-input');
     inputWrap.hidden = type !== 'prompt';
-    inputWrap.querySelector('label').textContent = label;
+    inputWrap.querySelector('label').textContent = `${label} *`;
     input.value = value;
+    input.required = type === 'prompt';
+    input.setCustomValidity('');
     const cancel = dialog.querySelector('[data-dialog-cancel]');
     cancel.hidden = type === 'alert';
     const confirm = dialog.querySelector('[data-dialog-confirm]');
@@ -1789,7 +1801,7 @@ class WorkflowRouting extends HTMLElement {
             note = document.createElement('p');
             note.className = 'dts-receive-first';
             note.dataset.receiveFirst = '';
-            note.textContent = 'Receive this document first. Your available routing actions appear after your office receives it.';
+            note.textContent = 'Receive this document first.';
             (this.actionChoices ?? this.querySelector('[data-workflow-action]')?.closest('label, .dts-field'))?.before(note);
         }
         if (note) note.hidden = !this.receiveOnly;

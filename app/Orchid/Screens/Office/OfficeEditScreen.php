@@ -120,6 +120,31 @@ class OfficeEditScreen extends Screen
                 ]);
             }
 
+            $newName = $validated['office']['name'];
+            $nameChanging = ! $office->exists || $newName !== $office->name;
+
+            // Records Unit privileges come from the office name, and office membership is an administrator's call, so
+            // only an administrator may give an office a Records Unit name.
+            if ($nameChanging && in_array($newName, Office::RECORDS_UNIT_NAMES, true) && ! $request->user()?->isAdministrator()) {
+                throw ValidationException::withMessages([
+                    'office.name' => 'Only an administrator can create or name a Records Unit office.',
+                ]);
+            }
+
+            // Document access is matched on office names. A name still used in document history (for example from a
+            // deleted office) would hand that history to whoever ends up in this office, so non-administrators
+            // cannot take it.
+            if ($nameChanging && ! $request->user()?->isAdministrator() && (
+                DocumentMovement::query()->where('from_office', $newName)->orWhere('to_office', $newName)->exists()
+                || Document::withTrashed()->where('registered_office', $newName)->orWhere('current_office', $newName)->exists()
+                || DocumentOfficeAssignment::query()->where('office', $newName)->exists()
+                || DB::table('document_route_steps')->where('office', $newName)->exists()
+            )) {
+                throw ValidationException::withMessages([
+                    'office.name' => 'This name is still used in document history. Ask an administrator to use it.',
+                ]);
+            }
+
             // shortcut: history stores office names; allow renames after movements use stable office IDs.
             if ($office->exists && $validated['office']['name'] !== $office->name && (
                 DocumentMovement::query()

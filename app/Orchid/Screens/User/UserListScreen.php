@@ -91,7 +91,7 @@ class UserListScreen extends Screen
     public function deactivate(Request $request): void
     {
         $user = User::findOrFail($request->get('id'));
-        abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
+        abort_if($user->id === $request->user()?->id || $user->isAdministrator() || ! $request->user()?->canManageAccount($user), 403);
 
         if (! $user->isDeactivated()) {
             $user->deactivate($request->user());
@@ -103,7 +103,7 @@ class UserListScreen extends Screen
     public function reactivate(Request $request): void
     {
         $user = User::findOrFail($request->get('id'));
-        abort_if($user->id === $request->user()?->id || $user->isAdministrator(), 403);
+        abort_if($user->id === $request->user()?->id || $user->isAdministrator() || ! $request->user()?->canManageAccount($user), 403);
 
         if ($user->isDeactivated()) {
             $user->reactivate($request->user());
@@ -123,9 +123,9 @@ class UserListScreen extends Screen
         ])['selected'];
         $users = User::query()->with('roles')->whereKey($selected)->get();
 
-        if ($users->contains(fn (User $user): bool => $user->id === $request->user()->id || $user->isAdministrator())) {
+        if ($users->contains(fn (User $user): bool => $user->id === $request->user()->id || $user->isAdministrator() || ! $request->user()->canManageAccount($user))) {
             throw ValidationException::withMessages([
-                'selected' => 'You cannot deactivate your own account or an administrator account.',
+                'selected' => 'You cannot deactivate your own account, an administrator, or an account with access you do not have.',
             ]);
         }
 

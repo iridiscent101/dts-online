@@ -3,15 +3,15 @@
 @php
     $staffMeanings = [
         // "Pending" covers both waiting statuses; the list under it names each kind.
-        \App\Models\DocumentMovement::STATUS_AWAITING_RECEIPT => 'Still waiting on a step. It can mean:',
-        \App\Models\DocumentMovement::STATUS_RECEIVED => 'The office has it. Next: forward, complete or (Records Unit) release it.',
-        \App\Models\DocumentMovement::STATUS_FORWARDED => 'Sent on to the next office. That office still has to receive it.',
-        \App\Models\DocumentMovement::STATUS_COMPLETED => 'The office has finished its part.',
-        \App\Models\DocumentMovement::STATUS_RELEASED => 'The Records Unit released it to the client. With several offices, only the part that was ready is released; the others continue.',
+        \App\Models\DocumentMovement::STATUS_AWAITING_RECEIPT => 'Waiting for:',
+        \App\Models\DocumentMovement::STATUS_RECEIVED => 'Office has it; ready for the next action.',
+        \App\Models\DocumentMovement::STATUS_FORWARDED => 'Sent to the next office; awaiting receipt.',
+        \App\Models\DocumentMovement::STATUS_COMPLETED => 'Office finished its part.',
+        \App\Models\DocumentMovement::STATUS_RELEASED => 'Records Unit gave it to the client. Other offices may still be working.',
     ];
     $pendingKinds = [
-        'Awaiting receipt' => 'sent to the office, which has not received it yet.',
-        'Waiting for physical document/s' => 'a client submitted it online and the physical document/s are not at the Records Unit yet.',
+        'Awaiting receipt' => 'the office to receive it.',
+        'Waiting for physical document/s' => 'the paper copy to reach Records Unit.',
     ];
 @endphp
 <details class="dts-status-guide">

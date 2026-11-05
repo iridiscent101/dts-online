@@ -38,7 +38,7 @@ class RoleListLayout extends Table
                 ->cantHide(),
 
             TD::make('description', __('Description'))
-                ->render(fn (Role $role) => $role->description ?: __('No description provided'))
+                ->render(fn (Role $role) => e($role->description ?: __('No description provided')))
                 ->cantHide(),
 
             TD::make('created_at', __('Date created'))

@@ -20,7 +20,7 @@ class RecoveryEmailResetTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
         Notification::fake();
         $user = User::factory()->create(['email' => 'clerk@example.com', 'permissions' => ['platform.index' => true]]);
-        $this->actingAs($user)->post(route('platform.profile').'/save', ['user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'recovery@gmail.com']])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('platform.profile').'/save', ['current_password' => 'password', 'user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'recovery@gmail.com']])->assertSessionHasNoErrors();
         $user->refresh();
         $this->assertNull($user->notification_email_verified_at);
         $url = null;
@@ -68,7 +68,7 @@ class RecoveryEmailResetTest extends TestCase
 
             return true;
         });
-        $this->actingAs($user)->post(route('platform.profile').'/save', ['user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'new@gmail.com']])->assertSessionHasNoErrors();
+        $this->actingAs($user)->post(route('platform.profile').'/save', ['current_password' => 'password', 'user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'new@gmail.com']])->assertSessionHasNoErrors();
         $this->assertNull($user->fresh()->notification_email_verified_at);
         $this->post(route('password.update'), ['email' => $user->email, 'token' => $token, 'password' => 'Secure-Password-123!', 'password_confirmation' => 'Secure-Password-123!'])->assertSessionHasErrors();
     }
@@ -78,14 +78,14 @@ class RecoveryEmailResetTest extends TestCase
         $this->withoutMiddleware(ThrottleRequests::class);
         Notification::fake();
         $user = User::factory()->create(['permissions' => ['platform.index' => true]]);
-        $this->actingAs($user)->post(route('platform.profile').'/save', ['user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'first@gmail.com']]);
+        $this->actingAs($user)->post(route('platform.profile').'/save', ['current_password' => 'password', 'user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'first@gmail.com']]);
         $url = null;
         Notification::assertSentTo($user, VerifyRecoveryEmail::class, function (VerifyRecoveryEmail $notification) use ($user, &$url): bool {
             $url = $notification->toMail($user)->actionUrl;
 
             return true;
         });
-        $this->post(route('platform.profile').'/save', ['user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'second@gmail.com']]);
+        $this->post(route('platform.profile').'/save', ['current_password' => 'password', 'user' => ['name' => $user->name, 'email' => $user->email, 'notification_email' => 'second@gmail.com']]);
         $this->get($url)->assertForbidden();
         $latest = Notification::sent($user, VerifyRecoveryEmail::class)->last()->toMail($user->fresh())->actionUrl;
         $this->travel(61)->minutes();

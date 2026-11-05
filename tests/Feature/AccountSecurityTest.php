@@ -355,7 +355,7 @@ class AccountSecurityTest extends TestCase
     {
         $staff = User::factory()->create(['must_change_password' => true, 'permissions' => ['platform.index' => true]]);
 
-        $this->actingAs($staff)->post(route('platform.logout'))->assertRedirect('/');
+        $this->actingAs($staff)->post(route('platform.logout'))->assertRedirect(route('platform.login'));
         $this->assertGuest();
     }
 

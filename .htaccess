@@ -1,0 +1,4 @@
+# Only public/ is meant to be served. If a web server ever points at this folder instead (for example Laragon's
+# default host, which serves C:/laragon/www), refuse everything so .env, .git, logs and storage stay private.
+Options -Indexes
+Require all denied

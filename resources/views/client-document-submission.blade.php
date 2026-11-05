@@ -120,10 +120,11 @@
             {{-- How the paper copy reaches the Records Unit; Records sees it when they look up the submission. --}}
             <fieldset class="sm:col-span-2" @error('delivery_method') aria-describedby="delivery-method-error" @enderror>
                 <legend class="block text-sm font-semibold text-slate-800">Mode of submission <span class="text-red-700">*</span></legend>
+                <p class="mt-1 text-sm text-slate-600">How will the paper document reach the Records Unit?</p>
                 <div class="mt-2 grid gap-3 sm:grid-cols-2">
                     @foreach ([
-                        'Hand carry' => 'You or someone you send brings it to the Records Unit.',
-                        'Official channel' => 'It comes through official mail or your school or office messenger.',
+                        'Hand carry' => 'You or your representative will bring it to the Records Unit counter.',
+                        'Official channel' => 'Send it by official mail or through a school or office messenger.',
                     ] as $deliveryMethod => $deliveryHint)
                         @continue(! in_array($deliveryMethod, \App\Models\Document::DELIVERY_METHODS, true))
                         <label class="flex min-h-11 cursor-pointer items-start gap-3 rounded-sm border border-province-line-strong bg-white p-3 has-[:checked]:border-province-green has-[:checked]:bg-province-green/5">
@@ -196,8 +197,8 @@
 @if (! $embedded)
     </main>
     <footer class="mx-auto w-full max-w-3xl px-5 pb-8 text-center sm:px-8">
-        <p class="text-sm text-slate-600">Department of Education</p>
-        <p class="text-sm text-slate-600">Document Tracking System, developed by the SDO ICT Unit</p>
+        <p class="inline-flex flex-col items-center gap-1 text-sm text-slate-600"><img src="{{ asset('images/Deped.png') }}" alt="" width="64" height="33" decoding="async" class="w-16 shrink-0">Department of Education</p>
+        <p class="text-sm text-slate-600">Document Tracking System, developed by the SDO ICT Unit ❤️</p>
     </footer>
 @else
         </div>

@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Off: attachments are served by DocumentAttachmentController with office checks. Laravel's own
+            // /storage/{path} routes for this disk would be guarded only by the app key.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

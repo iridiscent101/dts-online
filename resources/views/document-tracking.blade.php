@@ -100,12 +100,12 @@
             @php
                 $landingPhotos = collect([
                     ['file' => 'office', 'caption' => 'SDO Nueva Vizcaya division office'],
-                    ['file' => 'records', 'caption' => 'Records Unit counter'],
                     ['file' => 'receiving', 'caption' => 'Receiving documents'],
+                    ['file' => 'schools', 'caption' => 'Serving the schools of Nueva Vizcaya'],
+                    ['file' => 'staff', 'caption' => 'Our staff'],
+                    ['file' => 'records', 'caption' => 'Records Unit counter'],
                     ['file' => 'lobby', 'caption' => 'Waiting area'],
                     ['file' => 'offices', 'caption' => 'Division offices'],
-                    ['file' => 'staff', 'caption' => 'Our staff'],
-                    ['file' => 'schools', 'caption' => 'Serving the schools of Nueva Vizcaya'],
                     ['file' => 'events', 'caption' => 'Division events'],
                 ])->map(function (array $photo): array {
                     $file = collect(['jpg', 'webp', 'png'])->map(fn (string $extension): string => "images/landing/{$photo['file']}.{$extension}")
@@ -113,13 +113,13 @@
 
                     return [...$photo, 'url' => $file ? asset($file) : null];
                 });
-                // Two rows: the second runs the other way and starts elsewhere, so the same photos do not line up.
-                $photoRows = [$landingPhotos->all(), array_reverse([...$landingPhotos->slice(4), ...$landingPhotos->take(4)])];
+                // Each photo belongs to one row so it cannot appear in both rows at once.
+                $photoRows = [$landingPhotos->take(4)->all(), $landingPhotos->skip(4)->all()];
             @endphp
             <section class="overflow-hidden" aria-labelledby="photos-heading">
                 <div class="mx-auto w-full max-w-6xl px-5 pt-5 sm:px-8 sm:pt-6">
                     <h2 id="photos-heading" class="text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
-                    <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Submit documents to the Records Unit. Enter a tracking number or scan the QR code to view document status and routing history.</p>
+                    <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Clients can send a document to the Records Unit or track its status by number or QR code.</p>
                     {{-- The photos drift on their own, so they need a way to stop: this button pauses them until
                          it is pressed again. It appears only with JavaScript, and not at all for reduced motion. --}}
                     <button type="button" data-photo-toggle aria-pressed="false" hidden class="dts-photo-toggle mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-province-green bg-white px-4 text-sm font-semibold text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green">
@@ -547,9 +547,9 @@
             {{-- One footer: seal and contact details on the left; the system line on the right. The Facebook and website
                  links stay in the header only. --}}
             <div class="grid content-end gap-3 self-stretch sm:justify-items-end">
-                <p class="text-sm text-slate-600">Department of Education</p>
+                <p class="inline-flex flex-col items-center gap-1 text-sm text-slate-600"><img src="{{ asset('images/Deped.png') }}" alt="" width="96" height="50" decoding="async" class="w-24 shrink-0">Department of Education</p>
                 <p class="text-sm text-slate-600">Document Tracking System, {{ now()->timezone('Asia/Manila')->year }}</p>
-                <p class="text-sm text-slate-600">Developed by the SDO ICT Unit</p>
+                <p class="text-sm text-slate-600">Developed by the SDO ICT Unit ❤️</p>
             </div>
         </section>
     </footer>

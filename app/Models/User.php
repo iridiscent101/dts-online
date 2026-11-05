@@ -255,6 +255,40 @@ class User extends Authenticatable
         $this->notification_email = $address;
     }
 
+    /**
+     * A delegated user manager may act on an account (edit roles, deactivate, reactivate) only when everything that
+     * account can do is something the manager can do too. Administrators may manage any account.
+     */
+    public function canManageAccount(User $target): bool
+    {
+        if ($this->isAdministrator()) {
+            return true;
+        }
+
+        if ($target->isAdministrator()) {
+            return false;
+        }
+
+        return ! $target->roles
+            ->flatMap(fn (Role $role) => collect($role->permissions ?? [])->filter()->keys())
+            ->merge(collect($target->permissions ?? [])->filter()->keys())
+            ->contains(fn (string $permission): bool => ! $this->hasAccess($permission));
+    }
+
+    /**
+     * Setting someone's password or email lets the manager sign in as them and use their office access, which only
+     * an administrator may grant. So a delegated manager may do it only for accounts in offices the manager is in.
+     */
+    public function canResetCredentialsOf(User $target): bool
+    {
+        if (! $this->canManageAccount($target)) {
+            return false;
+        }
+
+        return $this->isAdministrator()
+            || $target->assignedOfficeNames()->diff($this->assignedOfficeNames())->isEmpty();
+    }
+
     public function canManageRole(Role $role): bool
     {
         return $this->isAdministrator() || ($this->hasAccess('platform.systems.roles')
