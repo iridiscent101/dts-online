@@ -414,7 +414,7 @@ class DocumentEditingTest extends TestCase
             'to_status' => DocumentMovement::STATUS_CANCELLED,
         ]);
         $this->get(route('tracking.index', ['tracking' => $document->tracking_number]))
-            ->assertSee('Route to Administrative Unit cancelled');
+            ->assertSee('Destination cancelled: Administrative Unit');
 
         $activity = $document->activities()->where('description', 'Document routes updated')->firstOrFail();
 
@@ -452,7 +452,7 @@ class DocumentEditingTest extends TestCase
             ->from(route('platform.documents.edit', $document))
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
             ->assertRedirect(route('platform.documents.edit', $document))
-            ->assertSessionHasErrors(['document.route_fingerprint' => 'Routes changed while you were editing. Refresh the document and try again.']);
+            ->assertSessionHasErrors(['document.route_fingerprint' => 'Destinations changed while you were editing. Refresh the document and try again.']);
 
         $this->assertSame('Original subject', $document->fresh()->subject);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Curriculum Implementation Division']);
@@ -586,7 +586,7 @@ class DocumentEditingTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
-            ->assertSessionHasErrors(['document.destinations' => 'After processing begins, use Forward for new routes or Correct route for a pending destination.']);
+            ->assertSessionHasErrors(['document.destinations' => 'After processing begins, use Forward to add a destination or Change destination to replace a pending one.']);
 
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'Administrative Unit']);
         $this->assertDatabaseMissing('document_movements', ['document_id' => $document->id, 'action' => DocumentMovement::ACTION_CANCELLED]);
@@ -895,7 +895,7 @@ class DocumentEditingTest extends TestCase
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
             ->assertRedirect(route('platform.documents.edit', $document))
             ->assertSessionHasErrors([
-                'document.destinations' => 'You are not authorized to change document routes.',
+                'document.destinations' => 'You are not authorized to change document destinations.',
             ]);
 
         $this->assertSame(
@@ -936,7 +936,7 @@ class DocumentEditingTest extends TestCase
             ->post(route('platform.documents.edit', $document).'/save', ['document' => $data])
             ->assertRedirect(route('platform.documents.edit', $document))
             ->assertSessionHasErrors([
-                'document.destinations' => 'Routes cannot be edited after a document is finished.',
+                'document.destinations' => 'Destinations cannot be edited after a document is finished.',
             ]);
 
         $this->assertSame(

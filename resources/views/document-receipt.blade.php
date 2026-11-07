@@ -8,7 +8,7 @@
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @vite(['resources/css/app.css', 'resources/js/client-updates.js'])
+    @vite(['resources/css/app.css'])
 </head>
 <body class="dts-public-page dts-receipt-page bg-white font-sans text-province-charcoal antialiased">
     {{-- Screen only: back to tracking and Print. The receipt itself is one A4/Letter-friendly card. --}}
@@ -17,7 +17,6 @@
         <button type="button" data-print-receipt class="inline-flex min-h-11 items-center gap-2 rounded-sm bg-province-green px-5 text-sm font-semibold text-white hover:bg-province-green-dark active:bg-province-charcoal focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green"><x-orchid-icon path="bs.printer" class="size-4" /> Print receipt</button>
     </div>
     <div class="mx-auto w-full max-w-xl px-5">
-        @include('partials.client-updates', ['trackingNumber' => $document->tracking_number])
     </div>
 
     <main class="dts-receipt mx-auto my-6 w-full max-w-xl rounded-sm border border-province-line-strong bg-white p-6 sm:p-8">

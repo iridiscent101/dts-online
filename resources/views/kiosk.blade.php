@@ -117,7 +117,7 @@
         {{-- For the staff who set up the laptop. --}}
         <form method="POST" action="{{ route('platform.logout') }}">
             @csrf
-            <button type="submit" class="min-h-11 px-2 text-sm text-slate-600 underline hover:text-slate-700">Sign out of the kiosk</button>
+            <button type="submit" class="inline-flex min-h-11 items-center justify-center rounded-md border border-province-green bg-white px-4 text-sm font-semibold text-province-green hover:bg-province-green-wash">Sign out of the kiosk</button>
         </form>
     </footer>
 

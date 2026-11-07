@@ -44,9 +44,9 @@ class DocumentRoutedClientNotification extends Notification implements ShouldQue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your document '.$this->trackingNumber.' was routed')
+            ->subject('Your document '.$this->trackingNumber.' was sent to a destination')
             ->greeting('Good day!')
-            ->line('Your document has been routed to the '.collect($this->offices)->join(', ', ' and ').'.')
+            ->line('Your document has been sent to '.collect($this->offices)->join(', ', ' and ').'.')
             ->line('Tracking number: '.$this->trackingNumber)
             ->action('Track your document', EmailLink::route('tracking.index', ['tracking' => $this->trackingNumber]))
             ->line(self::SPAM_NOTE)

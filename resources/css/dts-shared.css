@@ -56,6 +56,25 @@
     cursor: not-allowed;
 }
 
+:where(button, input[type="button"], input[type="submit"], input[type="reset"], a.dts-button, a.btn, summary.dts-button, [role="button"]):not(:disabled, [aria-disabled="true"]) {
+    box-shadow: 0 2px 0 rgb(29 42 58 / 14%), 0 4px 8px rgb(29 42 58 / 10%);
+    transition: box-shadow 150ms ease;
+}
+
+:where(button, input[type="button"], input[type="submit"], input[type="reset"], a.dts-button, a.btn, summary.dts-button, [role="button"]):not(:disabled, [aria-disabled="true"]):is(:hover, :focus-visible) {
+    box-shadow: 0 3px 0 rgb(29 42 58 / 16%), 0 6px 12px rgb(29 42 58 / 12%);
+}
+
+:where(button, input[type="button"], input[type="submit"], input[type="reset"], a.dts-button, a.btn, summary.dts-button, [role="button"]):not(:disabled, [aria-disabled="true"]):active {
+    box-shadow: 0 1px 0 rgb(29 42 58 / 14%), 0 2px 4px rgb(29 42 58 / 8%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :where(button, input[type="button"], input[type="submit"], input[type="reset"], a.dts-button, a.btn, summary.dts-button, [role="button"]) {
+        transition: none;
+    }
+}
+
 /* One select box design on every screen: the same border, corners, focus ring and DTS chevron (the browser's own
    arrow differs per browser and is small). Screens set only the width; page-size and pager boxes add the compact size
    below. Orchid's searchable selects (Tom Select) are drawn to match in dts.css. */
@@ -296,11 +315,14 @@ select:not([multiple], [size]):disabled {
     border-radius: inherit;
     color: inherit;
     cursor: pointer;
-    transition: background-color 160ms ease, box-shadow 160ms ease;
+    box-shadow: 0 2px 0 rgb(33 110 57 / 15%), 0 4px 8px rgb(29 42 58 / 10%);
+    transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
 }
 
 .dts-route-link:hover {
     background: var(--dts-cream);
+    box-shadow: 0 3px 0 rgb(33 110 57 / 18%), 0 7px 12px rgb(29 42 58 / 14%);
+    transform: translateY(-2px);
 }
 
 .dts-route-link:focus-visible {
@@ -309,7 +331,7 @@ select:not([multiple], [size]):disabled {
 }
 
 .dts-route-link[aria-current="true"] {
-    box-shadow: inset 0 0 0 2px var(--dts-green);
+    box-shadow: inset 0 0 0 2px var(--dts-green), 0 2px 0 rgb(33 110 57 / 15%), 0 4px 8px rgb(29 42 58 / 10%);
 }
 
 /* Step timeline (Fast Track and staff document page): colored step dots joined by a line. */

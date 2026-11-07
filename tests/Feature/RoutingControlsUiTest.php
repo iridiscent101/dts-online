@@ -30,24 +30,39 @@ class RoutingControlsUiTest extends TestCase
             ->assertSee('Add remark');
     }
 
-    public function test_sending_office_sees_add_office_route_in_outgoing(): void
+    public function test_records_office_sees_edit_first_then_destination_actions_in_outgoing_and_all_documents(): void
     {
-        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'Records Unit', 'permissions' => [
+            'platform.index' => true,
+            'platform.documents.edit' => true,
+        ]]);
         $document = $this->forwardedDocument();
+        $document->update(['registered_office' => 'Records Unit']);
+        $document->movements()->update(['from_office' => 'Records Unit']);
+        $document->officeAssignments()->where('office', 'SDO-Budget Unit')->update([
+            'movement_id' => $document->movements()->value('id'),
+        ]);
 
-        $this->actingAs($sender)
+        $this->actingAs($records)
             ->get(route('platform.outgoing'))
             ->assertOk()
             ->assertSee($document->tracking_number)
-            ->assertSee('Add an office route for '.$document->tracking_number)
+            ->assertSee('Add a destination for '.$document->tracking_number)
+            ->assertSee('Correct a destination for '.$document->tracking_number)
             ->assertSee('data-additional-route=', false)
+            ->assertSee('data-route-correction=', false)
             ->assertSee(str_replace('/', '\/', route('platform.documents.additional-routes.store', $document)), false)
-            ->assertSee('id="additional-route-offices"', false);
+            ->assertSee('id="additional-route-offices"', false)
+            ->assertSeeInOrder(['data-workspace-edit-open', 'data-route-correction=', 'data-additional-route='], false);
 
-        // The same document in the full registry has no such button: it belongs to the Outgoing list.
         $this->get(route('platform.documents'))
             ->assertOk()
-            ->assertDontSee('Add an office route for '.$document->tracking_number);
+            ->assertSee($document->tracking_number)
+            ->assertSee('Add a destination for '.$document->tracking_number)
+            ->assertSee('Correct a destination for '.$document->tracking_number)
+            ->assertSee('data-additional-route=', false)
+            ->assertSee('data-route-correction=', false)
+            ->assertSeeInOrder(['data-workspace-edit-open', 'data-route-correction=', 'data-additional-route='], false);
     }
 
     public function test_dashboard_queue_offers_the_same_fixes_for_a_forwarded_document(): void
@@ -66,8 +81,8 @@ class RoutingControlsUiTest extends TestCase
         $this->actingAs($admin)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('Add an office route for '.$document->tracking_number)
-            ->assertSee('Correct the route of '.$document->tracking_number)
+            ->assertSee('Add a destination for '.$document->tracking_number)
+            ->assertSee('Correct a destination for '.$document->tracking_number)
             ->assertSee('id="additional-route-offices"', false);
 
         // Receiving offices see no fixes for documents sent to them.
@@ -75,8 +90,8 @@ class RoutingControlsUiTest extends TestCase
         $this->actingAs($budget)
             ->get(route('platform.main'))
             ->assertOk()
-            ->assertDontSee('Correct the route of '.$document->tracking_number)
-            ->assertDontSee('Add an office route for '.$document->tracking_number);
+            ->assertDontSee('Correct a destination for '.$document->tracking_number)
+            ->assertDontSee('Add a destination for '.$document->tracking_number);
     }
 
     public function test_each_office_route_card_names_who_received_it(): void

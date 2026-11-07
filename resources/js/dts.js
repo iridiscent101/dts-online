@@ -311,6 +311,9 @@ highlightChangedDocument();
 // Bootstrap "printer" icon for print buttons that scripts create (icon only; the hover text names the action).
 const PRINTER_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1"/><path d="M5 1a2 2 0 0 0-2 2v2H2a2 2 0 0 0-2 2v3a2 2 0 0 0 2 2h1v1a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-1h1a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-1V3a2 2 0 0 0-2-2zM4 3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2H4zm1 5a2 2 0 0 0-2 2v1H2a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v-1a2 2 0 0 0-2-2zm7 2v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1"/></svg>';
 
+const TRASH_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" data-button-icon><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/></svg>';
+const CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" data-button-icon><path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/></svg>';
+
 const STALE_EDIT_FIELDS = ['document.details_fingerprint', 'document.route_fingerprint'];
 
 class StaleEditError extends Error {}
@@ -558,7 +561,7 @@ document.addEventListener('click', async (event) => {
                     ? content.querySelector('[data-destination-select]:not(:disabled)')
                     : content.querySelector('[data-workspace-routing-save]');
                 next?.scrollIntoView({ block: 'center' });
-                next?.focus();
+                if (link.dataset.workspaceAction !== 'forwarded') next?.focus();
             }
         } else {
             content.querySelector('[data-workspace-tab]')?.focus();
@@ -1211,7 +1214,6 @@ class DocumentRegistration extends HTMLElement {
         animateIn(list.lastElementChild);
         this.syncRegistrationRoutes();
         this.saveDraft();
-        this.registrationRoutes().at(-1)?.querySelector('[data-registration-office]')?.focus();
     }
 
     async removeRegistrationRoute(button) {
@@ -1361,7 +1363,6 @@ class DocumentRouteEditor extends HTMLElement {
         list.append(template.content.cloneNode(true));
         animateIn(list.lastElementChild);
         this.syncRoutes();
-        this.editRoutes().at(-1)?.querySelector('[data-edit-office]')?.focus();
     }
 
     async removeRoute(button) {
@@ -1682,7 +1683,6 @@ class WorkflowRouting extends HTMLElement {
         animateIn(list.lastElementChild);
         this.syncDestinationRows();
         this.fitOfficeFields();
-        list.querySelector('[data-destination-row]:last-child [data-destination-select]')?.focus();
     }
 
     async removeDestination(button) {
@@ -1723,8 +1723,8 @@ class WorkflowRouting extends HTMLElement {
         }
         elsewhere.hidden = action !== 'restore' || ownOnly;
         elsewhere.querySelector('button').textContent = ownRestore
-            ? 'Reopen it for a different office instead'
-            : 'Reopen it for the acting office instead';
+            ? 'Reopen for a different office'
+            : 'Reopen for the acting office';
 
         let ownDestination = this.querySelector('[data-own-restore-destination]');
         if (!ownDestination) {
@@ -1983,7 +1983,7 @@ class WorkflowRouting extends HTMLElement {
 
         const submitLabel = this.parentElement?.querySelector('[data-workflow-submit-label]');
         const chosen = this.actionChoices.querySelector(`[data-action-choice="${selected}"]`);
-        if (submitLabel) submitLabel.textContent = this.receiveOnly ? 'Receive document' : chosen ? chosen.textContent : 'Save routing update';
+        if (submitLabel) submitLabel.textContent = this.receiveOnly ? 'Receive' : chosen ? chosen.textContent : 'Update route';
     }
 
     syncDestinationRows() {
@@ -2059,8 +2059,7 @@ class WorkflowRouting extends HTMLElement {
 
 if (!customElements.get('dts-workflow-routing')) customElements.define('dts-workflow-routing', WorkflowRouting);
 
-// Outgoing list and dashboard: "Add office route" (orchid/cells/document-row-actions). Adds one more office to an
-// active document, with the reason, which the history keeps; the original routes are not touched.
+// All Documents, Outgoing, and the dashboard: add destinations while keeping existing routes.
 function additionalRouteDialog() {
     let dialog = document.querySelector('#dts-additional-route-dialog');
     if (dialog) return dialog;
@@ -2070,39 +2069,79 @@ function additionalRouteDialog() {
     dialog.className = 'dts-app-dialog dts-additional-route-dialog';
     dialog.setAttribute('aria-labelledby', 'dts-additional-route-title');
     dialog.innerHTML = `
-        <div class="dts-app-dialog-header"><h2 id="dts-additional-route-title">Add office route</h2></div>
+        <div class="dts-app-dialog-header"><h2 id="dts-additional-route-title">Add destination</h2><button type="button" class="dts-app-dialog-close" data-additional-route-cancel aria-label="Cancel" data-tooltip="Cancel">${CLOSE_ICON}</button></div>
         <div class="dts-app-dialog-content dts-additional-route-fields">
             <p class="dts-additional-route-document"><strong data-additional-route-tracking></strong><span data-additional-route-subject></span></p>
-            <p class="dts-field-hint">The offices it already went to stay as they are. This adds one more office.</p>
+            <p class="dts-field-hint">Existing destinations stay as they are.</p>
             <div class="dts-field" data-additional-route-source-field>
-                <label for="dts-additional-route-source">Sending office</label>
+                <label for="dts-additional-route-source">Send from</label>
                 <select id="dts-additional-route-source" data-additional-route-source></select>
             </div>
-            <div class="dts-field">
-                <label for="dts-additional-route-office">Office to send it to <span aria-hidden="true">*</span></label>
-                <dts-searchable>
-                    <input id="dts-additional-route-office" data-additional-route-office data-searchable data-options="additional-route-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off" required>
-                    <div data-suggestions role="listbox" hidden></div>
-                </dts-searchable>
-            </div>
-            <div class="dts-field">
+            <div data-additional-route-destinations>
+            <div class="dts-field" data-additional-route-row>
+                <label for="dts-additional-route-office">Destination <span aria-hidden="true">*</span></label>
+                <div class="dts-additional-route-input">
+                    <dts-searchable>
+                        <input id="dts-additional-route-office" data-additional-route-office data-searchable data-options="additional-route-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search destinations" autocomplete="off" required>
+                        <div data-suggestions role="listbox" hidden></div>
+                    </dts-searchable>
+                    <button type="button" class="dts-button dts-button-secondary dts-icon-only" data-additional-route-remove aria-label="Remove destination" data-tooltip="Remove destination" hidden>${CLOSE_ICON}</button>
+                </div>
                 <label for="dts-additional-route-remarks">Remarks <span class="dts-optional">Optional</span></label>
-                <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="3" maxlength="1000" autocomplete="off" placeholder="Instructions for this office" aria-describedby="dts-additional-route-remarks-hint"></textarea>
-                <p id="dts-additional-route-remarks-hint" class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</p>
+                <textarea id="dts-additional-route-remarks" data-additional-route-remarks rows="2" maxlength="1000" autocomplete="off" placeholder="Instructions for this destination"></textarea>
             </div>
+            </div>
+            <button type="button" class="dts-button dts-button-secondary" data-additional-route-add>Add another destination</button>
+            <p class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</p>
             <div class="dts-field">
-                <label for="dts-additional-route-reason">Why are you adding this office? <span aria-hidden="true">*</span></label>
-                <textarea id="dts-additional-route-reason" data-additional-route-reason rows="2" maxlength="500" autocomplete="off" required placeholder="For example: the ASDS asked for a copy"></textarea>
+                <label for="dts-additional-route-reason">Why are you adding this destination? <span class="dts-optional">Optional</span></label>
+                <textarea id="dts-additional-route-reason" data-additional-route-reason rows="2" maxlength="500" autocomplete="off" placeholder="For example: the ASDS asked for a copy"></textarea>
                 <small class="dts-field-hint">Kept in the document history.</small>
             </div>
             <p class="dts-workspace-form-errors" data-additional-route-errors role="alert" hidden></p>
         </div>
         <div class="dts-app-dialog-actions">
-            <button type="button" class="dts-button" data-additional-route-cancel>Cancel</button>
-            <button type="button" class="dts-button dts-button-primary" data-additional-route-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Send to office</button>
+            <button type="button" class="dts-button dts-button-primary" data-additional-route-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Update</button>
         </div>`;
     dialog.addEventListener('click', (event) => {
         if (event.target.closest('[data-additional-route-cancel]')) dialog.close();
+        if (event.target.closest('[data-additional-route-add]')) {
+            const rows = dialog.querySelector('[data-additional-route-destinations]');
+            const row = rows.firstElementChild.cloneNode(true);
+            const number = rows.children.length + 1;
+            row.querySelector('label').textContent = `Destination ${number} *`;
+            row.querySelector('label').htmlFor = `dts-additional-route-office-${number}`;
+            row.querySelector('input').id = `dts-additional-route-office-${number}`;
+            row.querySelector('input').value = '';
+            row.querySelector('textarea').id = `dts-additional-route-remarks-${number}`;
+            row.querySelector('textarea').value = '';
+            row.querySelector('label[for="dts-additional-route-remarks"]').htmlFor = `dts-additional-route-remarks-${number}`;
+            const remove = row.querySelector('[data-additional-route-remove]');
+            remove.hidden = false;
+            remove.setAttribute('aria-label', `Remove destination ${number}`);
+            remove.dataset.tooltip = `Remove destination ${number}`;
+            rows.append(row);
+            dialog.querySelector('[data-additional-route-add]').disabled = rows.children.length >= 5 - dialog.details.assigned.length;
+        }
+        if (event.target.closest('[data-additional-route-remove]')) {
+            event.target.closest('[data-additional-route-row]').remove();
+            const rows = dialog.querySelectorAll('[data-additional-route-row]');
+            rows.forEach((row, index) => {
+                const input = row.querySelector('input');
+                input.id = index ? `dts-additional-route-office-${index + 1}` : 'dts-additional-route-office';
+                row.querySelector('label').htmlFor = input.id;
+                row.querySelector('label').textContent = index ? `Destination ${index + 1} *` : 'Destination *';
+                const remarks = row.querySelector('textarea');
+                remarks.id = index ? `dts-additional-route-remarks-${index + 1}` : 'dts-additional-route-remarks';
+                row.querySelectorAll('label')[1].htmlFor = remarks.id;
+                const remove = row.querySelector('[data-additional-route-remove]');
+                if (!remove.hidden) {
+                    remove.setAttribute('aria-label', `Remove destination ${index + 1}`);
+                    remove.dataset.tooltip = `Remove destination ${index + 1}`;
+                }
+            });
+            dialog.querySelector('[data-additional-route-add]').disabled = false;
+        }
     });
     document.body.append(dialog);
 
@@ -2122,12 +2161,13 @@ document.addEventListener('click', async (event) => {
         source.replaceChildren(...details.sources.map((office) => new Option(office, office)));
         // One sending office needs no choice; it is still sent with the request.
         dialog.querySelector('[data-additional-route-source-field]').hidden = details.sources.length < 2;
+        dialog.querySelectorAll('[data-additional-route-row]:not(:first-child)').forEach((row) => row.remove());
         dialog.querySelector('[data-additional-route-office]').value = '';
+        dialog.querySelector('[data-additional-route-add]').disabled = details.assigned.length >= 4;
         dialog.querySelector('[data-additional-route-remarks]').value = '';
         dialog.querySelector('[data-additional-route-reason]').value = '';
         dialog.querySelector('[data-additional-route-errors]').hidden = true;
         dialog.showModal();
-        dialog.querySelector('[data-additional-route-office]').focus();
         return;
     }
 
@@ -2135,14 +2175,17 @@ document.addEventListener('click', async (event) => {
     if (!save) return;
     const dialog = save.closest('dialog');
     const errors = dialog.querySelector('[data-additional-route-errors]');
-    const office = dialog.querySelector('[data-additional-route-office]');
+    const fields = [...dialog.querySelectorAll('[data-additional-route-office]')];
     const reason = dialog.querySelector('[data-additional-route-reason]');
     const source = dialog.querySelector('[data-additional-route-source]').value;
     const offices = [...document.querySelectorAll('#additional-route-offices option')].map((option) => option.value);
-    const problem = !offices.includes(office.value.trim()) ? ['Choose an office from the list.', office]
-        : office.value.trim() === source || dialog.details.assigned.includes(office.value.trim()) ? ['That office already has this document. Choose a different office.', office]
-            : reason.value.trim() === '' ? ['Say why you are adding this office.', reason]
-                : null;
+    // The reason is optional, like a route correction's: only the destination itself has to be right.
+    const values = fields.map((field) => field.value.trim());
+    const invalid = fields.find((field) => !offices.includes(field.value.trim()));
+    const duplicate = fields.find((field, index) => field.value.trim() === source || dialog.details.assigned.includes(field.value.trim()) || values.indexOf(field.value.trim()) !== index);
+    const problem = invalid ? ['Choose each destination from the list.', invalid]
+        : duplicate ? ['Choose destinations that are different and not already assigned.', duplicate]
+            : null;
     if (problem) {
         errors.textContent = problem[0];
         errors.hidden = false;
@@ -2152,8 +2195,10 @@ document.addEventListener('click', async (event) => {
 
     const data = new FormData();
     data.append('source_office', source);
-    data.append('destination_office', office.value.trim());
-    data.append('remarks', dialog.querySelector('[data-additional-route-remarks]').value.trim());
+    values.forEach((value, index) => {
+        data.append(`destinations[${index}]`, value);
+        data.append(`destination_remarks[${index}]`, fields[index].closest('[data-additional-route-row]').querySelector('[data-additional-route-remarks]').value.trim());
+    });
     data.append('reason', reason.value.trim());
     const result = await postWorkspace(dialog.details.url, data, errors, save);
     if (!result) return;
@@ -2163,8 +2208,7 @@ document.addEventListener('click', async (event) => {
     window.location.reload();
 });
 
-// Outgoing list: "Correct route" (orchid/cells/document-row-actions). Swaps an office the user's office sent the
-// document to by mistake for the right one, before that office receives it. A reason is required and kept in history.
+// Correct or delete a destination before it receives the document. An optional reason is kept in history.
 function routeCorrectionDialog() {
     let dialog = document.querySelector('#dts-route-correction-dialog');
     if (dialog) return dialog;
@@ -2174,31 +2218,30 @@ function routeCorrectionDialog() {
     dialog.className = 'dts-app-dialog dts-additional-route-dialog';
     dialog.setAttribute('aria-labelledby', 'dts-route-correction-title');
     dialog.innerHTML = `
-        <div class="dts-app-dialog-header"><h2 id="dts-route-correction-title">Correct route</h2></div>
+        <div class="dts-app-dialog-header"><h2 id="dts-route-correction-title">Correct a destination</h2><button type="button" class="dts-app-dialog-close" data-route-correction-cancel aria-label="Cancel" data-tooltip="Cancel">${CLOSE_ICON}</button></div>
         <div class="dts-app-dialog-content dts-additional-route-fields">
             <p class="dts-additional-route-document"><strong data-route-correction-tracking></strong><span data-route-correction-subject></span></p>
-            <p class="dts-field-hint">Use this when the document went to the wrong office: change it to the right one, or delete the route if it should not go there at all. Only before that office receives it.</p>
+            <p class="dts-field-hint" data-route-correction-hint></p>
             <div class="dts-field">
-                <label for="dts-route-correction-route">Wrong office <span aria-hidden="true">*</span></label>
+                <label for="dts-route-correction-route">Current destination <span aria-hidden="true">*</span></label>
                 <select id="dts-route-correction-route" data-route-correction-route></select>
             </div>
-            <div class="dts-field">
-                <label for="dts-route-correction-office">Correct office <span aria-hidden="true">*</span></label>
+            <div class="dts-field" data-route-correction-office-field>
+                <label for="dts-route-correction-office">New destination <span aria-hidden="true">*</span></label>
                 <dts-searchable>
-                    <input id="dts-route-correction-office" data-route-correction-office data-searchable data-options="additional-route-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search offices" autocomplete="off" required>
+                    <input id="dts-route-correction-office" data-route-correction-office data-searchable data-options="additional-route-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" placeholder="Search destinations" autocomplete="off" required>
                     <div data-suggestions role="listbox" hidden></div>
                 </dts-searchable>
             </div>
             <div class="dts-field">
-                <label for="dts-route-correction-reason">Reason <span aria-hidden="true">*</span></label>
-                <textarea id="dts-route-correction-reason" data-route-correction-reason rows="3" maxlength="500" autocomplete="off" required placeholder="Example: Chose Budget instead of Legal"></textarea>
+                <label for="dts-route-correction-reason">Reason <span class="dts-optional">Optional</span></label>
+                <textarea id="dts-route-correction-reason" data-route-correction-reason rows="3" maxlength="500" autocomplete="off" placeholder="Example: Chose Budget instead of Legal"></textarea>
             </div>
             <p class="dts-workspace-form-errors" data-route-correction-errors role="alert" hidden></p>
         </div>
         <div class="dts-app-dialog-actions">
-            <button type="button" class="dts-button dts-button-danger dts-route-delete" data-route-delete><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Delete this route</button>
-            <button type="button" class="dts-button" data-route-correction-cancel>Cancel</button>
-            <button type="button" class="dts-button dts-button-primary" data-route-correction-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Correct route</button>
+            <button type="button" class="dts-button dts-button-primary" data-route-delete data-route-delete-update hidden><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Update</button>
+            <button type="button" class="dts-button dts-button-primary" data-route-correction-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span> Update</button>
         </div>`;
     dialog.addEventListener('click', (event) => {
         if (event.target.closest('[data-route-correction-cancel]')) dialog.close();
@@ -2209,11 +2252,19 @@ function routeCorrectionDialog() {
 }
 
 document.addEventListener('click', async (event) => {
-    const trigger = event.target.closest('[data-route-correction]');
+    const trigger = event.target.closest('[data-route-correction], [data-route-delete-destination]');
     if (trigger) {
-        const details = JSON.parse(trigger.dataset.routeCorrection);
+        const deleteOnly = trigger.hasAttribute('data-route-delete-destination');
+        const details = JSON.parse(deleteOnly ? trigger.dataset.routeDeleteDestination : trigger.dataset.routeCorrection);
         const dialog = routeCorrectionDialog();
         dialog.details = details;
+        dialog.querySelector('#dts-route-correction-title').textContent = deleteOnly ? 'Delete destination' : 'Correct a destination';
+        dialog.querySelector('[data-route-correction-hint]').textContent = deleteOnly
+            ? 'Delete this destination if the document should not go there. Available only before receipt.'
+            : 'Change a destination chosen by mistake. Available only before receipt.';
+        dialog.querySelector('[data-route-correction-office-field]').hidden = deleteOnly;
+        dialog.querySelector('[data-route-delete-update]').hidden = !deleteOnly;
+        dialog.querySelector('[data-route-correction-save]').hidden = deleteOnly;
         const multipleSources = new Set(details.routes.map((route) => route.source)).size > 1;
         dialog.querySelector('[data-route-correction-tracking]').textContent = details.tracking;
         dialog.querySelector('[data-route-correction-subject]').textContent = details.subject;
@@ -2229,11 +2280,10 @@ document.addEventListener('click', async (event) => {
         dialog.querySelector('[data-route-correction-reason]').value = '';
         dialog.querySelector('[data-route-correction-errors]').hidden = true;
         dialog.showModal();
-        dialog.querySelector(details.routes.length > 1 ? '[data-route-correction-route]' : '[data-route-correction-office]').focus();
         return;
     }
 
-    // "Delete this route": the chosen wrong office is removed instead of replaced (only before it receives it).
+    // Delete the chosen destination instead of replacing it (only before it receives the document).
     const remove = event.target.closest('[data-route-delete]');
     if (remove) {
         const dialog = remove.closest('dialog');
@@ -2241,14 +2291,8 @@ document.addEventListener('click', async (event) => {
         const route = dialog.details.routes[Number(dialog.querySelector('[data-route-correction-route]').value)];
         if (!route || !dialog.details.deleteUrl) return;
         const reason = dialog.querySelector('[data-route-correction-reason]');
-        if (reason.value.trim() === '') {
-            errors.textContent = 'Give the reason for deleting this route.';
-            errors.hidden = false;
-            reason.focus();
-            return;
-        }
-        const confirmed = await dtsDialog.confirm(`Delete the route to ${route.destination}? It is removed completely. Other offices on this document are not affected.`, {
-            title: 'Delete route', confirmLabel: 'Delete route', danger: true,
+        const confirmed = await dtsDialog.confirm(`Delete the destination ${route.destination}? It is removed completely. Other destinations on this document are not affected.`, {
+            title: 'Delete destination', confirmLabel: 'Delete destination', danger: true,
         });
         if (!confirmed) return;
         const data = new FormData();
@@ -2273,10 +2317,9 @@ document.addEventListener('click', async (event) => {
     const route = dialog.details.routes[Number(dialog.querySelector('[data-route-correction-route]').value)];
     const chosen = office.value.trim();
     const offices = [...document.querySelectorAll(`#${office.dataset.options} option`)].map((option) => option.value);
-    const problem = !offices.includes(chosen) ? ['Choose the correct office from the list.', office]
-        : chosen === route.source || dialog.details.assigned.includes(chosen) ? ['That office already has this document. Choose a different office.', office]
-            : reason.value.trim() === '' ? ['Give the reason for the correction.', reason]
-                : null;
+    const problem = !offices.includes(chosen) ? ['Choose the new destination from the list.', office]
+        : chosen === route.source || dialog.details.assigned.includes(chosen) ? ['That destination already has this document. Choose a different destination.', office]
+            : null;
     if (problem) {
         errors.textContent = problem[0];
         errors.hidden = false;
@@ -2814,7 +2857,8 @@ function updateTableSelection(table) {
     if ((documentDeleteUrl || adminFrame) && !summary.querySelector('[data-document-bulk-delete], [data-admin-bulk-delete]')) {
         const deleteButton = document.createElement('button');
         deleteButton.type = 'button';
-        deleteButton.className = 'dts-button dts-button-danger';
+        deleteButton.className = 'dts-button dts-button-danger dts-icon-only';
+        deleteButton.innerHTML = TRASH_ICON;
         if (documentDeleteUrl) {
             deleteButton.dataset.documentBulkDelete = '';
             deleteButton.dataset.url = documentDeleteUrl;
@@ -2823,9 +2867,17 @@ function updateTableSelection(table) {
             deleteButton.dataset.deleteKind = adminFrame.dataset.adminBulkDeleteKind;
             deleteButton.dataset.url = adminFrame.dataset.adminBulkDeleteUrl;
         }
-        // User accounts are deactivated rather than deleted.
-        deleteButton.textContent = adminFrame?.dataset.adminBulkDeleteKind === 'user' ? 'Deactivate selected' : 'Delete selected';
         summary.querySelector('.dts-table-selection-actions').insertBefore(deleteButton, summary.querySelector('[data-clear-table-selection]'));
+    }
+
+    // The button is an icon, so its name rides on the tooltip, and it counts the selection the way Print does.
+    const bulkDeleteButton = summary.querySelector('[data-document-bulk-delete], [data-admin-bulk-delete]');
+    if (bulkDeleteButton) {
+        // User accounts are deactivated rather than deleted.
+        const verb = adminFrame?.dataset.adminBulkDeleteKind === 'user' ? 'Deactivate' : 'Delete';
+        const deleteText = `${verb} ${selectedCount} selected`;
+        bulkDeleteButton.dataset.tooltip = deleteText;
+        bulkDeleteButton.setAttribute('aria-label', deleteText);
     }
 
     // Users (administrators only): "Delete selected" removes accounts that are already deactivated.

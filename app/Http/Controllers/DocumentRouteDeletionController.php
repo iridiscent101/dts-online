@@ -24,15 +24,14 @@ class DocumentRouteDeletionController extends Controller
         $data = $request->validate([
             'source_office' => ['required', 'string', 'max:180'],
             'destination_office' => ['required', 'string', 'max:180'],
-            'reason' => ['required', 'string', 'max:500'],
-        ], [
-            'reason.required' => 'Give the reason for deleting this route.',
+            'reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $destinationOffice = trim($data['destination_office']);
-        $routing->deletePendingRoute($document, $user, trim($data['source_office']), $destinationOffice, trim($data['reason']));
+        $reason = trim((string) ($data['reason'] ?? ''));
+        $routing->deletePendingRoute($document, $user, trim($data['source_office']), $destinationOffice, $reason !== '' ? $reason : null);
 
-        $message = "The route to {$destinationOffice} was deleted.";
+        $message = "The destination {$destinationOffice} was removed.";
         if ($request->expectsJson()) {
             return response()->json(['message' => $message]);
         }

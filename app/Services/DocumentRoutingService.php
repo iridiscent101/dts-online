@@ -17,7 +17,7 @@ class DocumentRoutingService
 {
     private const RECORDS_OFFICES = Office::RECORDS_UNIT_NAMES;
 
-    public function correctPendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, string $replacementOffice, string $reason): string
+    public function correctPendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, string $replacementOffice, ?string $reason): string
     {
         return DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $replacementOffice, $reason): string {
             $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
@@ -28,7 +28,7 @@ class DocumentRoutingService
             $assignment = $currentDocument->officeAssignments()->where('office', $destinationOffice)->first();
             if ($assignment !== null && ! in_array($assignment->status, [DocumentMovement::STATUS_AWAITING_RECEIPT, DocumentMovement::STATUS_FORWARDED], true)) {
                 throw ValidationException::withMessages([
-                    'destination_office' => 'This route can no longer be corrected because the office received it or the document is finished.',
+                    'destination_office' => 'This destination can no longer be changed because the office received it or the document is finished.',
                 ]);
             }
 
@@ -44,7 +44,7 @@ class DocumentRoutingService
             $pendingStatus = $isInitialSend ? DocumentMovement::STATUS_AWAITING_RECEIPT : DocumentMovement::STATUS_FORWARDED;
             if ($currentDocument->isClosedRecord() || $assignment->status !== $pendingStatus) {
                 throw ValidationException::withMessages([
-                    'destination_office' => 'This route can no longer be corrected because the office received it or the document is finished.',
+                    'destination_office' => 'This destination can no longer be changed because the office received it or the document is finished.',
                 ]);
             }
 
@@ -65,7 +65,7 @@ class DocumentRoutingService
                 'to_office' => $destinationOffice,
                 'from_status' => $assignment->status,
                 'to_status' => DocumentMovement::STATUS_CANCELLED,
-                'remarks' => 'Correction reason: '.$reason,
+                'remarks' => $reason !== null ? 'Correction reason: '.$reason : null,
                 'acted_by' => $user->id,
             ]);
             $this->undoSendToAssignment($currentDocument, $assignment, $originalMovement);
@@ -109,7 +109,7 @@ class DocumentRoutingService
      * document are not touched. If no route is left, the sending office (which still has the paper) gets the document
      * back as Received, so it is never left with nobody. A staff activity-log entry records who deleted it.
      */
-    public function deletePendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, string $reason): void
+    public function deletePendingRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $reason): void
     {
         DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $reason): void {
             $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
@@ -129,7 +129,7 @@ class DocumentRoutingService
             $pendingStatus = $isInitialSend ? DocumentMovement::STATUS_AWAITING_RECEIPT : DocumentMovement::STATUS_FORWARDED;
             if ($currentDocument->isClosedRecord() || $assignment->status !== $pendingStatus) {
                 throw ValidationException::withMessages([
-                    'destination_office' => 'This route can no longer be deleted because the office received it or the document is finished.',
+                    'destination_office' => 'This destination can no longer be removed because the office received it or the document is finished.',
                 ]);
             }
 
@@ -192,7 +192,7 @@ class DocumentRoutingService
         $assignment->update(['status' => $finished->to_status, 'movement_id' => $finished->id]);
     }
 
-    public function addAdditionalRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $remarks, string $reason): void
+    public function addAdditionalRoute(Document $document, User $user, string $sourceOffice, string $destinationOffice, ?string $remarks, ?string $reason): void
     {
         DB::transaction(function () use ($document, $user, $sourceOffice, $destinationOffice, $remarks, $reason): void {
             $currentDocument = Document::query()->lockForUpdate()->findOrFail($document->id);
@@ -203,7 +203,7 @@ class DocumentRoutingService
             $sourceStatus = $currentDocument->officeAssignments()->where('office', $sourceOffice)->value('status');
             if (in_array($sourceStatus, DocumentMovement::FINISHED_STATUSES, true)) {
                 throw ValidationException::withMessages([
-                    'source_office' => 'This office has finished its route. Restore it before sending to another office.',
+                    'source_office' => 'This office has finished its work. Restore it before adding another destination.',
                 ]);
             }
             if (DocumentMovement::requiresReceipt((string) $sourceStatus)) {
@@ -212,12 +212,27 @@ class DocumentRoutingService
                 ]);
             }
 
-            $priorForward = $currentDocument->movements()
+            // A document still in its registration routing (every destination still awaiting receipt) has no forward
+            // to add a sibling to: its destinations were "sent" at registration. The new one is sent the same way,
+            // as the Edit screen does, so it matches its siblings ("Awaiting receipt") and adds no step that would
+            // count as processing (Document::hasBeenProcessed), so the destination list stays as editable as it was.
+            // The history entry below still names the registering office as the sender. RouteFixActions offers the
+            // button on exactly these terms.
+            $fromRegistration = $sourceOffice === $currentDocument->registered_office
+                && $currentDocument->officeAssignments()->exists()
+                && $currentDocument->officeAssignments()
+                    ->where('status', '!=', DocumentMovement::STATUS_AWAITING_RECEIPT)
+                    ->doesntExist()
+                && $currentDocument->movements()
+                    ->where('action', DocumentMovement::ACTION_SENT)
+                    ->whereNull('from_office')
+                    ->exists();
+            $priorForward = $fromRegistration ? null : $currentDocument->movements()
                 ->whereIn('action', [DocumentMovement::ACTION_FORWARD, DocumentMovement::ACTION_FORWARDED])
                 ->where('from_office', $sourceOffice)
                 ->latest('id')
                 ->first();
-            abort_unless($priorForward !== null, 403);
+            abort_unless($fromRegistration || $priorForward !== null, 403);
 
             if ($currentDocument->isClosedRecord() || $currentDocument->status === DocumentMovement::STATUS_AWAITING_PHYSICAL_DOCUMENT) {
                 throw ValidationException::withMessages(['destination_office' => 'Restore the document before adding another office.']);
@@ -235,10 +250,18 @@ class DocumentRoutingService
                 ->whereNotIn('status', DocumentMovement::FINISHED_STATUSES)
                 ->count();
             if ($activeRoutes === 0 || $activeRoutes >= 5) {
-                throw ValidationException::withMessages(['destination_office' => 'A document can have no more than five active office routes.']);
+                throw ValidationException::withMessages(['destination_office' => 'A document can have no more than five active destinations.']);
             }
 
-            $movement = $currentDocument->movements()->create([
+            $movement = $currentDocument->movements()->create($fromRegistration ? [
+                'action' => DocumentMovement::ACTION_SENT,
+                'from_office' => null,
+                'to_office' => $destinationOffice,
+                'from_status' => null,
+                'to_status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+                'remarks' => $remarks,
+                'acted_by' => $user->id,
+            ] : [
                 'action' => DocumentMovement::ACTION_FORWARDED,
                 'from_office' => $sourceOffice,
                 'to_office' => $destinationOffice,
@@ -248,7 +271,7 @@ class DocumentRoutingService
                 'acted_by' => $user->id,
             ]);
             $currentDocument->officeAssignments()->updateOrCreate(['office' => $destinationOffice], [
-                'status' => DocumentMovement::STATUS_FORWARDED,
+                'status' => $fromRegistration ? DocumentMovement::STATUS_AWAITING_RECEIPT : DocumentMovement::STATUS_FORWARDED,
                 'assigned_by' => $user->id,
                 'movement_id' => $movement->id,
             ]);
@@ -280,7 +303,7 @@ class DocumentRoutingService
             $sourceOffice = filled($workflow['source_office'] ?? null) ? trim((string) $workflow['source_office']) : null;
             if ($sourceOffice === null && $this->workflowStates($user, $currentDocument)->count() > 1) {
                 throw ValidationException::withMessages([
-                    'workflow.source_office' => 'Select the acting office for this routing action.',
+                    'workflow.source_office' => 'Select the acting office for this action.',
                 ]);
             }
             $workflowState = $this->workflowState($user, $currentDocument, $sourceOffice);
@@ -317,7 +340,7 @@ class DocumentRoutingService
                 && in_array($workflowState['office'], self::RECORDS_OFFICES, true)
                 && $this->hasUnfinishedNonRecordsRoutes($currentDocument)) {
                 throw ValidationException::withMessages([
-                    'workflow.action' => 'Records Unit can complete the document after the other offices finish their routes.',
+                    'workflow.action' => 'Records Unit can complete the document after the other destinations finish their work.',
                 ]);
             }
 
@@ -328,7 +351,7 @@ class DocumentRoutingService
             if ($action === DocumentMovement::ACTION_RESTORED && ! $this->canRestoreAnyRoute($user)) {
                 if ($destinations !== [] && $destinations !== [$workflowState['office']]) {
                     throw ValidationException::withMessages([
-                        'workflow.destinations' => 'Your office can only restore its own route.',
+                        'workflow.destinations' => 'Your office can only restore its own work.',
                     ]);
                 }
                 $destinations = [$workflowState['office']];
@@ -351,7 +374,7 @@ class DocumentRoutingService
                     ->count();
                 if ($activeOtherRoutes + count($targetOffices) > 5) {
                     throw ValidationException::withMessages([
-                        'workflow.destinations' => 'A document can have no more than five active office routes.',
+                        'workflow.destinations' => 'A document can have no more than five active destinations.',
                     ]);
                 }
 
@@ -643,7 +666,7 @@ class DocumentRoutingService
 
         if ($action !== DocumentMovement::ACTION_RESTORED && in_array($fromOffice, $destinations, true)) {
             throw ValidationException::withMessages([
-                'workflow.destinations' => 'Select a different office for this routing update.',
+                'workflow.destinations' => 'Select a different destination for this update.',
             ]);
         }
 

@@ -948,7 +948,9 @@ class DepEdDashboardTest extends TestCase
             ->get(route('platform.documents', ['office' => 'Records Unit']))
             ->assertOk()
             ->assertSee('DTS-INACTIVE-OFFICE')
-            ->assertSee('id="registry-office" data-filter="office" list="registry-offices" value="Records Unit"', false);
+            // The office filter is a dts-searchable combobox now, reading its options from the datalist by id,
+            // so there is no `list` attribute; what matters here is still that the inactive office is the value.
+            ->assertSee('id="registry-office" data-filter="office" data-searchable data-options="registry-offices" role="combobox" aria-autocomplete="list" aria-expanded="false" value="Records Unit"', false);
 
         $this->get(route('platform.documents.create'))
             ->assertOk()

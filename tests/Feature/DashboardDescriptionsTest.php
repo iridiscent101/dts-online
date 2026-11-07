@@ -18,7 +18,7 @@ class DashboardDescriptionsTest extends TestCase
             'platform.incoming' => 'Documents awaiting receipt.',
             'platform.outgoing' => 'Forwarded documents still in progress.',
             'platform.archived' => 'Documents that are completed, released or archived.',
-            'platform.documents' => 'Document records and routing status.',
+            'platform.documents' => 'Document records and destination status.',
         ] as $route => $description) {
             $this->actingAs($user)->get(route($route))
                 ->assertOk()

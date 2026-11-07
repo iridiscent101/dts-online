@@ -65,6 +65,61 @@ class DocumentAdditionalRouteTest extends TestCase
             ->assertSee('<strong>Reason</strong><p>The ASDS asked for a copy.</p>', false);
     }
 
+    public function test_sending_office_can_add_multiple_destinations_in_one_request(): void
+    {
+        Notification::fake();
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $legal = User::factory()->create(['office' => 'SDO-Legal Unit']);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit']);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.additional-routes.store', $document), [
+            'source_office' => 'Administrative Unit',
+            'destinations' => ['SDO-Legal Unit', 'SDO-Records Unit'],
+            'destination_remarks' => ['Review the draft.', 'File a copy.'],
+        ])->assertOk()->assertJsonPath('message', "{$document->tracking_number} was also forwarded to 2 destinations.");
+
+        foreach (['SDO-Legal Unit' => 'Review the draft.', 'SDO-Records Unit' => 'File a copy.'] as $office => $remarks) {
+            $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => $office, 'status' => DocumentMovement::STATUS_FORWARDED]);
+            $this->assertDatabaseHas('document_movements', ['document_id' => $document->id, 'to_office' => $office, 'remarks' => $remarks]);
+        }
+        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+        $this->assertSame(2, $document->activities()->where('description', 'Document route added')->count());
+        Notification::assertSentTo($legal, DocumentAssignedNotification::class);
+        Notification::assertSentTo($records, DocumentAssignedNotification::class);
+    }
+
+    public function test_invalid_later_destination_rolls_back_the_whole_batch(): void
+    {
+        Notification::fake();
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.additional-routes.store', $document), [
+            'source_office' => 'Administrative Unit',
+            'destinations' => ['SDO-Legal Unit', 'SDO-Budget Unit'],
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertDatabaseMissing('document_movements', ['document_id' => $document->id, 'to_office' => 'SDO-Legal Unit']);
+        Notification::assertNothingSent();
+    }
+
+    public function test_remarks_for_one_destination_are_validated_before_any_route_is_added(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.additional-routes.store', $document), [
+            'source_office' => 'Administrative Unit',
+            'destinations' => ['SDO-Legal Unit', 'SDO-Records Unit'],
+            'destination_remarks' => ['Review the draft.', str_repeat('x', 1001)],
+        ])->assertUnprocessable()->assertJsonValidationErrors('destination_remarks.1');
+
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Records Unit']);
+    }
+
     public function test_failed_notification_rolls_back_an_additional_route_before_retry(): void
     {
         $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
@@ -134,17 +189,13 @@ class DocumentAdditionalRouteTest extends TestCase
         ]);
     }
 
-    public function test_additional_route_rejects_a_missing_reason_a_duplicate_and_a_closed_document(): void
+    public function test_additional_route_rejects_a_duplicate_and_a_closed_document(): void
     {
         $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $document = $this->forwardedDocument();
         $url = route('platform.documents.additional-routes.store', $document);
 
-        $this->actingAs($sender)
-            ->postJson($url, ['source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Legal Unit'])
-            ->assertUnprocessable()->assertJsonValidationErrors('reason');
-
-        $this->postJson($url, [
+        $this->actingAs($sender)->postJson($url, [
             'source_office' => 'Administrative Unit', 'destination_office' => 'SDO-Budget Unit', 'reason' => 'The ASDS asked for a copy.',
         ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
 
@@ -154,6 +205,31 @@ class DocumentAdditionalRouteTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('destination_office');
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit']);
+    }
+
+    public function test_additional_route_can_be_added_without_a_reason(): void
+    {
+        Notification::fake();
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)
+            ->postJson(route('platform.documents.additional-routes.store', $document), [
+                'source_office' => 'Administrative Unit',
+                'destination_office' => 'SDO-Legal Unit',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id, 'office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+
+        // The history entry is still written; it simply carries no reason, and the workspace shows no Reason block.
+        $added = $document->activities()->where('description', 'Document route added')->sole();
+        $this->assertNull($added->properties['reason']);
+        $this->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertDontSee('<strong>Reason</strong>', false);
     }
 
     public function test_additional_route_requires_prior_forward_and_an_open_active_slot(): void
@@ -317,6 +393,84 @@ class DocumentAdditionalRouteTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('destination_office');
+    }
+
+    public function test_the_registering_office_can_add_a_destination_before_anyone_receives(): void
+    {
+        Notification::fake();
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->registeredDocument();
+
+        // The button is offered, sent from the registering office.
+        $this->assertSame(['SDO-Records Unit'], RouteFixActions::for($document, $records)['additional']['sources']->all());
+
+        $this->actingAs($records)
+            ->postJson(route('platform.documents.additional-routes.store', $document), [
+                'source_office' => 'SDO-Records Unit',
+                'destination_office' => 'SDO-Budget Unit',
+            ])
+            ->assertOk();
+
+        // Recorded like a registration send, so it matches its sibling and the document stays unprocessed:
+        // the destination list remains editable.
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id, 'office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id, 'action' => DocumentMovement::ACTION_SENT, 'from_office' => null, 'to_office' => 'SDO-Budget Unit',
+        ]);
+        $fresh = $document->fresh();
+        $this->assertFalse($fresh->hasBeenProcessed());
+        $this->assertFalse($fresh->routeListIsLocked());
+        $added = $fresh->activities()->where('description', 'Document route added')->sole();
+        $this->assertSame('SDO-Records Unit', $added->properties['from_office']);
+    }
+
+    public function test_only_the_registering_office_may_add_to_a_registered_document_and_only_before_receipt(): void
+    {
+        $other = User::factory()->create(['office' => 'SDO-Accounting Unit', 'permissions' => ['platform.index' => true]]);
+        $records = User::factory()->create(['office' => 'SDO-Records Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->registeredDocument();
+        $url = route('platform.documents.additional-routes.store', $document);
+
+        // An unrelated office does not even see the document, so the controller answers 404 before the route rules.
+        $this->assertNull(RouteFixActions::for($document, $other)['additional']);
+        $this->actingAs($other)->postJson($url, [
+            'source_office' => 'SDO-Records Unit', 'destination_office' => 'SDO-Budget Unit',
+        ])->assertNotFound();
+
+        // Once an office receives it, the registration path closes; Forward takes over.
+        $document->movements()->create([
+            'action' => DocumentMovement::ACTION_RECEIVED, 'from_office' => 'SDO-Legal Unit', 'to_office' => 'SDO-Legal Unit',
+            'from_status' => DocumentMovement::STATUS_AWAITING_RECEIPT, 'to_status' => DocumentMovement::STATUS_RECEIVED,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Legal Unit')->update(['status' => DocumentMovement::STATUS_RECEIVED]);
+        $document = $document->fresh();
+
+        $this->assertNull(RouteFixActions::for($document, $records)['additional']);
+        $this->actingAs($records)->postJson($url, [
+            'source_office' => 'SDO-Records Unit', 'destination_office' => 'SDO-Budget Unit',
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
+    }
+
+    private function registeredDocument(): Document
+    {
+        $document = Document::factory()->create([
+            'current_office' => 'SDO-Legal Unit',
+            'status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+            'registered_office' => 'SDO-Records Unit',
+        ]);
+        $movement = $document->movements()->create([
+            'action' => DocumentMovement::ACTION_SENT,
+            'from_office' => null,
+            'to_office' => 'SDO-Legal Unit',
+            'from_status' => null,
+            'to_status' => DocumentMovement::STATUS_AWAITING_RECEIPT,
+        ]);
+        $document->officeAssignments()->where('office', 'SDO-Legal Unit')->update(['movement_id' => $movement->id]);
+
+        return $document;
     }
 
     private function forwardedDocument(): Document

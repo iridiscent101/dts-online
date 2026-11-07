@@ -101,7 +101,9 @@
                         <div class="dts-field dts-field-wide dts-route-destinations">
                             <div class="dts-route-destination-heading">
                                 <label>Initial destination offices <span aria-hidden="true">*</span></label>
-                                <button type="button" class="dts-button dts-button-secondary" data-registration-add-route><x-orchid-icon path="bs.plus-lg" /> Add route</button>
+                                {{-- Icon-only: it sits beside the "Initial destination offices" label, so the plus
+                                     reads as "one more of these". dts.js disables it at 5 routes. --}}
+                                <button type="button" class="dts-button dts-button-secondary dts-icon-only" data-registration-add-route aria-label="Add destination" data-tooltip="Add destination"><x-orchid-icon path="bs.plus-lg" /></button>
                             </div>
                             <div class="dts-route-destination-list" data-registration-route-list>
                                 @foreach ($selectedDestinations as $selectedDestination)

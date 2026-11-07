@@ -27,17 +27,18 @@ class DocumentRouteCorrectionController extends Controller
             'source_office' => ['required', 'string', 'max:180'],
             'destination_office' => ['required', 'string', 'max:180'],
             'replacement_office' => ['required', 'string', Rule::in(Document::officeOptions())],
-            'correction_reason' => ['required', 'string', 'max:500'],
+            'correction_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         $sourceOffice = trim($data['source_office']);
         $replacementOffice = $data['replacement_office'];
-        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $data, $replacementOffice, $notifications): void {
-            $action = $routing->correctPendingRoute($document, $user, $sourceOffice, trim($data['destination_office']), $replacementOffice, trim($data['correction_reason']));
+        $reason = trim((string) ($data['correction_reason'] ?? ''));
+        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $data, $replacementOffice, $reason, $notifications): void {
+            $action = $routing->correctPendingRoute($document, $user, $sourceOffice, trim($data['destination_office']), $replacementOffice, $reason !== '' ? $reason : null);
             $notifications->assigned($document, $action, $user, [$replacementOffice]);
         });
 
-        $message = "Route corrected to {$replacementOffice}.";
+        $message = "Destination changed to {$replacementOffice}.";
         if ($request->expectsJson()) {
             return response()->json(['message' => $message]);
         }

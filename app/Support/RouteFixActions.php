@@ -8,7 +8,7 @@ use App\Models\DocumentOfficeAssignment;
 use App\Models\User;
 
 /**
- * The two fixes for a document an office already sent, shown on the Outgoing list and the dashboard queue:
+ * The two fixes for a document an office already sent, shown on All Documents, Outgoing, and the dashboard queue:
  * "Correct route" swaps a destination chosen by mistake while that office has not received it yet
  * (Document::correctableRoutesFor), and "Add office route" adds one more route while the original routes stay
  * as they are (DocumentRoutingService::addAdditionalRoute). Each is null when it does not apply; otherwise it holds the
@@ -74,6 +74,17 @@ class RouteFixActions
                 ->when(! $isAdministrator, fn ($query) => $query->whereIn('from_office', $userOffices))
                 ->distinct()
                 ->pluck('from_office');
+
+        // A document still in its registration routing has no forwards yet; its sender is the office that registered
+        // it, which DocumentRoutingService::addAdditionalRoute accepts on the same terms: every destination is still
+        // awaiting receipt. Read from the loaded assignments, not the movement history, so the registry stays at one
+        // query for all rows (DepEdDashboardTest counts movement reads).
+        if ($sendingOffices->isEmpty() && $document->registered_office !== null
+            && ($isAdministrator || $userOffices->contains($document->registered_office))
+            && $document->officeAssignments->isNotEmpty()
+            && $document->officeAssignments->every(fn (DocumentOfficeAssignment $assignment): bool => $assignment->status === DocumentMovement::STATUS_AWAITING_RECEIPT)) {
+            $sendingOffices = collect([$document->registered_office]);
+        }
 
         $unavailableOffices = $document->officeAssignments
             ->filter(fn (DocumentOfficeAssignment $assignment): bool => in_array($assignment->status, DocumentMovement::FINISHED_STATUSES, true)

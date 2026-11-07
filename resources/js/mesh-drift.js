@@ -288,15 +288,19 @@ function mountMeshDrift() {
     const hero = document.querySelector('.dts-auth-hero[data-mesh-drift]');
     if (!hero || hero.classList.contains('is-mesh')) return;
 
+    // The auth layout sets .dts-mesh-js before the panel paints, which hides the photo so it does not flash and get
+    // swapped for the shader. Clear it on every path that gives up here, so the photo comes back instead.
+    const giveUp = () => { document.documentElement.classList.remove('dts-mesh-js'); };
+
     const canvas = document.createElement('canvas');
     canvas.className = 'dts-auth-mesh';
     canvas.setAttribute('aria-hidden', 'true');
     const gl = canvas.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false });
-    if (!gl) return;
+    if (!gl) return giveUp();
 
     const vertex = compileShader(gl, gl.VERTEX_SHADER, vertexSource);
     const fragment = compileShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
-    if (!vertex || !fragment) return;
+    if (!vertex || !fragment) return giveUp();
 
     const program = gl.createProgram();
     gl.attachShader(program, vertex);
@@ -304,7 +308,7 @@ function mountMeshDrift() {
     gl.linkProgram(program);
     gl.deleteShader(vertex);
     gl.deleteShader(fragment);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return giveUp();
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);

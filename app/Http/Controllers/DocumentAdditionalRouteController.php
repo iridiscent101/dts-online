@@ -21,26 +21,39 @@ class DocumentAdditionalRouteController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User && $document->isVisibleTo($user), 404);
 
-        $data = $request->validate([
+        $rules = [
             'source_office' => ['required', 'string', 'max:180'],
-            'destination_office' => ['required', 'string', Rule::in(Document::officeOptions())],
             'remarks' => ['nullable', 'string', 'max:1000'],
-            // Why another office is being added; kept in the history like a route correction's reason.
-            'reason' => ['required', 'string', 'max:500'],
-        ], [
-            'reason.required' => 'Say why you are adding this office.',
-        ]);
+            'destination_remarks' => ['nullable', 'array', 'max:5'],
+            'destination_remarks.*' => ['nullable', 'string', 'max:1000'],
+            // Why another office is being added; kept in the history like a route correction's reason, and
+            // optional in the same way, so the history records it when it is given and nothing when it is not.
+            'reason' => ['nullable', 'string', 'max:500'],
+        ];
+        if ($request->has('destinations')) {
+            $rules['destinations'] = ['required', 'array', 'min:1', 'max:5'];
+            $rules['destinations.*'] = ['required', 'string', 'distinct', Rule::in(Document::officeOptions())];
+        } else {
+            $rules['destination_office'] = ['required', 'string', Rule::in(Document::officeOptions())];
+        }
+        $data = $request->validate($rules);
         $sourceOffice = trim($data['source_office']);
-        $destinationOffice = $data['destination_office'];
+        $destinations = array_values($data['destinations'] ?? [$data['destination_office']]);
         $remarks = filled($data['remarks'] ?? null) ? trim($data['remarks']) : null;
-        $reason = trim($data['reason']);
+        $reason = trim((string) ($data['reason'] ?? ''));
+        $reason = $reason !== '' ? $reason : null;
 
-        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $destinationOffice, $remarks, $reason, $notifications): void {
-            $routing->addAdditionalRoute($document, $user, $sourceOffice, $destinationOffice, $remarks, $reason);
-            $notifications->assigned($document, DocumentMovement::ACTION_FORWARDED, $user, [$destinationOffice]);
+        DB::transaction(function () use ($routing, $document, $user, $sourceOffice, $destinations, $remarks, $data, $reason, $notifications): void {
+            foreach ($destinations as $index => $destinationOffice) {
+                $destinationRemarks = $data['destination_remarks'][$index] ?? $remarks;
+                $routing->addAdditionalRoute($document, $user, $sourceOffice, $destinationOffice, filled($destinationRemarks) ? trim($destinationRemarks) : null, $reason);
+            }
+            $notifications->assigned($document, DocumentMovement::ACTION_FORWARDED, $user, $destinations);
         });
 
-        $message = "{$document->tracking_number} was also forwarded to {$destinationOffice}.";
+        $message = count($destinations) === 1
+            ? "{$document->tracking_number} was also forwarded to {$destinations[0]}."
+            : "{$document->tracking_number} was also forwarded to ".count($destinations).' destinations.';
         if ($request->expectsJson()) {
             return response()->json(['message' => $message]);
         }

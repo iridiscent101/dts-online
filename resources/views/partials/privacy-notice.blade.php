@@ -19,7 +19,6 @@
             <li>The file you attach, if you attach one.</li>
         @endif
         <li>When the document is released: the name and signature of the person who receives it.</li>
-        <li>If you turn on updates on your phone: a code from your browser that lets us send notifications for this one document.</li>
     </ul>
 
     <{{ $headingTag }} class="{{ $headingClass }}">Why we use it</{{ $headingTag }}>
@@ -29,8 +28,8 @@
     <p class="mt-2">SDO staff who handle the document see its full record. Only signed-in staff can open it, and attached files are never shown on the public pages.</p>
     <p class="mt-2">Anyone who has the tracking number can see the document’s history on the tracking page: the offices it went to, the status and dates, the SDO staff who handled each step, their remarks, your instructions for Records, and the name of the person who received or signed for it. Your own name, email address and signature are not shown there, and neither is the title of a document you sent online. Keep your tracking number private.</p>
 
-    <{{ $headingTag }} class="{{ $headingClass }}">Email and phone updates</{{ $headingTag }}>
-    <p class="mt-2">Both are optional. If you give an email address, we email you each time your document is routed to an office. If you turn on updates on your phone, the notifications are delivered through Google’s Firebase Cloud Messaging; you can turn them off on the tracking page, and the code from your browser is then deleted.</p>
+    <{{ $headingTag }} class="{{ $headingClass }}">Email updates</{{ $headingTag }}>
+    <p class="mt-2">Email is optional. If you give an email address, we email you each time your document is routed to an office.</p>
 
     <{{ $headingTag }} class="{{ $headingClass }}">Cookies</{{ $headingTag }}>
     <p class="mt-2">The site uses only the cookies it needs to work: one that keeps your visit together and one that protects the form from misuse. There are no advertising or tracking cookies.</p>

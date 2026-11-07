@@ -60,9 +60,9 @@ class StoreClientDocumentSubmissionRequest extends FormRequest
             'type.required' => 'Select the document type.',
             'type.in' => 'Select a recognized document type.',
             'destinations.prohibited' => 'Records staff choose the destination offices after intake.',
-            'route_remarks.prohibited' => 'Give routing instructions to Records staff at the counter.',
-            'client_remarks.string' => 'Enter your routing instructions as text.',
-            'client_remarks.max' => 'Keep routing instructions within 1,000 characters.',
+            'route_remarks.prohibited' => 'Give handling instructions to Records staff at the counter.',
+            'client_remarks.string' => 'Enter your handling instructions as text.',
+            'client_remarks.max' => 'Keep handling instructions within 1,000 characters.',
             'attachment.extensions' => 'The document must be a PDF, JPG, PNG, DOCX, XLSX, XLS, or CSV file.',
         ];
     }

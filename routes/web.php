@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\ClientDocumentSubmissionController;
-use App\Http\Controllers\DocumentPushSubscriptionController;
 use App\Http\Controllers\DocumentReceiptController;
 use App\Http\Controllers\ForgotPasswordController;
 use App\Http\Controllers\KioskController;
@@ -29,14 +28,6 @@ Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
     ->middleware('throttle:30,1')->name('password.reset');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])
     ->middleware('throttle:5,1')->name('password.update');
-
-// "Get updates on this phone" (tracking and receipt pages): push notifications for one document, no sign-in.
-Route::post('/tracking/{tracking}/updates', [DocumentPushSubscriptionController::class, 'store'])
-    ->middleware('throttle:10,1')
-    ->name('tracking.updates.store');
-Route::delete('/tracking/{tracking}/updates', [DocumentPushSubscriptionController::class, 'destroy'])
-    ->middleware('throttle:10,1')
-    ->name('tracking.updates.destroy');
 
 // Printable receipt with the tracking number and QR code (Fast Track "Print receipt").
 Route::get('/receipt/{tracking}', DocumentReceiptController::class)

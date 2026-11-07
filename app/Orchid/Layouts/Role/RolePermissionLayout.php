@@ -40,7 +40,7 @@ class RolePermissionLayout extends Rows
         'platform.documents.attachments.manage' => 'Add, replace or delete document attachments.',
         'platform.kiosk' => 'Run the kiosk screen where recipients sign for documents.',
         'platform.systems.attachment' => 'Open the system attachment library.',
-        'platform.systems.offices' => 'Add or edit offices used for users and routing.',
+        'platform.systems.offices' => 'Add or edit offices used for users and document destinations.',
         'platform.systems.schools' => 'View and remove schools used as document origins.',
         'platform.systems.roles' => 'Add or edit roles and their permissions.',
         'platform.systems.users' => 'Add or edit user accounts, offices and roles.',
@@ -54,10 +54,10 @@ class RolePermissionLayout extends Rows
      * @var array<string, string>
      */
     private array $permissionDetails = [
-        'platform.index' => 'Staff can view documents they registered or those assigned to their office. Routing requires an assigned office.',
-        'platform.documents.view-all' => 'Includes every document\'s details, attachments and movement history. It does not allow editing or routing.',
+        'platform.index' => 'Staff can view documents they registered or those assigned to their office. Destination actions require an assigned office.',
+        'platform.documents.view-all' => 'Includes every document\'s details, attachments and movement history. It does not allow editing or destination actions.',
         'platform.documents.edit' => 'Locked details need a reason to change. Only administrators can correct closed (finished) records.',
-        'platform.documents.routes.manage' => 'Staff receive, forward and complete their own office\'s routes without this permission; it does not give access to other offices.',
+        'platform.documents.routes.manage' => 'Staff receive, forward and complete their own office\'s work without this permission; it does not give access to other offices.',
     ];
 
     /**

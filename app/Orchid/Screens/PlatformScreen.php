@@ -131,7 +131,7 @@ class PlatformScreen extends Screen
 
         $documents = Document::query()
             ->with('officeAssignments')
-            ->when($section === 'outgoing', fn (Builder $query): Builder => $query->with([
+            ->when(in_array($section, ['documents', 'outgoing'], true), fn (Builder $query): Builder => $query->with([
                 'officeAssignments.movement',
                 'forwardMovements:id,document_id,from_office',
             ]))
@@ -194,7 +194,7 @@ class PlatformScreen extends Screen
     {
         // Each tab says in plain words what it lists.
         return match ($this->section()) {
-            'documents' => 'Document records and routing status.',
+            'documents' => 'Document records and destination status.',
             'incoming' => 'Documents awaiting receipt.',
             'outgoing' => 'Forwarded documents still in progress.',
             'archived' => 'Documents that are completed, released or archived.',

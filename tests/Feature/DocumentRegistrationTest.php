@@ -34,7 +34,7 @@ class DocumentRegistrationTest extends TestCase
         $response = $this->actingAs($user)
             ->get(route('platform.documents.create'))
             ->assertOk()
-            ->assertSee('Add route')
+            ->assertSee('Add destination')
             ->assertSee('Register document')
             ->assertSee('Register this document?')
             ->assertSee('name="document[destinations][]"', false)

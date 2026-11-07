@@ -190,7 +190,7 @@ class DocumentMovement extends Model
             self::ACTION_COMPLETED => 'Document completed',
             self::ACTION_ARCHIVE => 'Document archived',
             self::ACTION_RESTORED => "Restored to {$this->to_office}",
-            self::ACTION_CANCELLED => "Route to {$this->to_office} cancelled",
+            self::ACTION_CANCELLED => "Destination cancelled: {$this->to_office}",
             default => null,
         };
 
@@ -206,7 +206,7 @@ class DocumentMovement extends Model
             return "Status changed to {$this->to_status}";
         }
 
-        return 'Routing note added';
+        return 'Destination note added';
     }
 
     /**
@@ -230,11 +230,11 @@ class DocumentMovement extends Model
             self::ACTION_COMPLETED => "{$actingOffice} marked it completed",
             self::ACTION_ARCHIVE => "{$actingOffice} archived the document",
             self::ACTION_RESTORED => "Restored to {$this->to_office}",
-            self::ACTION_CANCELLED => "Route to {$this->to_office} cancelled",
+            self::ACTION_CANCELLED => "Destination cancelled: {$this->to_office}",
             default => match (true) {
                 $this->from_office !== $this->to_office => "Document forwarded to {$this->to_office}",
                 $this->from_status !== $this->to_status => "{$actingOffice} changed the status to {$this->to_status}",
-                default => "{$actingOffice} added a routing note",
+                default => "{$actingOffice} added a destination note",
             },
         };
     }

@@ -1993,7 +1993,7 @@ class DocumentMovementTest extends TestCase
             ])
             ->assertRedirect(route('platform.documents.view', $document))
             ->assertSessionHasErrors([
-                'workflow.destinations' => 'Select a different office for this routing update.',
+                'workflow.destinations' => 'Select a different destination for this update.',
             ]);
 
         $this->assertDatabaseCount('document_movements', 0);

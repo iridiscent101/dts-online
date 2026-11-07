@@ -152,10 +152,10 @@
                                             @include('orchid.partials.route-fix-offices')
                                             @endif
                                             @if ($routeCorrection)
-                                            <button type="button" class="dts-queue-icon" data-route-correction='@json($routeCorrection)' data-tooltip="Correct route" aria-label="Correct the route of {{ $document->tracking_number }}"><x-orchid-icon path="bs.arrow-left-right" /></button>
+                                            <button type="button" class="dts-queue-icon" data-route-correction='@json($routeCorrection)' data-tooltip="Correct a destination" aria-label="Correct a destination for {{ $document->tracking_number }}"><x-orchid-icon path="bs.arrow-left-right" /></button>
                                             @endif
                                             @if ($additionalRoute)
-                                            <button type="button" class="dts-queue-icon" data-additional-route='@json($additionalRoute)' data-tooltip="Add office route" aria-label="Add an office route for {{ $document->tracking_number }}"><x-orchid-icon path="bs.send-plus" /></button>
+                                            <button type="button" class="dts-queue-icon" data-additional-route='@json($additionalRoute)' data-tooltip="Add destination" aria-label="Add a destination for {{ $document->tracking_number }}"><x-orchid-icon path="bs.send-plus" /></button>
                                             @endif
                                             {{-- The label is printed only once the physical document/s are received; the receipt action adds it to the row then. --}}
                                             @unless ($awaitsPaper || $receiveOffices->isNotEmpty())

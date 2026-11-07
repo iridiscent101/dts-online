@@ -416,7 +416,7 @@ class ClientDocumentSubmissionTest extends TestCase
             ->assertRedirect(route('submission.create'))
             ->assertSessionHasErrors([
                 'type' => 'Select a recognized document type.',
-                'route_remarks' => 'Give routing instructions to Records staff at the counter.',
+                'route_remarks' => 'Give handling instructions to Records staff at the counter.',
             ]);
 
         $this->assertDatabaseCount('documents', 0);
@@ -467,11 +467,11 @@ class ClientDocumentSubmissionTest extends TestCase
         $payload['client_remarks'] = ['Budget Unit'];
 
         $this->post(route('submission.store'), $payload)
-            ->assertSessionHasErrors(['client_remarks' => 'Enter your routing instructions as text.']);
+            ->assertSessionHasErrors(['client_remarks' => 'Enter your handling instructions as text.']);
 
         $payload['client_remarks'] = str_repeat('x', 1001);
         $this->post(route('submission.store'), $payload)
-            ->assertSessionHasErrors(['client_remarks' => 'Keep routing instructions within 1,000 characters.']);
+            ->assertSessionHasErrors(['client_remarks' => 'Keep handling instructions within 1,000 characters.']);
 
         $this->assertDatabaseCount('documents', 0);
     }

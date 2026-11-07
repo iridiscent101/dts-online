@@ -8,7 +8,7 @@
     <link rel="icon" href="{{ asset('images/icon.png') }}" type="image/png">
     @fonts
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js', 'resources/js/client-updates.js'])
+    @vite(['resources/css/app.css', 'resources/js/floating-tooltip.js', 'resources/js/copy-button.js', 'resources/js/tracking-refresh.js', 'resources/js/timeline-reveal.js'])
 </head>
 <body class="dts-public-page flex min-h-screen flex-col bg-white font-sans text-province-charcoal antialiased">
     <div class="fixed inset-x-0 top-0 z-50 grid h-1 grid-cols-[2fr_1fr_1fr]" aria-hidden="true">
@@ -194,10 +194,6 @@
                     Document submitted. Save the tracking number below to follow its progress.
                 </p>
             @endif
-            {{-- Right after submitting: the push prompt stands out here (the regular box below is skipped). --}}
-            @if (session('submitted') && $document)
-                @include('partials.client-updates', ['trackingNumber' => $document->tracking_number, 'highlight' => true])
-            @endif
             @if ($document)
                 @php
                     $finishedOfficeCount = $assignedOffices->filter(fn (array $office): bool => ($office['handed_on'] ?? false) || in_array($office['status'], \App\Models\DocumentMovement::FINISHED_STATUSES, true))->count();
@@ -255,10 +251,6 @@
                             </div>
                         @endif
 
-                        @unless (session('submitted'))
-                            @include('partials.client-updates', ['trackingNumber' => $document->tracking_number])
-                        @endunless
-
                         <div class="grid gap-4 border-t border-province-line pt-4">
                             <h3 class="text-lg font-semibold leading-7 text-slate-900 [overflow-wrap:anywhere]">{{ $document->client_submission_key ? 'Client document' : $document->subject }}</h3>
                             <dl class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
@@ -308,6 +300,7 @@
                                                         <span class="block text-sm text-slate-600"><span class="font-semibold">{{ \App\Support\StatusLabel::for($assignment['status']) }}</span>{{ ($assignment['handed_on'] ?? false) ? ' · sent to '.implode(', ', $assignment['sent_to']) : '' }}@if ($pendingKind = \App\Support\StatusLabel::description($assignment['status']))<span class="text-slate-600"> · {{ $pendingKind }}</span>@endif<span class="sr-only">{{ match ($routeState) { 'done' => ', finished', 'paused' => ', paused', 'waiting' => ', not started yet', default => ', in progress' } }}</span></span>
                                                     </span>
                                                     @if ($routeLinks)
+                                                        <x-orchid-icon path="bs.chevron-right" class="size-4 shrink-0 text-province-green" />
                                                         <span class="sr-only">, show history</span>
                                                         </a>
                                                     @else

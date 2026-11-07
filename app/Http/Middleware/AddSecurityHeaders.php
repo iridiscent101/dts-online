@@ -59,18 +59,13 @@ class AddSecurityHeaders
             [$dev, $devSocket] = ['http:', 'ws:'];
         }
 
-        // Push notifications (resources/js/firebase.js): the Firebase SDK comes from Google's CDN when staff press
-        // "Enable phone notifications", and getting the device token calls Firebase's registration servers.
-        $firebaseScripts = 'https://www.gstatic.com';
-        $firebaseApis = ['https://firebaseinstallations.googleapis.com', 'https://fcmregistrations.googleapis.com', 'https://fcm.googleapis.com'];
-
         $directives = [
             'default-src' => ["'self'"],
-            'script-src' => ["'self'", "'nonce-{$nonce}'", $firebaseScripts, $dev],
+            'script-src' => ["'self'", "'nonce-{$nonce}'", $dev],
             'style-src' => ["'self'", "'unsafe-inline'", $dev],
             'img-src' => ["'self'", 'data:', 'blob:', $dev],
             'font-src' => ["'self'", 'data:', $dev],
-            'connect-src' => ["'self'", ...$firebaseApis, $dev, $devSocket],
+            'connect-src' => ["'self'", $dev, $devSocket],
             'frame-src' => ["'self'"],
             'frame-ancestors' => ["'self'"],
             'form-action' => ["'self'"],

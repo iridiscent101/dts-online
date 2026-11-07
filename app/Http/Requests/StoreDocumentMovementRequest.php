@@ -123,7 +123,7 @@ class StoreDocumentMovementRequest extends FormRequest
             'workflow.destinations.required' => 'Select at least one destination office.',
             'workflow.destinations.min' => 'Select at least one destination office.',
             'workflow.destinations.max' => 'Select no more than five destination offices.',
-            'workflow.destinations.*.required' => 'Select a destination office for each route row.',
+            'workflow.destinations.*.required' => 'Select an office for each destination.',
             'workflow.destinations.*.distinct' => 'Select each destination office only once.',
             'workflow.destinations.*.in' => 'Select recognized destination offices.',
         ];

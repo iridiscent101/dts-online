@@ -205,7 +205,7 @@ class DocumentNotificationTest extends TestCase
         Notification::assertSentOnDemandTimes(DocumentRoutedClientNotification::class, 1);
     }
 
-    public function test_sent_emails_carry_the_seal_the_green_button_and_the_records_unit_sign_off(): void
+    public function test_sent_emails_carry_both_logos_the_green_button_and_the_records_unit_sign_off(): void
     {
         config()->set('mail.default', 'array');
 
@@ -214,8 +214,10 @@ class DocumentNotificationTest extends TestCase
 
         $email = app('mailer')->getSymfonyTransport()->messages()->sole()->getOriginalMessage();
         $html = $email->getHtmlBody();
-        $this->assertCount(1, $email->getAttachments());
-        $this->assertStringContainsString('src="cid:', $html);
+        $this->assertCount(2, $email->getAttachments());
+        $this->assertSame(2, substr_count($html, 'src="cid:'));
+        $this->assertStringContainsString('alt="SDO Nueva Vizcaya seal"', $html);
+        $this->assertStringContainsString('alt="DepEd logo"', $html);
         $this->assertStringContainsString('background-color: #216e39', $html);
         $this->assertStringContainsString('Regards,<br>Deped SDO Records Unit', $html);
         $this->assertSame('Deped Nueva Vizcaya Records Unit', $email->getFrom()[0]->getName());
@@ -358,8 +360,8 @@ class DocumentNotificationTest extends TestCase
             ->toMail(new AnonymousNotifiable);
         $html = (string) $message->render();
 
-        $this->assertSame('Your document SDONV12345678912 was routed', $message->subject);
-        $this->assertContains('Your document has been routed to the SDO-Budget Unit and SDO-Legal Unit.', $message->introLines);
+        $this->assertSame('Your document SDONV12345678912 was sent to a destination', $message->subject);
+        $this->assertContains('Your document has been sent to SDO-Budget Unit and SDO-Legal Unit.', $message->introLines);
         $this->assertContains(DocumentRoutedClientNotification::SPAM_NOTE, $message->outroLines);
         $this->assertSame(EmailLink::route('tracking.index', ['tracking' => 'SDONV12345678912']), $message->actionUrl);
         $this->assertStringContainsString('Regards,<br>Deped SDO Records Unit', $html);

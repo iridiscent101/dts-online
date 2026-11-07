@@ -31,7 +31,7 @@ class DocumentRouteCorrectionTest extends TestCase
             'destination_office' => 'SDO-Budget Unit',
             'replacement_office' => 'SDO-Legal Unit',
             'correction_reason' => 'Selected Budget instead of Legal.',
-        ])->assertOk()->assertJsonPath('message', 'Route corrected to SDO-Legal Unit.');
+        ])->assertOk()->assertJsonPath('message', 'Destination changed to SDO-Legal Unit.');
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
@@ -41,6 +41,30 @@ class DocumentRouteCorrectionTest extends TestCase
         $this->assertDatabaseHas('activity_log', ['subject_id' => $document->id, 'description' => 'Document route corrected', 'properties->office' => 'Administrative Unit', 'properties->correction_reason' => 'Selected Budget instead of Legal.']);
         $this->assertSame('SDO-Legal Unit', $document->fresh()->current_office);
         Notification::assertSentTo($recipient, DocumentAssignedNotification::class);
+    }
+
+    public function test_sending_office_can_correct_an_unreceived_destination_without_a_reason(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $document = $this->forwardedDocument();
+
+        $this->actingAs($sender)->postJson(route('platform.documents.routes.correct', $document), [
+            'source_office' => 'Administrative Unit',
+            'destination_office' => 'SDO-Budget Unit',
+            'replacement_office' => 'SDO-Legal Unit',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Legal Unit',
+            'status' => DocumentMovement::STATUS_FORWARDED,
+        ]);
+        $this->assertDatabaseHas('document_movements', [
+            'document_id' => $document->id,
+            'action' => DocumentMovement::ACTION_CANCELLED,
+            'to_office' => 'SDO-Budget Unit',
+            'remarks' => null,
+        ]);
     }
 
     public function test_failed_notification_rolls_back_a_route_correction_before_retry(): void
@@ -239,7 +263,7 @@ class DocumentRouteCorrectionTest extends TestCase
             'destination_office' => 'SDO-Accounting Unit',
             'replacement_office' => 'SDO-Budget Unit',
             'correction_reason' => 'Accounting was selected by mistake.',
-        ])->assertOk()->assertJsonPath('message', 'Route corrected to SDO-Budget Unit.');
+        ])->assertOk()->assertJsonPath('message', 'Destination changed to SDO-Budget Unit.');
 
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Accounting Unit']);
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_AWAITING_RECEIPT]);
@@ -436,7 +460,7 @@ class DocumentRouteCorrectionTest extends TestCase
         $this->assertSame(1, $document->movements()->where('action', DocumentMovement::ACTION_RECEIVED)->count());
     }
 
-    public function test_route_correction_requires_a_reason_and_an_unassigned_replacement(): void
+    public function test_route_correction_requires_an_unassigned_replacement(): void
     {
         $document = $this->forwardedDocument();
         $document->officeAssignments()->create(['office' => 'SDO-Legal Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
@@ -446,13 +470,6 @@ class DocumentRouteCorrectionTest extends TestCase
             'source_office' => 'Administrative Unit',
             'destination_office' => 'SDO-Budget Unit',
             'replacement_office' => 'SDO-Legal Unit',
-        ])->assertUnprocessable()->assertJsonValidationErrors('correction_reason');
-
-        $this->postJson(route('platform.documents.routes.correct', $document), [
-            'source_office' => 'Administrative Unit',
-            'destination_office' => 'SDO-Budget Unit',
-            'replacement_office' => 'SDO-Legal Unit',
-            'correction_reason' => 'Wrong office.',
         ])->assertUnprocessable()->assertJsonValidationErrors('replacement_office');
 
         $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
@@ -477,7 +494,7 @@ class DocumentRouteCorrectionTest extends TestCase
             ->assertSeeInOrder(['<dt>Wrong office</dt><dd>SDO-Budget Unit</dd>', '<dt>Corrected to</dt><dd>SDO-Legal Unit</dd>'], false)
             ->assertSee('Correction reason: Selected Budget instead of Legal.')
             // Newest first: the correction sits above the steps it caused, not below them.
-            ->assertSeeInOrder(['Route corrected', 'Forwarded to SDO-Legal Unit', 'Route to SDO-Budget Unit cancelled', 'Forwarded to SDO-Budget Unit']);
+            ->assertSeeInOrder(['Route corrected', 'Forwarded to SDO-Legal Unit', 'Destination cancelled: SDO-Budget Unit', 'Forwarded to SDO-Budget Unit']);
 
         $this->actingAs($unrelated)->get(route('platform.documents.workspace', $document))
             ->assertDontSee('Route corrected');
@@ -489,7 +506,7 @@ class DocumentRouteCorrectionTest extends TestCase
         $unrelated = User::factory()->create(['office' => 'SDO-Legal Unit', 'permissions' => ['platform.index' => true]]);
         $document = $this->forwardedDocument();
 
-        $page = $this->actingAs($sender)->get(route('platform.outgoing'))->assertOk()->assertSee('Correct route');
+        $page = $this->actingAs($sender)->get(route('platform.outgoing'))->assertOk()->assertSee('Correct a destination');
         preg_match("/data-route-correction='([^']+)'/", $page->getContent(), $match);
         $details = json_decode(html_entity_decode($match[1] ?? ''), true);
         $this->assertSame(route('platform.documents.routes.correct', $document), $details['url']);
@@ -519,8 +536,35 @@ class DocumentRouteCorrectionTest extends TestCase
         $response = $this->actingAs($sender)
             ->get(route('platform.outgoing'))
             ->assertOk()
-            ->assertSee('Correct route')
-            ->assertSee('Add office route');
+            ->assertSee('Correct a destination')
+            ->assertSee('Add destination');
+        foreach ($documents as $document) {
+            $response->assertSee($document->tracking_number);
+        }
+
+        $this->assertLessThanOrEqual(2, count($queries), implode("\n", $queries));
+    }
+
+    public function test_all_documents_route_fix_actions_batch_load_movements_for_multiple_documents(): void
+    {
+        $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
+        $documents = [];
+        for ($index = 0; $index < 3; $index++) {
+            $documents[] = $this->forwardedDocument();
+        }
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $firstTable = explode(' from ', strtolower($query->sql), 2)[1] ?? '';
+            if (str_starts_with($firstTable, '"document_movements"')) {
+                $queries[] = strtolower($query->sql);
+            }
+        });
+
+        $response = $this->actingAs($sender)
+            ->get(route('platform.documents'))
+            ->assertOk()
+            ->assertSee('Correct a destination')
+            ->assertSee('Add destination');
         foreach ($documents as $document) {
             $response->assertSee($document->tracking_number);
         }
@@ -562,7 +606,11 @@ class DocumentRouteCorrectionTest extends TestCase
         $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $document = $this->forwardedDocument();
 
-        $page = $this->actingAs($sender)->get(route('platform.documents.workspace', $document))->assertOk();
+        $page = $this->actingAs($sender)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertSee('data-route-delete-destination=', false)
+            ->assertSee('Delete destination');
         preg_match("/data-route-correction='([^']+)'/", $page->getContent(), $match);
         $details = json_decode(html_entity_decode($match[1] ?? ''), true);
         $this->assertSame([['source' => 'Administrative Unit', 'destination' => 'SDO-Budget Unit']], $details['routes']);
@@ -588,7 +636,7 @@ class DocumentRouteCorrectionTest extends TestCase
             'source_office' => 'Administrative Unit',
             'destination_office' => 'SDO-Budget Unit',
             'reason' => 'Budget does not handle this request.',
-        ])->assertOk()->assertJsonPath('message', 'The route to SDO-Budget Unit was deleted.');
+        ])->assertOk()->assertJsonPath('message', 'The destination SDO-Budget Unit was removed.');
 
         // Budget's route and the send that created it are gone; Legal's route is untouched.
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
@@ -636,7 +684,7 @@ class DocumentRouteCorrectionTest extends TestCase
         $this->assertDatabaseMissing('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit']);
     }
 
-    public function test_deleting_a_route_needs_a_reason(): void
+    public function test_deleting_a_route_does_not_need_a_reason(): void
     {
         $sender = User::factory()->create(['office' => 'Administrative Unit', 'permissions' => ['platform.index' => true]]);
         $document = $this->forwardedDocument();
@@ -644,10 +692,17 @@ class DocumentRouteCorrectionTest extends TestCase
         $this->actingAs($sender)->postJson(route('platform.documents.routes.delete', $document), [
             'source_office' => 'Administrative Unit',
             'destination_office' => 'SDO-Budget Unit',
-            'reason' => '  ',
-        ])->assertUnprocessable()->assertJsonValidationErrors(['reason' => 'Give the reason for deleting this route.']);
+        ])->assertOk();
 
-        $this->assertDatabaseHas('document_office_assignments', ['document_id' => $document->id, 'office' => 'SDO-Budget Unit', 'status' => DocumentMovement::STATUS_FORWARDED]);
+        $this->assertDatabaseMissing('document_office_assignments', [
+            'document_id' => $document->id,
+            'office' => 'SDO-Budget Unit',
+        ]);
+        $this->assertDatabaseHas('activity_log', [
+            'subject_id' => $document->id,
+            'description' => 'Document route deleted',
+            'properties->deletion_reason' => null,
+        ]);
     }
 
     public function test_a_received_route_cannot_be_deleted(): void

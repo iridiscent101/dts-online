@@ -2,13 +2,20 @@
 @extends('platform::app')
 
 @section('body')
+    {{-- Marks the page as script-capable before the panel first paints. mesh-drift.js is a module, so it only runs
+         after the first paint: without this the lobby photo shows for a moment and is then swapped for the shader.
+         The script clears the flag on any path where it gives up, and the photo comes back. --}}
+    <script nonce="{{ Vite::cspNonce() }}">document.documentElement.classList.add('dts-mesh-js');</script>
+
     <div class="dts-auth">
-        <aside class="dts-auth-hero" @if (request()->routeIs('platform.login')) data-mesh-drift @endif style="--dts-auth-photo: url('{{ asset('images/landing/lobby.jpg') }}')">
+        {{-- The shader runs on every auth page. The photo stays the fallback: mesh-drift.js adds .is-mesh over it
+             only once it has a WebGL canvas, so no script or no WebGL still gives the lobby photo. --}}
+        <aside class="dts-auth-hero" data-mesh-drift style="--dts-auth-photo: url('{{ asset('images/landing/lobby.jpg') }}'); --dts-auth-seal: url('{{ asset('images/SDO_NV.png') }}')">
             <div class="dts-auth-hero__inner">
-                <div class="dts-auth-hero__org">
-                    <img src="{{ asset('images/SDO_NV.png') }}" alt="" width="64" height="64">
-                    <span>Department of Education<br><strong>Schools Division Office of Nueva Vizcaya</strong></span>
-                </div>
+                <p class="dts-auth-hero__org">
+                    <strong>Schools Division Office of Nueva Vizcaya</strong>
+                    <span>Department of Education</span>
+                </p>
 
                 <div>
                     <p class="dts-auth-hero__title">SDO Nueva Vizcaya Records Unit</p>

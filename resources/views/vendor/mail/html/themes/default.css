@@ -101,7 +101,7 @@ img {
     width: 100%;
 }
 
-/* Header: green band with the SDO seal and the office name, then the gold and brown stripe. */
+/* Header: green band with the SDO and DepEd logos, then the gold and brown stripe. */
 
 .header {
     background-color: #216e39;
@@ -116,14 +116,32 @@ img {
     text-decoration: none;
 }
 
-.header-seal {
-    background-color: #ffffff;
-    border-radius: 50%;
+.header-logos {
     display: block;
-    height: 64px;
     margin: 0 auto 10px;
+    text-align: center;
+}
+
+.header-seal,
+.header-deped {
+    background-color: #ffffff;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.header-seal {
+    border-radius: 50%;
+    height: 64px;
+    margin-right: 12px;
     padding: 2px;
     width: 64px;
+}
+
+.header-deped {
+    border-radius: 4px;
+    height: 50px;
+    padding: 4px;
+    width: 96px;
 }
 
 .header-title {

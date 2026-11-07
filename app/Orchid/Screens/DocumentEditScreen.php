@@ -170,11 +170,11 @@ class DocumentEditScreen extends Screen
         }
 
         if ($changedFields !== [] && $routesChanged) {
-            Toast::success('Document details and routes were updated.');
+            Toast::success('Document details and destinations were updated.');
         } elseif ($changedFields !== []) {
             Toast::success('Document details were updated.');
         } elseif ($routesChanged) {
-            Toast::success('Document routes were updated.');
+            Toast::success('Document destinations were updated.');
         } else {
             Toast::info('No document details changed.');
         }
@@ -202,7 +202,7 @@ class DocumentEditScreen extends Screen
 
         if (! hash_equals($document->routeFingerprint(), $routeFingerprint ?? '')) {
             throw ValidationException::withMessages([
-                'document.route_fingerprint' => 'Routes changed while you were editing. Refresh the document and try again.',
+                'document.route_fingerprint' => 'Destinations changed while you were editing. Refresh the document and try again.',
             ]);
         }
 
@@ -229,7 +229,7 @@ class DocumentEditScreen extends Screen
             || $document->hasBeenProcessed()
             || $document->officeAssignments()->whereIn('office', $removed)->where('status', DocumentMovement::STATUS_FORWARDED)->exists()) {
             throw ValidationException::withMessages([
-                'document.destinations' => 'After processing begins, use Forward for new routes or Correct route for a pending destination.',
+                'document.destinations' => 'After processing begins, use Forward to add a destination or Change destination to replace a pending one.',
             ]);
         }
 

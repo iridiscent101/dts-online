@@ -86,7 +86,7 @@ class StoreDocumentRequest extends FormRequest
             'document.destinations.required' => 'Select at least one initial destination office.',
             'document.destinations.min' => 'Select at least one initial destination office.',
             'document.destinations.max' => 'Select no more than five initial destination offices.',
-            'document.destinations.*.required' => 'Select an office for each route row.',
+            'document.destinations.*.required' => 'Select an office for each destination.',
             'document.destinations.*.distinct' => 'Select each destination office only once.',
             'document.destinations.*.in' => 'Select recognized initial destination offices.',
             'document.route_remarks.size' => 'Provide one remarks field for each destination office.',

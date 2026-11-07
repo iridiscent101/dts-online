@@ -186,14 +186,29 @@
                     </button>
                 @endforeach
             </div>
-            {{-- Correct route: swap an office the user's office sent this to by mistake, before it receives it (dts.js). --}}
+            {{-- A destination can be corrected or deleted only before it receives the document (dts.js). --}}
             @php($correctableRoutes = $document->correctableRoutesFor(request()->user()))
             @php($routeCorrection = ['url' => route('platform.documents.routes.correct', $document), 'deleteUrl' => route('platform.documents.routes.delete', $document), 'tracking' => $document->tracking_number, 'subject' => $document->subject, 'routes' => $correctableRoutes, 'assigned' => $document->officeAssignments->whereNotIn('status', \App\Models\DocumentMovement::FINISHED_STATUSES)->pluck('office')->values(), 'list' => 'workspace-route-correction-offices'])
-            @if ($correctableRoutes->isNotEmpty())
+            {{-- "Add destination" applies on its own terms, so it can show when no route is correctable and vice versa. --}}
+            @php($additionalRoute = \App\Support\RouteFixActions::for($document, request()->user())['additional'])
+            @if ($correctableRoutes->isNotEmpty() || $additionalRoute)
                 <div class="dts-workspace-route-correction">
-                    <button type="button" class="dts-button dts-button-secondary" data-route-correction='@json($routeCorrection)'><x-orchid-icon path="bs.arrow-left-right" /> Correct route</button>
-                    <span class="dts-muted">Correct a destination before receipt.</span>
+                    {{-- Same order as the table's row actions: Correct, Add, then Delete last, so the destructive
+                         button is never next to the one a hurried click was aiming for. --}}
+                    @if ($correctableRoutes->isNotEmpty())
+                        <button type="button" class="dts-button dts-button-secondary dts-icon-only" data-route-correction='@json($routeCorrection)' aria-label="Correct a destination" data-tooltip="Correct a destination"><x-orchid-icon path="bs.arrow-left-right" /></button>
+                    @endif
+                    @if ($additionalRoute)
+                        <button type="button" class="dts-button dts-button-secondary dts-icon-only" data-additional-route='@json($additionalRoute)' aria-label="Add destination" data-tooltip="Add destination"><x-orchid-icon path="bs.send-plus" /></button>
+                    @endif
+                    @if ($correctableRoutes->isNotEmpty())
+                        <button type="button" class="dts-button dts-button-danger dts-icon-only" data-route-delete-destination='@json($routeCorrection)' aria-label="Delete destination" data-tooltip="Delete destination"><x-orchid-icon path="bs.trash3" /></button>
+                    @endif
+                    <span class="dts-muted">@if ($correctableRoutes->isNotEmpty() && $additionalRoute)Correct or delete a destination before receipt, or add another.@elseif ($correctableRoutes->isNotEmpty())Correct or delete a destination before receipt.@else Add another destination for this document.@endif</span>
                     <datalist id="workspace-route-correction-offices">@foreach (\App\Models\Document::officeOptions() as $officeOption)<option value="{{ $officeOption }}"></option>@endforeach</datalist>
+                    {{-- The "Add destination" dialog validates against #additional-route-offices by id (dts.js), not
+                         against the list above, and the workspace can open without any row actions on the page. --}}
+                    @include('orchid.partials.route-fix-offices')
                 </div>
             @endif
             @if ($canRoute)
@@ -214,7 +229,9 @@
                                 </label>
                             </div>
                             <div data-destination-panel hidden>
-                                <div class="dts-workspace-section-heading"><strong>Destination offices</strong><button type="button" class="dts-button dts-button-secondary" data-add-destination>Add destination</button></div>
+                                {{-- Same plus as the registration form's: it adds one more destination row, beside
+                                     the "Destination offices" heading. dts.js disables it at the route limit. --}}
+                                <div class="dts-workspace-section-heading"><strong>Destination offices</strong><button type="button" class="dts-button dts-button-secondary dts-icon-only" data-add-destination aria-label="Add destination" data-tooltip="Add destination"><x-orchid-icon path="bs.plus-lg" /></button></div>
                                 <div data-destination-list>
                                     <div class="dts-workspace-destination" data-destination-row>
                                         <span data-destination-number>1</span>
@@ -234,12 +251,20 @@
                                     </div>
                                 </template>
                             </div>
-                            <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea><small class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</small></label>
+                            {{-- "for this step": this rides on the movement itself and shows against that step in
+                                 the timeline, unlike "Add remark" below, which files a note on its own. Restore
+                                 also requires it as the reason (DocumentRoutingService). --}}
+                            <label class="dts-workspace-shared-remarks" data-shared-remarks><span>Remarks for this step <span class="dts-optional">Optional</span></span><textarea name="workflow[remarks]" rows="3" maxlength="1000"></textarea><small class="dts-field-hint">Remarks are visible to anyone with the tracking number. Do not include sensitive information.</small></label>
                             <label class="dts-workspace-shared-remarks" data-release-recipient hidden><span>Name of person receiving the document <span class="dts-optional">Optional</span></span><input name="workflow[released_to]" maxlength="255" autocomplete="name" disabled><small class="dts-field-hint">Their full name, if they give it.</small></label>
                             @include('orchid.partials.release-signature', ['id' => 'workspace-release-signature'])
                         </dts-workflow-routing>
-                        <div class="dts-workspace-actions"><button type="button" class="dts-button dts-button-primary" data-workspace-routing-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span><span data-workflow-submit-label>Save routing update</span></button></div>
-                        @include('orchid.partials.office-remark', ['id' => 'workspace-office-remark'])
+                        {{-- "Add remark" shares the bar with the save button. It keeps its own [data-office-remark]
+                             container (dts.js delegates from it, and hides it when the office may not add one), so
+                             the container sits inside the bar as a flex item and its panel opens above the bar. --}}
+                        <div class="dts-workspace-actions">
+                            @include('orchid.partials.office-remark', ['id' => 'workspace-office-remark'])
+                            <button type="button" class="dts-button dts-button-primary" data-workspace-routing-save><span class="dts-workspace-spinner tw:motion-safe:animate-spin" data-workspace-button-spinner aria-hidden="true" hidden></span><span data-workflow-submit-label>Update route</span></button>
+                        </div>
                     </div>
                 </div>
             @endif

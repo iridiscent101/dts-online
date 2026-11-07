@@ -644,12 +644,6 @@ class Document extends Model
             ->where('to_office', Office::RECORDS_UNIT_NAME));
     }
 
-    /** Client phones and browsers that asked for push updates on this document (tracking or receipt page). */
-    public function pushSubscriptions(): HasMany
-    {
-        return $this->hasMany(DocumentPushSubscription::class);
-    }
-
     public function officeAssignments(): HasMany
     {
         return $this->hasMany(DocumentOfficeAssignment::class);

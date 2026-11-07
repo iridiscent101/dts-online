@@ -33,21 +33,24 @@
         @endif
         * { box-sizing: border-box; }
         body { margin: 0; min-height: 100vh; padding: 24px; background: #f8f4e7; color: #26332b; font-family: Arial, sans-serif; }
-        .print-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
-        .print-toolbar a, .print-toolbar button { padding: 9px 13px; border: 1px solid #216e39; border-radius: 4px; background: #fff; color: #216e39; font: inherit; text-decoration: none; cursor: pointer; }
-        .print-toolbar button { position: relative; display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0; background: #216e39; color: #fff; }
+        .print-toolbar { display: flex; flex-wrap: wrap; align-items: center; width: fit-content; max-width: 100%; gap: 10px 14px; margin-bottom: 20px; padding: 10px; border: 1px solid #d5dfd5; border-radius: 10px; background: #fff; box-shadow: 0 3px 10px rgb(24 76 43 / 0.08); }
+        .print-toolbar a, .print-toolbar button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 8px 13px; border: 1px solid #216e39; border-radius: 6px; background: #fff; box-shadow: 0 2px 0 #b9cdbb, 0 3px 6px rgb(24 76 43 / 0.1); color: #216e39; font: inherit; text-decoration: none; cursor: pointer; transition: transform 120ms ease, box-shadow 120ms ease; }
+        .print-toolbar a:hover, .print-toolbar button:hover { transform: translateY(-1px); box-shadow: 0 3px 0 #b9cdbb, 0 5px 8px rgb(24 76 43 / 0.14); }
+        .print-toolbar a:active, .print-toolbar button:active { transform: translateY(1px); box-shadow: 0 1px 0 #b9cdbb; }
+        .print-toolbar button { position: relative; width: 40px; height: 40px; padding: 0; background: #216e39; box-shadow: 0 2px 0 #164c29, 0 3px 6px rgb(24 76 43 / 0.14); color: #fff; }
         .print-toolbar button svg { width: 20px; height: 20px; }
         /* Hover text for the icon-only Print button (this page does not load the app styles). */
         .print-toolbar button::after { content: attr(data-tooltip); position: absolute; top: calc(100% + 6px); left: 50%; padding: 4px 8px; border-radius: 4px; background: #26332b; color: #fff; font-size: 14px; font-weight: 600; white-space: nowrap; pointer-events: none; opacity: 0; transform: translateX(-50%); transition: opacity 120ms ease; }
         .print-toolbar button:is(:hover, :focus-visible)::after { opacity: 1; }
         .print-toolbar button:focus-visible { outline: 3px solid #f2c230; outline-offset: 2px; }
         .print-toolbar small { color: #4b5563; font-size: 14px; }
-        .paper-choice { display: inline-flex; border: 1px solid #216e39; border-radius: 4px; overflow: hidden; }
-        .print-toolbar .paper-choice a { border: 0; border-radius: 0; }
+        .paper-choice { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+        .print-toolbar .paper-choice a { white-space: nowrap; }
         .print-toolbar .paper-choice a[aria-current="true"] { background: #216e39; color: #fff; }
-        .copies-form { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
-        .copies-form input[type="number"] { width: 64px; min-height: 40px; padding: 4px 8px; border: 1px solid #b3843f; border-radius: 4px; font: inherit; }
-        .print-toolbar .copies-form button { width: auto; padding: 0 12px; background: #fff; color: #216e39; }
+        .copies-form { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; }
+        .copies-form input[type="number"] { width: 64px; min-height: 40px; padding: 4px 8px; border: 1px solid #9cae9e; border-radius: 6px; font: inherit; }
+        .print-toolbar .copies-form button { width: auto; padding: 0 14px; }
+        @media (prefers-reduced-motion: reduce) { .print-toolbar a, .print-toolbar button { transition: none; } }
         .label-stack { display: grid; justify-content: start; gap: 12px; }
         /* QR on the left, the routing details beside it, and the tracking number across the bottom. */
         .dts-tracking-label { display: grid; grid-template-columns: 18mm minmax(0, 1fr); grid-template-rows: minmax(18mm, 1fr) auto; column-gap: 1.8mm; row-gap: 0.8mm; width: 60mm; height: 30mm; padding: 1.5mm 1.8mm; overflow: hidden; border: 1px solid #9ca3af; border-radius: 3px; background: #fff; color: #111827; }

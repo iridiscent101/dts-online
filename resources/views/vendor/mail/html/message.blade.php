@@ -1,6 +1,4 @@
-{{-- DTS email layout: green header with the SDO seal, the gold and brown stripe, the message card, a short footer.
-     The seal is attached to the email (not linked), so it shows even where outside images are blocked; $embedder is
-     the mail message, passed in by notifications/email.blade.php (a component cannot see the outer $message). --}}
+{{-- The mail message is passed in by notifications/email.blade.php so sent emails can embed both logos. --}}
 @props(['embedder' => null])
 <x-mail::layout>
 {{-- Header --}}
@@ -8,9 +6,14 @@
 <tr>
 <td class="header">
 <a href="{{ config('app.url') }}" style="display: inline-block;">
-@if ($embedder && is_file(public_path('images/qr-seal.jpg')))
-<img src="{{ $embedder->embedData(file_get_contents(public_path('images/qr-seal.jpg')), 'qr-seal.jpg') }}" class="header-seal" width="64" height="64" alt="SDO Nueva Vizcaya seal">
+<span class="header-logos">
+@if (is_file(public_path('images/qr-seal.jpg')))
+<img src="{{ $embedder ? $embedder->embedData(file_get_contents(public_path('images/qr-seal.jpg')), 'qr-seal.jpg') : asset('images/qr-seal.jpg') }}" class="header-seal" width="64" height="64" alt="SDO Nueva Vizcaya seal">
 @endif
+@if (is_file(public_path('images/Deped.png')))
+<img src="{{ $embedder ? $embedder->embedData(file_get_contents(public_path('images/Deped.png')), 'Deped.png') : asset('images/Deped.png') }}" class="header-deped" width="96" height="50" alt="DepEd logo">
+@endif
+</span>
 <span class="header-title">{{ config('mail.from.name') }}</span>
 <span class="header-subtitle">Document Tracking System</span>
 </a>
