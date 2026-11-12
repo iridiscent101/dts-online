@@ -71,6 +71,7 @@ class PublicDocumentTrackingTest extends TestCase
             ->assertSee('placeholder="Enter your tracking number"', false)
             ->assertDontSee('DTS tracking number')
             ->assertSee('Track document')
+            ->assertDontSee('Get updates on this phone')
             ->assertSee('data-open-submission', false)
             ->assertSee('id="submission-dialog"', false)
             ->assertSee('Mode of submission')

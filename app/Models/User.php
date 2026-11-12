@@ -56,6 +56,22 @@ class User extends Authenticatable
             DB::table('sessions')->where('user_id', $user->id)->delete();
             DB::table('password_reset_tokens')->where('email', $user->email)->delete();
         });
+
+        static::forceDeleted(function (User $user): void {
+            DB::table('attachments')->where('user_id', $user->id)->update(['user_id' => null]);
+            DB::table('activity_log')
+                ->where('subject_type', $user->getMorphClass())
+                ->where('subject_id', $user->id)
+                ->delete();
+            DB::table('activity_log')
+                ->where('causer_type', $user->getMorphClass())
+                ->where('causer_id', $user->id)
+                ->update(['causer_type' => null, 'causer_id' => null]);
+            DB::table('activity_log')
+                ->where('log_name', AccountActivity::LOG_NAME)
+                ->where('properties->email', Str::lower($user->email))
+                ->delete();
+        });
     }
 
     /**
@@ -78,6 +94,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'temporary_password',
+        'password_recovery_totp_secret',
         'recovery_email_verification_token',
         'remember_token',
         'permissions',
@@ -95,6 +112,7 @@ class User extends Authenticatable
         'deactivated_at' => 'datetime',
         'must_change_password' => 'boolean',
         'temporary_password_expires_at' => 'datetime',
+        'password_recovery_totp_secret' => 'encrypted',
     ];
 
     /**

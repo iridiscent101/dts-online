@@ -309,11 +309,7 @@ class UserEditScreen extends Screen
         DB::transaction(function () use ($administrator, $user): void {
             DB::table('attachments')->where('user_id', $user->id)->update(['user_id' => $administrator->id]);
             DB::table('kiosk_signing_requests')->where('requested_by', $user->id)->update(['requested_by' => $administrator->id]);
-            AccountActivity::record(AccountActivity::DELETED, $user, auth()->user(), [
-                'email' => $user->email,
-                'transferred_to' => $administrator->email,
-            ]);
-            $user->delete();
+            $user->forceDelete();
         });
 
         Toast::success(__(':name was removed. Their uploaded files and signing requests were transferred to :administrator.', [

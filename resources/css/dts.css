@@ -8529,6 +8529,29 @@ body:has(.dts-auth) > .container-fluid > .row > [class*="col"] {
     margin-top: 3px;
 }
 
+.dts-auth-help .dts-forgot-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+    padding: 4px 7px;
+    border: 1px solid var(--dts-green);
+    border-radius: 5px;
+    color: var(--dts-green-dark);
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 2px 0 rgba(23, 98, 48, .22);
+}
+
+.dts-auth-help .dts-forgot-link:is(:hover, :focus-visible) {
+    background: var(--dts-green-soft);
+    text-decoration: underline;
+}
+
+.dts-auth-help .dts-forgot-link svg {
+    margin: 0;
+}
+
 /* Forgot password: which email goes in the box, in full-size dark text so it is not missed. */
 .dts-forgot-hint {
     margin: 8px 0 0;
@@ -9333,4 +9356,41 @@ dts-workflow-routing input[data-destination-select] {
     flex: 0 0 auto;
     width: var(--dts-control-h-sm);
     height: var(--dts-control-h-sm);
+}
+
+/* Short state changes keep the clicked control visually connected to its result. */
+@media (prefers-reduced-motion: no-preference) {
+    :is(.dts-button, .btn):not(:disabled, [aria-disabled="true"]) {
+        transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease,
+            border-radius 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    :is(.dts-button, .btn):not(:disabled, [aria-disabled="true"]):active {
+        transform: scale(.98);
+    }
+
+    :is(.dts-search-field, .dts-input-icon, .dts-metric, .dts-health-check, .aside .nav-link,
+        .dts-public-status, .dts-health-badge, .dts-tab-badge) {
+        transition: background-color 200ms ease, border-color 200ms ease, border-radius 200ms ease,
+            box-shadow 200ms ease, transform 200ms ease;
+    }
+
+    :is(.dts-search-field, .dts-input-icon):focus-within {
+        transform: translateY(-2px);
+    }
+
+    :is(.dts-metric, .dts-health-check):hover {
+        transform: translateY(-2px);
+    }
+
+    :is(.dts-column-menu, .dts-status-guide)[open] > :is(.dts-column-options, .dts-status-guide-panel),
+    .dts-registry-panel:not([hidden]),
+    dts-searchable [data-suggestions]:not([hidden]) {
+        animation: dts-control-open 180ms ease-out both;
+    }
+
+    @keyframes dts-control-open {
+        from { opacity: 0; transform: translateY(-5px) scale(.99); }
+        to { opacity: 1; transform: none; }
+    }
 }

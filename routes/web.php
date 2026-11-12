@@ -16,18 +16,18 @@ Route::get('/', PublicDocumentTrackingController::class)
     ->name('tracking.index');
 
 Route::get('/forgot-password', [ForgotPasswordController::class, 'show'])
-    ->middleware('throttle:30,1')
+    ->middleware('throttle:30,1,forgot-password-page')
     ->name('password.forgot');
 Route::post('/forgot-password', [ForgotPasswordController::class, 'send'])
-    ->middleware('throttle:5,1')
+    ->middleware('throttle:5,1,forgot-password-send')
     ->name('password.forgot.send');
 
 Route::get('/recovery-email/verify/{user}/{token}', [RecoveryEmailController::class, 'verify'])
-    ->middleware(['signed:relative', 'throttle:30,1'])->name('recovery-email.verify');
+    ->middleware(['signed:relative', 'throttle:30,1,recovery-email-verify'])->name('recovery-email.verify');
 Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])
-    ->middleware('throttle:30,1')->name('password.reset');
+    ->middleware('throttle:30,1,password-reset-page')->name('password.reset');
 Route::post('/reset-password', [NewPasswordController::class, 'store'])
-    ->middleware('throttle:5,1')->name('password.update');
+    ->middleware('throttle:5,1,password-reset-submit')->name('password.update');
 
 // Printable receipt with the tracking number and QR code (Fast Track "Print receipt").
 Route::get('/receipt/{tracking}', DocumentReceiptController::class)

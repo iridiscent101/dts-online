@@ -268,7 +268,7 @@
                     <div>
                         <strong><a href="{{ route('platform.documents.view', $movement->document) }}" data-workspace-url="{{ route('platform.documents.workspace', $movement->document) }}">{{ $movement->title() }}</a></strong>
                         <small>{{ $movement->document->tracking_number }}</small>
-                        <small>{{ $movement->actor?->name ?? 'System' }} &middot; {{ $movement->created_at->diffForHumans() }}</small>
+                        <small>{{ $movement->actor?->name ?? 'Not recorded' }} &middot; {{ $movement->created_at->diffForHumans() }}</small>
                     </div>
                 </li>
                 @if ($loop->last)

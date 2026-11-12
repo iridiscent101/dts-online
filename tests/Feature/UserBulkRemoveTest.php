@@ -71,8 +71,8 @@ class UserBulkRemoveTest extends TestCase
             ->post(route('platform.systems.users').'/bulkRemove', ['selected' => [$first->id, $second->id]])
             ->assertRedirect();
 
-        $this->assertSoftDeleted($first);
-        $this->assertSoftDeleted($second);
+        $this->assertDatabaseMissing('users', ['id' => $first->id]);
+        $this->assertDatabaseMissing('users', ['id' => $second->id]);
         $this->assertNotSoftDeleted($untouched);
         $this->assertSame(0, DB::table('attachments')->where('user_id', $first->id)->count());
         $this->assertSame(1, DB::table('attachments')->where('user_id', $administrator->id)->count());

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Orchid\Screens\User;
 
-use App\Auth\AccountActivity;
 use App\Models\User;
 use App\Orchid\Layouts\User\UserFiltersLayout;
 use App\Orchid\Layouts\User\UserListLayout;
@@ -168,11 +167,7 @@ class UserListScreen extends Screen
             foreach ($users as $user) {
                 DB::table('attachments')->where('user_id', $user->id)->update(['user_id' => $actor->id]);
                 DB::table('kiosk_signing_requests')->where('requested_by', $user->id)->update(['requested_by' => $actor->id]);
-                AccountActivity::record(AccountActivity::DELETED, $user, $actor, [
-                    'email' => $user->email,
-                    'transferred_to' => $actor->email,
-                ]);
-                $user->delete();
+                $user->forceDelete();
             }
         });
 

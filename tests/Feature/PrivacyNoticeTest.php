@@ -16,7 +16,7 @@ class PrivacyNoticeTest extends TestCase
         $this->get(route('privacy.notice'))
             ->assertOk()
             ->assertSee('<title>Privacy notice | DocuTrackS</title>', false)
-            ->assertSeeInOrder(['Who we are', 'What we collect', 'Why we use it', 'Who can see it', 'Email and phone updates', 'Cookies', 'How long we keep it', 'Your rights', 'Contact us'])
+            ->assertSeeInOrder(['Who we are', 'What we collect', 'Why we use it', 'Who can see it', 'Email updates', 'Cookies', 'How long we keep it', 'Your rights', 'Contact us'])
             ->assertSee('Data Privacy Act of 2012')
             ->assertSee('National Privacy Commission')
             ->assertSee('records@example.test');

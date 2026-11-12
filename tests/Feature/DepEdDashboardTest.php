@@ -520,18 +520,29 @@ class DepEdDashboardTest extends TestCase
             'transfer_to' => $administrator->id,
         ])->assertRedirectToRoute('platform.systems.users');
 
-        $this->assertSoftDeleted($user);
-        $this->assertSame($user->id, $document->fresh()->registered_by);
-        $this->assertSame($user->id, $movement->fresh()->acted_by);
-        $this->assertSame($user->id, $assignment->fresh()->assigned_by);
-        $this->assertSame($user->name, $document->fresh()->registeredBy?->name);
+        $this->assertDatabaseMissing('users', ['id' => $user->id]);
+        $this->assertNull($document->fresh()->registered_by);
+        $this->assertNull($movement->fresh()->acted_by);
+        $this->assertNull($assignment->fresh()->assigned_by);
         $this->assertSame($administrator->id, $signingRequest->fresh()->requested_by);
         $this->assertDatabaseHas('attachments', ['name' => 'handover.pdf', 'user_id' => $administrator->id]);
-        $this->assertDatabaseHas('activity_log', [
-            'event' => 'deleted',
-            'subject_id' => $user->id,
-            'causer_id' => $administrator->id,
-        ]);
+        $this->assertDatabaseMissing('activity_log', ['subject_type' => $user->getMorphClass(), 'subject_id' => $user->id]);
+        $this->actingAs($administrator)
+            ->get(route('platform.documents.workspace', $document))
+            ->assertOk()
+            ->assertSee('Not recorded');
+
+        $replacement = User::factory()->create(['email' => 'replacement@example.com']);
+        $this->post(route('platform.systems.users.edit', $replacement).'/save', [
+            'user' => [
+                'name' => $replacement->name,
+                'email' => $user->email,
+                'password' => '',
+                'password_confirmation' => '',
+                'roles' => [],
+            ],
+        ])->assertSessionHasNoErrors()->assertRedirectToRoute('platform.systems.users');
+        $this->assertSame($user->email, $replacement->fresh()->email);
     }
 
     public function test_account_deletion_requires_an_administrator_and_a_deactivated_target(): void

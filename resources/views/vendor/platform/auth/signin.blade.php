@@ -42,5 +42,5 @@
 
 <p class="dts-auth-help">
     <x-orchid-icon path="bs.question-circle"/>
-    <span><a href="{{ route('password.forgot') }}">{{ __('Forgot your password?') }}</a> {{ __('We can email a reset link to your verified recovery email.') }}</span>
+    <span><a class="dts-forgot-link" href="{{ route('password.forgot') }}">{{ __('Forgot your password?') }} <x-orchid-icon path="bs.arrow-up-right"/></a><br>{{ __('We can email a reset link to your verified recovery email.') }}</span>
 </p>

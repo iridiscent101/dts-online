@@ -39,6 +39,7 @@ class DocumentReceiptTest extends TestCase
             ->assertSee('Hand carry')
             ->assertSee('Bring the physical document/s and this receipt to the Records Unit counter.')
             ->assertSee('data-print-receipt', false)
+            ->assertDontSee('Get updates on this phone')
             ->assertDontSee('Private client title')
             ->assertDontSee('Private Sender');
     }

@@ -71,7 +71,7 @@
                 <dt>Date / time</dt><dd><time datetime="{{ $event->created_at?->toIso8601String() }}">{{ $eventAt?->format('M d, Y') }}<span class="dts-step-time-separator" aria-hidden="true">|</span>{{ $eventAt?->format('g:i A') }}</time></dd>
                 {{-- A remark already names its writer ("Name: remark") below, so it gets no "Added by" row. --}}
                 @unless ($eventKind === 'remark')
-                    <dt>{{ $eventKind === 'signed' ? 'Signed by' : 'Processed by' }}</dt><dd>{{ $eventBy ?? ($eventKind === 'signed' ? 'The recipient' : 'System') }}</dd>
+                    <dt>{{ $eventKind === 'signed' ? 'Signed by' : 'Processed by' }}</dt><dd>{{ $eventBy ?? ($eventKind === 'signed' ? 'The recipient' : 'Not recorded') }}</dd>
                 @endunless
                 @if ($eventKind === 'signed')
                     <dt>Signed on</dt><dd>{{ data_get($event->properties, 'signed_on', 'Fast Track page') }}</dd>

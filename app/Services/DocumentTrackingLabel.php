@@ -39,8 +39,8 @@ class DocumentTrackingLabel
         $movement = $document->latestMovement;
         $actedAt = ($movement?->created_at ?? $document->created_at)->copy()->timezone('Asia/Manila');
         $processedBy = $movement
-            ? ($movement->actor?->name ?? 'System')
-            : ($document->client_submission_key ? 'Client' : ($document->registeredBy?->name ?? 'System'));
+            ? ($movement->actor?->name ?? 'Not recorded')
+            : ($document->client_submission_key ? 'Client' : ($document->registeredBy?->name ?? 'Not recorded'));
         $receipt = $document->recordsReceipt;
         $released = $movement?->action === DocumentMovement::ACTION_RELEASED;
         $releasedTo = $released ? trim((string) $movement->released_to) : '';

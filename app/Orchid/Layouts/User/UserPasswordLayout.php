@@ -31,7 +31,7 @@ class UserPasswordLayout extends Rows
             Password::make('user.password')
                 ->placeholder($placeholder)
                 ->title(__('Password'))
-                ->autocomplete('new-password')
+                ->autocomplete($exists ? 'off' : 'new-password')
                 ->value('')
                 ->help(User::PASSWORD_HINT)
                 ->required(! $exists),

@@ -139,11 +139,11 @@ class DocumentLabelTest extends TestCase
         $this->assertSame('Maricar Valido', $details['releasedBy']);
         $this->assertArrayNotHasKey('recipientSignatureDataUri', $details);
 
-        DocumentMovement::factory()->for($document)->create(['action' => DocumentMovement::ACTION_RESTORED]);
+        DocumentMovement::factory()->for($document)->create(['action' => DocumentMovement::ACTION_RESTORED, 'acted_by' => null]);
         $document->unsetRelation('latestMovement');
 
         $afterRestore = app(DocumentTrackingLabel::class)->details($document);
-        $this->assertNotSame('Juan Dela Cruz', $afterRestore['processedBy']);
+        $this->assertSame('Not recorded', $afterRestore['processedBy']);
         $this->assertNull($afterRestore['releasedBy']);
     }
 

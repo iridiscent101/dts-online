@@ -3153,6 +3153,71 @@ function setSubmitBusy(button, busy) {
     }
 }
 
+window.addEventListener('submit', async (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.matches('[data-dts-reset-form]')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (form.dataset.dtsSubmitting) return;
+
+    const button = form.querySelector('[type="submit"]');
+    const notice = document.getElementById('reset-errors');
+    const messages = notice?.querySelector('[data-reset-messages]');
+    form.dataset.dtsSubmitting = 'true';
+    setSubmitBusy(button, true);
+
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        });
+        const result = await response.json().catch(() => ({}));
+        const errors = result.errors ?? {};
+        const lines = response.ok
+            ? [result.message || 'Your password has been reset. You can now sign in.']
+            : Object.values(errors).flat().filter((message) => typeof message === 'string');
+        if (!lines.length) lines.push(result.message || 'Could not reset your password. Please try again.');
+
+        form.querySelectorAll('[aria-invalid="true"]').forEach((field) => {
+            field.removeAttribute('aria-invalid');
+            field.classList.remove('is-invalid');
+        });
+        for (const name of Object.keys(errors)) {
+            const field = form.elements.namedItem(name);
+            if (!(field instanceof HTMLElement)) continue;
+            field.setAttribute('aria-invalid', 'true');
+            field.classList.add('is-invalid');
+            field.setAttribute('aria-describedby', [...new Set(`${field.getAttribute('aria-describedby') || ''} reset-errors`.trim().split(/\s+/))].join(' '));
+        }
+
+        notice?.classList.remove('d-none');
+        notice?.classList.toggle('alert-danger', !response.ok);
+        notice?.classList.toggle('alert-success', response.ok);
+        notice?.setAttribute('role', response.ok ? 'status' : 'alert');
+        notice?.querySelector('svg')?.classList.toggle('d-none', response.ok);
+        messages?.replaceChildren(...lines.map((message) => {
+            const line = document.createElement('p');
+            line.className = 'mb-0';
+            line.textContent = message;
+            return line;
+        }));
+        notice?.focus();
+        if (response.ok) {
+            form.reset();
+            form.hidden = true;
+        }
+    } catch {
+        notice?.classList.remove('d-none');
+        if (messages) messages.textContent = 'Could not connect. Please try again.';
+        notice?.focus();
+    } finally {
+        delete form.dataset.dtsSubmitting;
+        setSubmitBusy(button, false);
+    }
+}, true);
+
 // Turbo already disables the submit button while a form is sending; show that it is working.
 document.addEventListener('turbo:submit-start', (event) => setSubmitBusy(event.detail.formSubmission.submitter, true));
 document.addEventListener('turbo:submit-end', (event) => setSubmitBusy(event.detail.formSubmission.submitter, false));

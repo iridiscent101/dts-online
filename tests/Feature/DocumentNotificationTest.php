@@ -29,6 +29,15 @@ class DocumentNotificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_public_email_preview_contains_only_sample_tracking_data(): void
+    {
+        $html = file_get_contents(public_path('email-preview.html'));
+
+        $this->assertStringContainsString('SAMPLE00000000000', $html);
+        $this->assertDoesNotMatchRegularExpression('/SDONV\d+/', $html);
+        $this->assertStringNotContainsString('127.0.0.1', $html);
+    }
+
     public function test_failed_routing_notification_rolls_back_and_retry_creates_one_action(): void
     {
         $actor = User::factory()->create([

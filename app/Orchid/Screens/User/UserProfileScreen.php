@@ -12,12 +12,18 @@ use App\Orchid\Layouts\User\ProfileConfirmPasswordLayout;
 use App\Orchid\Layouts\User\ProfilePasswordLayout;
 use App\Orchid\Layouts\User\UserEditLayout;
 use App\Rules\EmailDomainReceivesMail;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Orchid\Access\Impersonation;
 use Orchid\Screen\Action;
 use Orchid\Screen\Actions\Button;
@@ -35,8 +41,27 @@ class UserProfileScreen extends Screen
      */
     public function query(Request $request): iterable
     {
+        $user = $request->user();
+        $setupSecret = null;
+        $qrCode = null;
+        if (! $user->password_recovery_totp_secret && $user->canChangeOwnPassword()) {
+            $setup = $request->session()->get('password_recovery_totp_setup');
+            if (($setup['user_id'] ?? null) !== $user->id) {
+                $setup = ['user_id' => $user->id, 'secret' => app(TwoFactorAuthenticationProvider::class)->generateSecretKey()];
+                $request->session()->put('password_recovery_totp_setup', $setup);
+            }
+            $setupSecret = $setup['secret'];
+            $qrUrl = app(TwoFactorAuthenticationProvider::class)->qrCodeUrl(config('app.name'), $user->email, $setupSecret);
+            $qrCode = 'data:image/svg+xml;base64,'.base64_encode((new Writer(new ImageRenderer(
+                new RendererStyle(180, 2),
+                new SvgImageBackEnd,
+            )))->writeString($qrUrl));
+        }
+
         return [
-            'user' => $request->user(),
+            'user' => $user,
+            'totpSetupSecret' => $setupSecret,
+            'totpQrCode' => $qrCode,
         ];
     }
 
@@ -117,6 +142,16 @@ class UserProfileScreen extends Screen
 
             Layout::view('orchid.recovery-email-status'),
 
+            Layout::block(Layout::view('orchid.password-recovery-totp'))
+                ->title(__('Authenticator for password recovery'))
+                ->description(__('Adds an authenticator code to emailed password reset links. Sign-in and regular password changes stay the same.'))
+                ->commands(
+                    Button::make(request()->user()?->password_recovery_totp_secret ? __('Turn off authenticator') : __('Enable authenticator'))
+                        ->class('btn dts-button dts-button-primary')
+                        ->method(request()->user()?->password_recovery_totp_secret ? 'disableRecoveryTotp' : 'enableRecoveryTotp')
+                )
+                ->canSee(request()->user()?->canChangeOwnPassword()),
+
             Layout::block(Layout::view('orchid.profile-account'))
                 ->title(__('Account access'))
                 ->description(__('Office assignments and roles are managed by an administrator.')),
@@ -196,5 +231,37 @@ class UserProfileScreen extends Screen
 
         // Someone who had to change it goes on to the dashboard they were kept from.
         return $wasRequired ? redirect()->route(config('platform.index')) : null;
+    }
+
+    public function enableRecoveryTotp(Request $request, TwoFactorAuthenticationProvider $provider): void
+    {
+        $user = $request->user();
+        abort_if(! $user->canChangeOwnPassword() || filled($user->password_recovery_totp_secret), 403);
+        $request->validate([
+            'totp_current_password' => ['required', 'current_password:'.config('platform.guard', 'web')],
+            'totp_code' => ['required', 'digits:6'],
+        ]);
+        $setup = $request->session()->get('password_recovery_totp_setup');
+        if (($setup['user_id'] ?? null) !== $user->id || ! $provider->verify($setup['secret'], $request->input('totp_code'))) {
+            throw ValidationException::withMessages(['totp_code' => __('The authenticator code is invalid or expired. Try the current code.')]);
+        }
+        $user->forceFill(['password_recovery_totp_secret' => $setup['secret']])->save();
+        $request->session()->forget('password_recovery_totp_setup');
+        Toast::success(__('Authenticator enabled for forgotten-password resets.'));
+    }
+
+    public function disableRecoveryTotp(Request $request, TwoFactorAuthenticationProvider $provider): void
+    {
+        $user = $request->user();
+        abort_if(! $user->canChangeOwnPassword() || ! $user->password_recovery_totp_secret, 403);
+        $request->validate([
+            'totp_current_password' => ['required', 'current_password:'.config('platform.guard', 'web')],
+            'totp_code' => ['required', 'digits:6'],
+        ]);
+        if (! $provider->verify($user->password_recovery_totp_secret, $request->input('totp_code'))) {
+            throw ValidationException::withMessages(['totp_code' => __('The authenticator code is invalid or expired.')]);
+        }
+        $user->forceFill(['password_recovery_totp_secret' => null])->save();
+        Toast::success(__('Authenticator turned off for forgotten-password resets.'));
     }
 }

@@ -61,6 +61,26 @@ class ForgotPasswordTest extends TestCase
         Notification::assertSentToTimes($user, ResetPassword::class, 1);
     }
 
+    public function test_visiting_recovery_pages_does_not_consume_reset_request_allowance(): void
+    {
+        Notification::fake();
+        $user = $this->staff();
+
+        for ($visit = 0; $visit < 5; $visit++) {
+            $this->get(route('password.forgot'))->assertOk();
+        }
+
+        $this->post(route('password.forgot.send'), ['email' => $user->email])
+            ->assertRedirectToRoute('password.forgot');
+
+        for ($attempt = 0; $attempt < 4; $attempt++) {
+            $this->post(route('password.forgot.send'), ['email' => $user->email])
+                ->assertRedirectToRoute('password.forgot');
+        }
+
+        $this->post(route('password.forgot.send'), ['email' => $user->email])->assertTooManyRequests();
+    }
+
     public function test_password_change_invalidates_a_pending_reset_link(): void
     {
         Notification::fake();
