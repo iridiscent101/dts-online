@@ -30,7 +30,10 @@
         };
         $eventAt = $event->created_at?->timezone('Asia/Manila');
         $eventDay = $eventAt?->toDateString();
-        $eventFrom = $isMovement ? $event->from_office : data_get($event->properties, 'from_office', data_get($event->properties, 'office'));
+        // The registration event logs the first destination as "office"; the step belongs to the office that registered it.
+        $eventFrom = $isMovement ? $event->from_office : ($eventKind === 'registered' && filled($document->registered_office)
+            ? $document->registered_office
+            : data_get($event->properties, 'from_office', data_get($event->properties, 'office')));
         $eventTo = $isMovement ? $event->to_office : data_get($event->properties, 'to_office');
         $eventBy = $isMovement ? $event->actor?->name : ($eventKind === 'signed' ? data_get($event->properties, 'signed_by') : $event->causer?->name);
         // Correct route and Add office route: say which office changed, not just where it went.

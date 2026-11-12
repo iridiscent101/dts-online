@@ -989,11 +989,13 @@ body::before {
             color: var(--dts-green);
     }
 
+    /* Column minimums add up to 972px with the actions column, so the registry fits beside the open sidebar from
+       1366px wide without the sticky Actions column covering "Date added". */
     & [data-controller="table"] :is(th, td)[data-column="tracking-number"] {
             position: sticky;
             left: 0;
             z-index: 1;
-            min-width: 280px;
+            min-width: 250px;
             max-width: 350px;
             background: var(--dts-paper);
             box-shadow: 1px 0 var(--dts-grid);
@@ -1014,7 +1016,7 @@ body::before {
     }
 
     & [data-controller="table"] :is(th, td)[data-column="current-office"] {
-            min-width: 220px;
+            min-width: 200px;
             max-width: 280px;
     }
 
@@ -1024,7 +1026,7 @@ body::before {
 
     & [data-controller="table"] :is(th, td)[data-column="received-at"],
     & [data-controller="table"] :is(th, td)[data-column="created-at"] {
-            min-width: 145px;
+            min-width: 120px;
             white-space: nowrap;
     }
 

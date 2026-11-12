@@ -1001,9 +1001,9 @@ class DepEdDashboardTest extends TestCase
 
         DB::disableQueryLog();
 
-        // Visibility may check the routing history inside the registry query (EXISTS), but no query may read
-        // the movement history itself.
-        $this->assertSame(0, $queries->filter(fn (string $query): bool => (bool) preg_match('/^select (?:(?!\bfrom\b).)*\bfrom [`"]?document_movements\b/', $query))->count());
+        // Visibility may check the routing history inside the registry query (EXISTS). The row actions need the
+        // forwarding offices, which are eager-loaded in one query for the whole page: never one read per row.
+        $this->assertLessThanOrEqual(1, $queries->filter(fn (string $query): bool => (bool) preg_match('/^select (?:(?!\bfrom\b).)*\bfrom [`"]?document_movements\b/', $query))->count());
         // Office lookups happen once, not per row; the registry query may still check the registrar's offices in EXISTS.
         $this->assertLessThanOrEqual(2, $queries->filter(fn (string $query): bool => str_contains($query, 'office_user') && ! str_contains($query, 'exists (select'))->count());
     }

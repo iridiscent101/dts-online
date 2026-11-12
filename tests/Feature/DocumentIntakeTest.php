@@ -251,7 +251,7 @@ class DocumentIntakeTest extends TestCase
 
         $this->actingAs($staff)->get(route('platform.main'))
             ->assertOk()
-            ->assertSee('Client submissions: receive the physical document/s, print the labels, then send them to the offices.')
+            ->assertSee('Process incoming client submissions: receive physical documents, generate labels, and forward them to target offices.')
             ->assertSeeInOrder($rows)
             ->assertDontSee($recordsRow, false);
         $this->get(route('platform.documents'))->assertOk()->assertSeeInOrder($rows)->assertDontSee($recordsRow, false);

@@ -96,8 +96,8 @@ class WorkflowGuidanceTest extends TestCase
             ->assertSee('Status guide')
             ->assertSee('>Pending</span>', false)
             ->assertDontSee('Being reviewed:')
-            ->assertSeeInOrder(['Awaiting receipt:', 'sent to the office, which has not received it yet.'])
-            ->assertSeeInOrder(['Waiting for physical document/s:', 'the physical document/s are not at the Records Unit yet.']);
+            ->assertSeeInOrder(['Awaiting receipt:', 'the office to receive it.'])
+            ->assertSeeInOrder(['Waiting for physical document/s:', 'the paper copy to reach Records Unit.']);
     }
 
     public function test_client_sees_what_to_do_next_while_the_paper_copy_is_pending(): void

@@ -15,12 +15,12 @@
             {{-- Work summary: bold cards that each open the list behind their number. "Needs action" counts the queue
                  below; the cards that open a menu page carry that page's name (Incoming, Outgoing, Archived). --}}
             @php
-            $summaryCards = [
-            ['Needs action', $officeQueueDocumentCount, '', 'bs.list-task', 'green', '#office-queue-title'],
-            ['Incoming', $notReceivedCount, '', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
-            ['Outgoing', $sentWaitingCount, '', 'bs.send', 'blue', route('platform.outgoing')],
-            ['Archived', $archivedCount, '', 'bs.archive', 'slate', route('platform.archived')],
-            ];
+                $summaryCards = [
+                    ['Needs action', $officeQueueDocumentCount, Str::plural('document', $officeQueueDocumentCount).' in the queue below', 'bs.list-task', 'green', '#office-queue-title'],
+                    ['Incoming', $notReceivedCount, 'not received yet; receive these first', 'bs.box-arrow-in-down', 'gold', route('platform.incoming')],
+                    ['Outgoing', $sentWaitingCount, 'sent; the next office has not received '.($sentWaitingCount === 1 ? 'it' : 'them').' yet', 'bs.send', 'blue', route('platform.outgoing')],
+                    ['Archived', $archivedCount, Str::plural('document', $archivedCount).' completed or released', 'bs.archive', 'slate', route('platform.archived')],
+                ];
             @endphp
             <ul class="dts-metrics dts-metrics-bold" aria-label="Work summary" data-metric-count="{{ count($summaryCards) }}">
                 @foreach ($summaryCards as [$label, $value, $caption, $icon, $tone, $href])

@@ -143,7 +143,7 @@ function dtsToastAfterReload(message, type = 'success') {
     try { sessionStorage.setItem('dts-toast', JSON.stringify({ message, type })); } catch { /* The page still reloads. */ }
 }
 
-document.addEventListener('turbo:load', () => {
+function showPendingDtsToast() {
     let pending = null;
     try {
         pending = JSON.parse(sessionStorage.getItem('dts-toast') || 'null');
@@ -151,7 +151,12 @@ document.addEventListener('turbo:load', () => {
     } catch { /* Storage blocked: nothing waiting. */ }
     // The toast controller may connect a moment after the page loads.
     if (pending && !dtsToast(pending.message, pending.type)) setTimeout(() => dtsToast(pending.message, pending.type), 300);
-});
+}
+
+document.addEventListener('turbo:load', showPendingDtsToast);
+// Under the Vite dev server this module can arrive after Turbo's first turbo:load, which left the toast waiting until
+// a later visit, sometimes another user's sign-in. Showing it now as well covers that load.
+showPendingDtsToast();
 
 function showDtsDialog({ type = 'confirm', title, message, confirmLabel = 'Continue', value = '', label = 'Your response', danger = false }) {
     let dialog = document.querySelector('#dts-app-dialog');
