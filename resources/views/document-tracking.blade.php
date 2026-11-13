@@ -120,13 +120,6 @@
                 <div class="mx-auto w-full max-w-6xl px-5 pt-5 sm:px-8 sm:pt-6">
                     <h2 id="photos-heading" class="text-2xl font-semibold text-slate-900 sm:text-3xl">Serving the schools of Nueva Vizcaya</h2>
                     <p class="mt-2 max-w-3xl text-base leading-7 text-slate-700">Clients can send a document to the Records Unit or track its status by number or QR code.</p>
-                    {{-- The photos drift on their own, so they need a way to stop: this button pauses them until
-                         it is pressed again. It appears only with JavaScript, and not at all for reduced motion. --}}
-                    <button type="button" data-photo-toggle aria-pressed="false" hidden class="dts-photo-toggle mt-3 inline-flex min-h-11 items-center gap-2 rounded-sm border border-province-green bg-white px-4 text-sm font-semibold text-province-green hover:bg-province-cream active:bg-province-green-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-province-green">
-                        <x-orchid-icon path="bs.pause-fill" class="size-4" data-photo-toggle-icon="pause" />
-                        <x-orchid-icon path="bs.play-fill" class="hidden size-4" data-photo-toggle-icon="play" />
-                        <span data-photo-toggle-label>Pause photos</span>
-                    </button>
                     @if ($landingPhotos->whereNotNull('url')->isNotEmpty())
                         <ul class="sr-only">@foreach ($landingPhotos->whereNotNull('url') as $photo)<li>{{ $photo['caption'] }}</li>@endforeach</ul>
                     @endif
@@ -153,21 +146,6 @@
                         @endforeach
                     </div>
                 </div>
-                <script nonce="{{ Vite::cspNonce() }}">
-                    (() => {
-                        const toggle = document.querySelector('[data-photo-toggle]');
-                        const marquee = document.querySelector('.dts-photo-marquee');
-                        if (! toggle || ! marquee || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-                        toggle.hidden = false;
-                        toggle.addEventListener('click', () => {
-                            const paused = marquee.classList.toggle('is-paused');
-                            toggle.setAttribute('aria-pressed', String(paused));
-                            toggle.querySelector('[data-photo-toggle-label]').textContent = paused ? 'Play photos' : 'Pause photos';
-                            toggle.querySelector('[data-photo-toggle-icon="pause"]').classList.toggle('hidden', paused);
-                            toggle.querySelector('[data-photo-toggle-icon="play"]').classList.toggle('hidden', ! paused);
-                        });
-                    })();
-                </script>
             </section>
 
             <section class="mx-auto w-full max-w-6xl px-5 pt-5 pb-8 sm:px-8 sm:pt-6 sm:pb-10" aria-label="How it works">

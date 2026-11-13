@@ -100,11 +100,6 @@ body {
     to { transform: translate3d(0, 0, 0); }
 }
 
-/* The Pause photos button (document-tracking.blade.php) stops the photos until it is pressed again. */
-.dts-photo-marquee.is-paused .dts-photo-track {
-    animation-play-state: paused;
-}
-
 @media (prefers-reduced-motion: reduce) {
     .dts-photo-track,
     .dts-photo-track.is-reverse {
