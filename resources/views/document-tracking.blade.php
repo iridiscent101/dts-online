@@ -103,7 +103,7 @@
                     ['file' => 'receiving', 'caption' => 'Receiving documents'],
                     ['file' => 'schools', 'caption' => 'Serving the schools of Nueva Vizcaya'],
                     ['file' => 'staff', 'caption' => 'Our staff'],
-                    ['file' => 'records', 'caption' => 'Records Unit counter'],
+                    ['file' => 'training', 'caption' => 'Division training session'],
                     ['file' => 'lobby', 'caption' => 'Waiting area'],
                     ['file' => 'offices', 'caption' => 'Division offices'],
                     ['file' => 'events', 'caption' => 'Division events'],

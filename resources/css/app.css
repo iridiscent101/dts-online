@@ -1,7 +1,6 @@
 /* Hallmark · checked: 2026-11-04 · genre: modern-minimal (inferred)
  * floor: 2 open (19 "SDO – Nueva Vizcaya" and 48 the wordmark class, both pinned by tests) · fixed: 12, 18, 26a, 26b, 27, 34, 48, 50, 54, 62, 63, 67, F1 · structural: 3 printed (3, 24b, 58)
  * built: the project · redesign: polish · v2.0.0 */
-/* Hallmark · waive 81 · one empty tile, Records Unit counter, records.jpg not in public/images/landing · the office has not supplied its Records Unit counter photo yet; the tile is replaced when the file lands */
 /* Hallmark · dismissed 74 · the slate greys are the project's own neutral scale, shared with the admin panel */
 /* Hallmark · answered F24 · the send-a-document dialog keeps its gold edge and its shadow: the edge carries the brand, the shadow lifts it off the dimmed page */
 @import 'tailwindcss';
